@@ -1,0 +1,121 @@
+#!/bin/bash
+
+function Usage () {
+  cat <<EOF
+
+ Usage:  prep_slicemoco_regressor.sh  -b ep2d_pace_132vols (for AFNI BRIK format)
+ Flags:
+  -b = base 3D+time EPI dataset you will run ICA and physio estimation upon
+  -h = this help
+
+EOF
+  exit 1
+}
+
+while getopts hb: opt; do
+  case $opt in
+    h)
+       Usage
+       exit 1
+       ;;
+    b) # base 3D+time EPI dataset to use as <basename>
+       inputdata=$OPTARG
+       ;;
+    :)
+      echo "option requires input"
+      exit 1
+      ;;
+  esac
+done
+
+if [ -z $inputdata ] ; then
+  echo "3D+time EPI dataset $inputdata must be set"
+  Usage
+  exit 1
+fi
+       
+  
+# define variables
+dims=(`3dAttribute DATASET_DIMENSIONS $inputdata+orig`)
+tdim=`3dnvals $inputdata+orig`
+zdim=${dims[2]}       
+
+# calcuate SMS factor from slice timing
+SLOMOCO_SLICE_TIMING=`cat tshiftfile.1D`
+SMSfactor=0
+for f in $SLOMOCO_SLICE_TIMING ; do
+  if [ $f == 0 ]; then
+    let "SMSfactor+=1"
+  fi
+done
+
+if [ $SMSfactor == 0 ]; then
+  echo "ERROR: slice acquisition timing does not have zero"
+  exit
+fi
+
+if [ $SMSfactor = $zdim ]; then
+  echo "ERROR: all slice acquisition timing was time-shifted to zero"
+  exit
+fi
+
+# define variables
+let zmbdim=$zdim/$SMSfactor
+let tcount=$tdim-1
+let zcount=$zmbdim-1
+let kcount=$zdim-1
+let MBcount=$SMSfactor-1    
+
+# define directory & output
+inplane_str=tempslmocoxy_afni_$inputdata/motion.allineate.slicewise_inplane
+outplane_str=tempslmoco_volslc_alg_vol_$inputdata.slicemocoxy_afni/motion.wholevol_zt
+volsli_dir=tempvolsli_afni
+mkdir $volsli_dir 
+
+# note that 3dAllnieate 1dfile output is x-/y-/z-shift and z-/x-/y-rotation, ...
+# while 3dvolreg 1dfile ouput is z-/x-/y-rot and z-/x-/y-shift and shift direction is flipped
+  
+rm -rf $volsli_dir/rm.slicemopa.1D
+for z in $(seq 0 $zcount) ; do
+  # z-rot (inplane) 
+  1dcat  $inplane_str.`printf %04d $z`.1D'[3]' > $volsli_dir/rm.temp.zrot.1D
+  # x-rot (out-of-plane)  
+  1dcat  $outplane_str.`printf %04d $z`.1D'[1]' > $volsli_dir/rm.temp.xrot.1D
+  # y-rot (out-of-plane)  
+  1dcat  $outplane_str.`printf %04d $z`.1D'[2]' > $volsli_dir/rm.temp.yrot.1D
+  # z-shift (out-of-plane) 
+  1dcat  $outplane_str.`printf %04d $z`.1D'[3]' > $volsli_dir/rm.temp.zshift.1D
+  # x-shift (inplane) 
+  1dcat  $inplane_str.`printf %04d $z`.1D'[0]' > $volsli_dir/rm.temp.xshift.1D
+  # y-shift (inplane) 
+  1dcat  $inplane_str.`printf %04d $z`.1D'[1]' > $volsli_dir/rm.temp.yshift.1D
+
+  # flipped for inplane x-/y-shift
+  rm -f $volsli_dir/rm.temp.?shift.fliped.1D  
+  1dmatcalc "&read($volsli_dir/rm.temp.xshift.1D) -1.0 * &write($volsli_dir/rm.temp.xshift.fliped.1D)" 
+  1dmatcalc "&read($volsli_dir/rm.temp.yshift.1D) -1.0 * &write($volsli_dir/rm.temp.yshift.fliped.1D)" 
+  
+  1dcat $volsli_dir/rm.temp.zrot.1D $volsli_dir/rm.temp.xrot.1D $volsli_dir/rm.temp.yrot.1D $volsli_dir/rm.temp.zshift.1D $volsli_dir/rm.temp.xshift.fliped.1D $volsli_dir/rm.temp.yshift.fliped.1D > $volsli_dir/motion_inoutofplane_zt.`printf %04d $z`.1D
+
+  1dtranspose $volsli_dir/motion_inoutofplane_zt.`printf %04d $z`.1D > $volsli_dir/rm.motion_inoutofplane_zt.`printf %04d $z`.col.1D
+done
+
+# concatenate
+cat $volsli_dir/rm.motion_inoutofplane_zt.????.col.1D > $volsli_dir/rm.slicemopa.col.1D
+
+# copy and paste for SMS
+for mb in $(seq 0 $MBcount) ; do
+  cp $volsli_dir/rm.slicemopa.col.1D $volsli_dir/rm.slicemopa.col_$mb.1D
+done
+rm -f $volsli_dir/rm.slicemopa.col.1D 
+  
+if [ $SMSfactor -gt 1 ]; then 
+  cat $volsli_dir/rm.slicemopa.col_?.1D >> $volsli_dir/rm.slicemopa.col.1D
+else
+  cp $volsli_dir/rm.slicemopa.col_0.1D $volsli_dir/rm.slicemopa.col.1D
+fi
+
+1dtranspose $volsli_dir/rm.slicemopa.col.1D $inputdata.slicemopa.1D -overwrite
+
+# cleaning up
+rm -f $volsli_dir/rm.*.1D

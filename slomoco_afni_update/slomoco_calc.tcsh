@@ -23,7 +23,7 @@ set wdir    = ""
 # all allowed slice acquisition keywords
 set all_sliacq = ( "alt+z" "asc" "des" )
 
-set slomocov   = 5                      # ver
+set slomocov   = 5.1                      # ver
 #set physiostr  = PHYSIO
 #set pesticstr  = PESTICA5
 set slomocostr = SLOMOCO$slomocov
@@ -41,6 +41,9 @@ set sliacqorder =  "" # recommend, no default: make user choose"alt+z"
 
 set DO_CLEAN     = 0                       # default: keep working dir
 set deletemeflag = 0
+
+set file_tshift      = ""     # file of tshift info
+set file_tshift_sec  = ""     # file of tshift info, needs transpose
 
 set phypes   = ""    # input dir of PESTICA regressors
 set phypmu   = ""    # input dir of physio/retroicor regressors
@@ -84,17 +87,27 @@ while ( $ac <= $#argv )
 
     # --------- opt
 
-    else if ( "$argv[$ac]" == "mb_factor" ) then
+    else if ( "$argv[$ac]" == "-file_tshift" ) then
+        if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
+        @ ac += 1
+        set file_tshift = "$argv[$ac]"
+
+    else if ( "$argv[$ac]" == "-file_tshift_sec" ) then
+        if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
+        @ ac += 1
+        set file_tshift_sec = "$argv[$ac]"
+
+    else if ( "$argv[$ac]" == "-mb_factor" ) then
         if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
         @ ac += 1
         set MBfactor = "$argv[$ac]"
 
-    else if ( "$argv[$ac]" == "cut_first_n" ) then
+    else if ( "$argv[$ac]" == "-cut_first_n" ) then
         if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
         @ ac += 1
         set nVolFirstCutOff = "$argv[$ac]"
 
-    else if ( "$argv[$ac]" == "cut_last_n" ) then
+    else if ( "$argv[$ac]" == "-cut_last_n" ) then
         if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
         @ ac += 1
         set nVolEndCutOff = "$argv[$ac]"
@@ -165,7 +178,8 @@ endif
 
 # ----- output prefix/odir/wdir
 
-# 
+echo "++ Work on output naming"
+
 if ( "${prefix}" == "" ) then
     echo "** ERROR: need to provide output name with '-prefix ..'"
     goto BAD_EXIT
@@ -197,6 +211,8 @@ endif
 
 # ----- find required dsets, and any properties
 
+echo "++ Work on input datasets"
+
 if ( "${epi}" == "" ) then
     echo "** ERROR: need to provide EPI dataset with '-dset_epi ..'"
     goto BAD_EXIT
@@ -224,6 +240,8 @@ endif
 
 # ---- check dsets that are optional, to verify (if present)
 
+echo "++ Work on optional input datasets"
+
 # these lists must have same length: input filenames and wdir
 # filenames, respectively
 set all_dset = ( "${unsatepi}" "${epi_mask}" )
@@ -247,10 +265,14 @@ foreach ii ( `seq 1 1 ${#all_dset}` )
             goto BAD_EXIT
         endif
 
-        # must have same grid as input EPI
+        # must have same grid as input EPI (NB: this command outputs 2
+        # numbers, which should both be identical)
         set same_grid = `3dinfo -same_grid "${epi}" "${dset}"`
-        if ( "${same_grid}" != "1" ) then
-            echo "** ERROR: grid mismatch between input EPI and: ${dset}"
+        if ( "${same_grid[1]}" != "1" ) then
+            echo "** ERROR: grid mismatch between input EPI (${epi})"
+            echo "   and: ${dset}."
+            echo "   The output of '3dinfo -same_all_grid ..' for these is:"
+            3dinfo -same_all_grid "${epi}" "${dset}"
             goto BAD_EXIT
         endif
 
@@ -293,6 +315,8 @@ endif
 
 # ---- apply mask (from either user or automask)
 
+echo "++ Apply mask"
+
 3dcalc                 \
     -a "${epi_mask}"   \
     -b "${epi}"        \
@@ -301,12 +325,13 @@ endif
 
 # ----- check about physio/pestica regressors, cp to wdir if present
 
+echo "++ Work on physio/pestica regressors, if input"
+
 if ( "${phypmu}" != "" && "${phypes}" != "" ) then
     echo "** ERROR: cannot have both -phypes and -phypmu"
     goto BAD_EXIT
-endif
 
-if ( "${phypmu}" != "" ) then
+else if ( "${phypmu}" != "" ) then
     if ( ! -e "${phypmu}" ) then
         echo "** ERROR: entered phypmu dir does not exist: ${phypmu}"
         goto BAD_EXIT
@@ -337,14 +362,77 @@ cat <<EOF >> ${histfile}
 EOF
 endif
 
-# ----- slice timing file info
+# ----- check for slice timing (tshift) file
 
-# *** PT: NEED TO ADD
+echo "++ Work on tshift information"
 
-# *** PT: need to add MBfactor stuff
+if ( "${file_tshift}" != "" && "${file_tshift_sec}" != "" ) then
+    # cannot have both file inputs
+    echo "** ERROR: cannot use both '-file_tshift' and '-file_tshift_sec'"
+    goto BAD_EXIT
+
+else if ( "${file_tshift}" != "" ) then
+    if ( ! -e "${file_tshift}" ) then
+        echo "** ERROR: file_tshift does not exist: ${file_tshift}"
+        goto BAD_EXIT
+    endif
+
+    # copy to wdir
+    \cp "${file_tshift}" "${owdir}/tshiftfile.1D"
+
+else if ( "${file_tshift_sec}" != "" ) then
+    if ( ! -e "${file_tshift_sec}" ) then
+        echo "** ERROR: file_tshift_sec does not exist: ${file_tshift_sec}"
+        goto BAD_EXIT
+    endif
+
+    # copy to wdir, with transpose
+    1dtranspose "${file_tshift_sec}" "${owdir}/tshiftfile.1D"
+else
+    echo "++ No tshift file from cmd line, will try to get from elsewhere." 
+
+    # try getting from other dirs
+    if ( "${phypmu}" != "" ) then
+        \cp "${owdir}/${dir_phys}/tshiftfile.1D" "${owdir}/tshiftfile.1D"
+        if ( $status ) then
+            goto BAD_EXIT
+        endif
+    else if ( "${phypes}" != "" ) then
+        \cp "${owdir}/${dir_pest}/tshiftfile.1D" "${owdir}/tshiftfile.1D"
+        if ( $status ) then
+            goto BAD_EXIT
+        endif
+    else
+        echo "++ Note that new PESTICA needs MB factor as an input"
+
+        # try to calc from MB factor
+        if ( "${MBfactor}" == "1" ) then
+            echo "++ Alternative ascending acquisition order of single band"
+            echo "   EPI is assumed."
+        else if ( `echo "${MBfactor} > 1" | bc` ) then
+            echo "++ Alternative ascending acquisition order of multi band"
+            echo "   EPI is assumed."
+        else
+            echo "** ERROR: MB factor not a number (?): ${MBfactor}"
+            goto BAD_EXIT
+        endif
+
+        echo "+++++ PT +++++"
+        echo "***** NEED TO ADD CALC HERE *********" 
+
+    endif
+
+endif
+
 
 # =======================================================================
 # =========================== ** Main work ** ===========================
+
+cat <<EOF
+
+++ Start main SLOMOCO work
+
+EOF
 
 # move to wdir to do work
 cd "${owdir}"
@@ -389,7 +477,7 @@ endif
 
 echo ""
 echo "++ DONE.  View the finished, axialized product:"
-echo "     $whereout/$fout"
+echo "     ****"
 echo ""
 
 

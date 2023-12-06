@@ -1,11 +1,11 @@
 #!/bin/tcsh
 
 set version   = "0.0";  set rev_dat   = "Sep 20, 2023"
-# + tcsh version of Wanyong Shin's SLOMOCO program
+# + tcsh version of Wanyong Shin's 'run_correction_vol_slicemocoxy_afni.sh'
 #
 # ----------------------------------------------------------------
 
-set this_prog = "run_slomoco"
+set this_prog = "adj_vol_slicemoco"
 #set tpname    = "${this_prog:gas///}"
 set here      = $PWD
 
@@ -18,43 +18,19 @@ set opref   = ""
 
 set wdir    = ""
 
-# --------------------- slomoco-specific inputs --------------------
-
-# all allowed slice acquisition keywords
-set all_sliacq = ( "alt+z" "asc" "des" )
-
-set slomocov   = 5.1                      # ver
-#set physiostr  = PHYSIO
-#set pesticstr  = PESTICA5
-set slomocostr = SLOMOCO$slomocov
-set corrstr    = slicemocoxy_afni.slomoco
-
-set moco_meth  = "W"  # 'AFNI_SLOMOCO': W -> 3dWarpDrive; A -> 3dAllineate
+# --------------------- inputs --------------------
 
 set epi      = ""   # base 3D+time EPI dataset to use to perform corrections
 set unsatepi = ""   # unsaturated EPI image, usually Scout_gdc.nii.gz
 set epi_mask = ""   # (opt) mask dset name
 set maskflag = 0    # no mask, by default
-set MBfactor = 1    # MB acceleration factor
-set nVolFirstCutOff = 0   # truncate the first few points
-set nVolEndCutOff   = 0   # no EPI volumes at the end were truncated as default
-set inplaneflag = 0 # flag to use ep2d_pace data
-set sliacqorder =  "" # recommend, no default: make user choose"alt+z"
 
-set DO_CLEAN     = 0                       # default: keep working dir
-set deletemeflag = 0
+set moco_meth   = ""  # req, one of: A, W
+set file_tshift = ""  # req, *.1D file
 
-set file_tshift      = ""     # file of tshift info
-set file_tshift_sec  = ""     # file of tshift info, needs transpose
+set DO_CLEAN = 0                       # default: keep working dir
 
-set phypes   = ""    # input dir of PESTICA regressors
-set phypmu   = ""    # input dir of physio/retroicor regressors
-set dir_phys = dir_phys   # if used, name of physio dir in wdir
-set dir_pest = dir_pest   # if used, name of pestica dir in wdir
-
-set histfile = slomoco_history.txt
-
-set do_echo  = ""
+set histfile = hist_${this_prog}.txt
 
 # ------------------- process options, a la rr ----------------------
 
@@ -72,19 +48,29 @@ while ( $ac <= $#argv )
 
     if ( "$argv[$ac]" == "-echo" ) then
         set echo
-        set do_echo = "-echo"
 
     # --------- required
 
-    else if ( "$argv[$ac]" == "-dset_epi" ) then
+    else if ( "$argv[$ac]" == "-dset_base" ) then
         if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
         @ ac += 1
         set epi = "$argv[$ac]"
 
-    else if ( "$argv[$ac]" == "-dset_unsat_epi" ) then
+    else if ( "$argv[$ac]" == "-dset_mask" ) then
         if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
         @ ac += 1
-        set unsatepi = "$argv[$ac]"
+        set epi_mask = "$argv[$ac]"
+        set maskflag = 1
+
+    else if ( "$argv[$ac]" == "-moco_meth" ) then
+        if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
+        @ ac += 1
+        set moco_meth = "$argv[$ac]"
+
+    else if ( "$argv[$ac]" == "-file_tshift" ) then
+        if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
+        @ ac += 1
+        set file_tshift = "$argv[$ac]"
 
     else if ( "$argv[$ac]" == "-prefix" ) then
         if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
@@ -95,61 +81,6 @@ while ( $ac <= $#argv )
 
     # --------- opt
 
-    else if ( "$argv[$ac]" == "-file_tshift" ) then
-        if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
-        @ ac += 1
-        set file_tshift = "$argv[$ac]"
-
-    else if ( "$argv[$ac]" == "-file_tshift_sec" ) then
-        if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
-        @ ac += 1
-        set file_tshift_sec = "$argv[$ac]"
-
-    else if ( "$argv[$ac]" == "-mb_factor" ) then
-        if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
-        @ ac += 1
-        set MBfactor = "$argv[$ac]"
-
-    else if ( "$argv[$ac]" == "-cut_first_n" ) then
-        if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
-        @ ac += 1
-        set nVolFirstCutOff = "$argv[$ac]"
-
-    else if ( "$argv[$ac]" == "-cut_last_n" ) then
-        if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
-        @ ac += 1
-        set nVolEndCutOff = "$argv[$ac]"
-
-    else if ( "$argv[$ac]" == "-dset_mask" ) then
-        if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
-        @ ac += 1
-        set epi_mask = "$argv[$ac]"
-        set maskflag = 1
-
-    else if ( "$argv[$ac]" == "-phypes" ) then
-        if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
-        @ ac += 1
-        set phypes = "$argv[$ac]"
-
-    else if ( "$argv[$ac]" == "-phypmu" ) then
-        if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
-        @ ac += 1
-        set phypmu = "$argv[$ac]"
-
-    else if ( "$argv[$ac]" == "-use_inplane" ) then
-        set inplaneflag = 1
-
-    # below, checked that only allowed keyword is used
-    else if ( "$argv[$ac]" == "-slice_acq_order" ) then
-        if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
-        @ ac += 1
-        set sliacqorder = "$argv[$ac]"
-
-    else if ( "$argv[$ac]" == "-moco_meth" ) then
-        if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
-        @ ac += 1
-        set moco_meth = "$argv[$ac]"
-
     else if ( "$argv[$ac]" == "-workdir" ) then
         if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
         @ ac += 1
@@ -157,7 +88,9 @@ while ( $ac <= $#argv )
 
         set tf = `python -c "print('/' in '${wdir}')"`
         if ( "${tf}" == "True" ) then
+            echo ""
             echo "** ERROR: '-workdir ..' is a name only, no '/' allowed"
+            echo ""
             goto BAD_EXIT
         endif
 
@@ -250,17 +183,24 @@ else
     3dcalc \
         -a "${epi}" \
         -expr 'a'   \
-        -prefix "${owdir}/epi_00"
+        -prefix "${owdir}/base_00"
 endif
 
-# ---- check dsets that are optional, to verify (if present)
+# a mask is required here.
+if ( "${epi_mask}" == "" ) then
+    echo "** ERROR: must input a mask with '-mask_dset ..'"
+    goto BAD_EXIT
+endif
 
-echo "++ Work on optional input datasets"
+
+# ---- check other expected dsets; make sure they are OK and grid matches
+
+echo "++ Work on other input datasets"
 
 # these lists must have same length: input filenames and wdir
 # filenames, respectively
-set all_dset = ( "${unsatepi}" "${epi_mask}" )
-set all_wlab = ( unsatepi_00.nii.gz mask.nii.gz )
+set all_dset = ( "${epi_mask}" )
+set all_wlab = ( mask.nii.gz )
 
 if ( ${#all_dset} != ${#all_wlab} ) then
     echo "** ERROR in script: all_set and all_wlab must have same len"
@@ -299,146 +239,6 @@ foreach ii ( `seq 1 1 ${#all_dset}` )
     endif
 end
 
-# ----- make automask, if one is not provided
-
-if ( "${epi_mask}" == "" ) then
-    echo "++ No mask provided, will make one" |& tee ${histfile}
-    # remove skull (PT: could use 3dAutomask)
-    3dSkullStrip \
-        -input "${epi}" \
-        -prefix "${owdir}/___tmp_mask0.nii.gz"
-
-    # binarize
-    3dcalc  \
-        -a "${owdir}/___tmp_mask0.nii.gz" \
-        -expr 'step(a)' \
-        -prefix "${owdir}/___tmp_mask1.nii.gz" \
-        -datum byte -nscale
-
-    # inflate mask; name must match wlab name for user mask, above
-    3dcalc \
-        -a "${owdir}/___tmp_mask1.nii.gz"  \
-        -b a+i -c a-i -d a+j -e a-j -f a+k -g a-k \
-        -expr 'amongst(1,a,b,c,d,e,f,g)' \
-        -prefix "${owdir}/mask.nii.gz"
-
-    # save name to apply
-    set epi_mask = "${owdir}/mask.nii.gz"
-    # clean a bit
-    \rm "${owdir}/___tmp*nii.gz"
-endif
-
-# ---- apply mask (from either user or automask)
-
-echo "++ Apply mask"
-
-3dcalc                 \
-    -a "${epi_mask}"   \
-    -b "${epi}"        \
-    -expr "step(a)*b"  \
-    -prefix "${owdir}/epi_00_mskd"
-
-# ----- check about physio/pestica regressors, cp to wdir if present
-
-echo "++ Work on physio/pestica regressors, if input"
-
-if ( "${phypmu}" != "" && "${phypes}" != "" ) then
-    echo "** ERROR: cannot have both -phypes and -phypmu"
-    goto BAD_EXIT
-
-else if ( "${phypmu}" != "" ) then
-    if ( ! -e "${phypmu}" ) then
-        echo "** ERROR: entered phypmu dir does not exist: ${phypmu}"
-        goto BAD_EXIT
-    endif
-    # cp to wdir, if it does exist
-    \cp -rp "${phypmu}" "${owdir}/${dir_phys}"
-
-cat <<EOF >> ${histfile}
-++ Second order SLOMOCO will be conducted with RETROICOR physio
-   regressors in ${dir_phys}
-EOF
-else if ( "${phypes}" != "" ) then
-    if ( ! -e "${phypes}" ) then
-        echo "** ERROR: entered phypes dir does not exist: ${phypes}"
-        goto BAD_EXIT
-    endif
-    # cp to wdir, if it does exist
-    \cp -rp "${phypes}" "${owdir}/${dir_pest}"
-
-cat <<EOF >> ${histfile}
-++ Second order SLOMOCO will be conducted with PESTICA physio 
-   regressors in ${dir_pest}
-EOF
-else
-cat <<EOF >> ${histfile}
-++ Second order SLOMOCO will be conducted *without* physio 
-   regressors
-EOF
-endif
-
-# ----- check for slice timing (tshift) file
-
-echo "++ Work on tshift information"
-
-if ( "${file_tshift}" != "" && "${file_tshift_sec}" != "" ) then
-    # cannot have both file inputs
-    echo "** ERROR: cannot use both '-file_tshift' and '-file_tshift_sec'"
-    goto BAD_EXIT
-
-else if ( "${file_tshift}" != "" ) then
-    if ( ! -e "${file_tshift}" ) then
-        echo "** ERROR: file_tshift does not exist: ${file_tshift}"
-        goto BAD_EXIT
-    endif
-
-    # copy to wdir
-    \cp "${file_tshift}" "${owdir}/tshiftfile.1D"
-
-else if ( "${file_tshift_sec}" != "" ) then
-    if ( ! -e "${file_tshift_sec}" ) then
-        echo "** ERROR: file_tshift_sec does not exist: ${file_tshift_sec}"
-        goto BAD_EXIT
-    endif
-
-    # copy to wdir, with transpose
-    1dtranspose "${file_tshift_sec}" "${owdir}/tshiftfile.1D"
-else
-    echo "++ No tshift file from cmd line, will try to get from elsewhere." 
-
-    # try getting from other dirs
-    if ( "${phypmu}" != "" ) then
-        \cp "${owdir}/${dir_phys}/tshiftfile.1D" "${owdir}/tshiftfile.1D"
-        if ( $status ) then
-            goto BAD_EXIT
-        endif
-    else if ( "${phypes}" != "" ) then
-        \cp "${owdir}/${dir_pest}/tshiftfile.1D" "${owdir}/tshiftfile.1D"
-        if ( $status ) then
-            goto BAD_EXIT
-        endif
-    else
-        echo "++ Note that new PESTICA needs MB factor as an input"
-
-        # try to calc from MB factor
-        if ( "${MBfactor}" == "1" ) then
-            echo "++ Alternative ascending acquisition order of single band"
-            echo "   EPI is assumed."
-        else if ( `echo "${MBfactor} > 1" | bc` ) then
-            echo "++ Alternative ascending acquisition order of multi band"
-            echo "   EPI is assumed."
-        else
-            echo "** ERROR: MB factor not a number (?): ${MBfactor}"
-            goto BAD_EXIT
-        endif
-
-        echo "+++++ PT +++++"
-        echo "***** NEED TO ADD CALC HERE *********" 
-
-    endif
-
-endif
-
 # ----- moco method has allowed value
 
 # value can only be one of a short list
@@ -449,71 +249,89 @@ if ( ${moco_meth} != "A" && \
     goto BAD_EXIT
 endif
 
+# ----- check tshift file was entered
+
+if ( "${file_tshift}" == "" ) then
+    echo "** ERROR: Must use '-file_tshift ..' to input a tshift file"
+    goto BAD_EXIT
+else 
+    if ( ! -e "${file_tshift}" ) then
+        echo "** ERROR: file_tshift does not exist: ${file_tshift}"
+        goto BAD_EXIT
+    endif
+
+    # copy to wdir
+    \cp "${file_tshift}" "${owdir}/tshiftfile.1D"
+
+endif
+
+
 # =======================================================================
 # =========================== ** Main work ** ===========================
 
 cat <<EOF
 
-++ Start main SLOMOCO work
+++ Start main ${this_prog} work
 
 EOF
 
 # move to wdir to do work
 cd "${owdir}"
 
-# ---- volumetric motion correction ("mocoafni" in original code)
+# ----- get orient and parfix info
 
-# PT: what about using MIN_OUTLIER as reference volume here? would be better***
+adjunct_slomoco_get_orient.tcsh  base_00+orig.HEAD  text_parfix.txt
 
-# calc 6 DF (rigid) alignment pars
-3dvolreg                                                                     \
-    -verbose                                                                 \
-    -prefix         epi_01_volreg+orig                                       \
-    -dfile          epi_01_volreg.txt                                        \
-    -1Dfile         epi_01_volreg.1D                                         \
-    -1Dmatrix_save  epi_01_volreg.aff12.1D                                   \
-    -maxdisp1D      epi_01_volreg.maxdisp.1D                                 \
-    -base           0                                                        \
-    -zpad           2                                                        \
-    -maxite         60                                                       \
-    -x_thresh       0.005                                                    \
-    -rot_thresh     0.008                                                    \
-    -heptic                                                                  \
-    epi_00+orig.HEAD
-
-# calc inverse alignment pars
-cat_matvec epi_01_volreg.aff12.1D -I > epi_01_volreg_INV.aff12.1D
-
-# ----- slicewise moco in xy plane
-
-if ( "${inplaneflag}" == "0" ) then
-    # script with 'vol' for inplane motion correction
-    adjunct_slomoco_vol_slicemoco_xy.tcsh  ${do_echo}                       \
-        -dset_base   epi_00+orig.HEAD                                       \
-        -dset_mask   mask.nii.gz                                            \
-        -moco_meth   ${moco_meth}                                           \
-        -file_tshift tshiftfile.1D                                          \
-        -prefix      epi_02_slicemoco_xy
-
-    if ( $status ) then
-        goto BAD_EXIT
-    endif
+if ( $status ) then
+    echo "** ERROR: could get dset orient"
+    goto BAD_EXIT
 endif
 
+# ----- define variables
+
+set dims = `3dAttribute DATASET_DIMENSIONS base_00+orig.HEAD`
+set tdim = `3dnvals base_00+orig.HEAD`
+set zdim = ${dims[2]}
+
+echo "++ Num of z-dir slices : ${zdim}"
+echo "   Num of time points  : ${tdim}"
+
+# ----- calculate SMS factor from slice timing
+
+set SLOMOCO_SLICE_TIMING = `cat tshiftfile.1D`
+set SMSfactor            = 0
+
+# count the number of zeros in slice timings to get SMS factor
+# [PT] *** probably avoid strict equality in this, bc of floating point vals?
+foreach tval ( ${SLOMOCO_SLICE_TIMING} )
+    if ( `echo "${tval} == 0" | bc` ) then
+        @ SMSfactor += 1
+    endif
+end
+
+if ( "$SMSfactor" == "0" ) then
+    echo "** ERROR: slice acquisition timing does not have any zeros"
+    goto BAD_EXIT
+else if ( "$SMSfactor" == "${zdim}" ) then
+    echo "** ERROR: slice acquisition timing was shifted to ALL zeros"
+    goto BAD_EXIT
+else
+    echo "++ Num of zeros in timing file (hence SMS factor): ${SMSfactor}"
+endif
+
+# ----- define more/useful quantities
+
+# this first quantity apparently should be the integer part of the div
+set zmbdim  = `echo "scale=0; ${zdim}/${SMSfactor}" | bc`
+@   tcount  = ${tdim} - 1
+@   zcount  = ${zmbdim} - 1
+@   kcount  = ${zdim} - 1
+@   MBcount = ${SMSfactor} - 1    
 
 
 
 
-
-
-
-
-
-
-
-
-
-
+# **** ADD MORE PARTS
 
 
 

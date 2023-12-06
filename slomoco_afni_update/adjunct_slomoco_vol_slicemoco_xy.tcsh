@@ -28,6 +28,10 @@ set maskflag = 0    # no mask, by default
 set moco_meth   = ""  # req, one of: A, W
 set file_tshift = ""  # req, *.1D file
 
+set vr_base     = ""  # opt, for setting vr_idx
+set vr_idx      = 0   # opt, but sh/could come from MIN_OUTLIER in upper scr
+set vr_mat      = ""  # req, need matrix from full volume volreg
+
 set DO_CLEAN = 0                       # default: keep working dir
 
 set histfile = hist_${this_prog}.txt
@@ -66,6 +70,16 @@ while ( $ac <= $#argv )
         if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
         @ ac += 1
         set moco_meth = "$argv[$ac]"
+
+    else if ( "$argv[$ac]" == "-volreg_base" ) then
+        if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
+        @ ac += 1
+        set vr_base = "$argv[$ac]"
+
+    else if ( "$argv[$ac]" == "-volreg_mat" ) then
+        if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
+        @ ac += 1
+        set vr_mat = "$argv[$ac]"
 
     else if ( "$argv[$ac]" == "-file_tshift" ) then
         if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
@@ -265,6 +279,43 @@ else
 
 endif
 
+# ----- volreg base
+
+# at present, there is no MIN_OUTLIER at this level; assume upper
+# script did so, if desired.
+if ( 1 ) then
+    # not be choice, but hope user entered an int
+    set max_idx = `3dinfo -nvi "${epi}"`
+    
+    if ( `echo "${vr_base} > ${max_idx}" | bc` || \
+         `echo "${vr_base} < 0" | bc` ) then
+        echo "** ERROR: allowed volreg_base range is : [0, ${max_idx}]}"
+        echo "   but the user's value is outside this: ${vr_base}"
+        goto BAD_EXIT
+    endif
+
+    # just use that number
+    set vr_idx = "${vr_base}"
+endif
+
+# ----- check volreg_mat was entered
+
+if ( "${vr_mat}" == "" ) then
+    echo "** ERROR: Must use '-volreg_mat ..' to input a volreg matrix"
+    goto BAD_EXIT
+else 
+    if ( ! -e "${vr_mat}" ) then
+        echo "** ERROR: volreg_mat does not exist: ${vr_mat}"
+        goto BAD_EXIT
+    endif
+
+    # copy to wdir
+    \cp "${vr_mat}" "${owdir}/volreg.aff12.1D"
+    # ... along with inverse
+    cat_matvec "${vr_mat}" -I > "${owdir}/volreg_INV.aff12.1D"
+
+endif
+
 
 # =======================================================================
 # =========================== ** Main work ** ===========================
@@ -327,6 +378,32 @@ set zmbdim  = `echo "scale=0; ${zdim}/${SMSfactor}" | bc`
 @   zcount  = ${zmbdim} - 1
 @   kcount  = ${zdim} - 1
 @   MBcount = ${SMSfactor} - 1    
+
+# ----- synthesize static image
+
+# one-step method to get constant 3D+t dataset, matching [vr_idx] vol
+3dcalc                                       \
+    -a      base_00+orig.HEAD                \
+    -b      base_00+orig.HEAD"[${vr_idx}]"   \
+    -expr   'b'                              \
+    -prefix base_03_static
+
+# ----- inject volume motion (and inv vol mot) on static dsets
+
+# [PT] why cubic here, and not wsinc5?
+3dAllineate \
+    -prefix         base_04_static_volmotinj \
+    -1Dmatrix_apply volreg_inv.aff12.1D      \
+    -source         base_03_static+orig.HEAD \
+    -final          cubic \
+    >& /dev/null
+
+3dAllineate \
+    -prefix         base_05_vol_pvreg \
+    -1Dmatrix_apply volreg.aff12.1D \
+    -source         base_04_static_volmotinj+orig.HEAD \
+    -final          cubic \
+    >& /dev/null
 
 
 

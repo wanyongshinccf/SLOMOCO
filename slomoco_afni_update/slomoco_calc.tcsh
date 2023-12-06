@@ -31,6 +31,9 @@ set corrstr    = slicemocoxy_afni.slomoco
 
 set moco_meth  = "W"  # 'AFNI_SLOMOCO': W -> 3dWarpDrive; A -> 3dAllineate
 
+set vr_base    = "MIN_OUTLIER" # best def; or could be an int
+set vr_idx     = -1            # will get set by vr_base in opt proc
+
 set epi      = ""   # base 3D+time EPI dataset to use to perform corrections
 set unsatepi = ""   # unsaturated EPI image, usually Scout_gdc.nii.gz
 set epi_mask = ""   # (opt) mask dset name
@@ -160,6 +163,12 @@ while ( $ac <= $#argv )
             echo "** ERROR: '-workdir ..' is a name only, no '/' allowed"
             goto BAD_EXIT
         endif
+
+    # can be int, or MIN_OUTLIER keyword
+    else if ( "$argv[$ac]" == "-volreg_base" ) then
+        if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
+        @ ac += 1
+        set vr_base = "$argv[$ac]"
 
     else if ( "$argv[$ac]" == "-do_clean" ) then
         set DO_CLEAN     = 1
@@ -449,6 +458,38 @@ if ( ${moco_meth} != "A" && \
     goto BAD_EXIT
 endif
 
+# ----- volreg base: MIN_OUTLIER
+
+if ( "${vr_base}" == "MIN_OUTLIER" ) then
+    # count outliers, as afni_proc.py would
+    3dToutcount                                           \
+        -mask ${owdir}/mask.nii.gz                        \
+        -fraction -polort 3 -legendre                     \
+        "${epi}"                                          \
+        > "${owdir}/outcount_rall.1D"
+
+    # get TR index for minimum outlier volume
+    set vr_idx = `3dTstat -argmin -prefix - "${owdir}"/outcount_rall.1D\'`
+    echo "++ MIN_OUTLIER vr_idx : $vr_idx" \
+        | tee "${owdir}/out.min_outlier.txt"
+
+else
+    # not be choice, but hope user entered an int
+    set max_idx = `3dinfo -nvi "${epi}"`
+    
+    if ( `echo "${vr_base} > ${max_idx}" | bc` || \
+         `echo "${vr_base} < 0" | bc` ) then
+        echo "** ERROR: allowed volreg_base range is : [0, ${max_idx}]}"
+        echo "   but the user's value is outside this: ${vr_base}"
+        echo "   Consider using (default, and keyword opt): MIN_OUTLIER"
+        goto BAD_EXIT
+    endif
+
+    # just use that number
+    set vr_idx = "${vr_base}"
+endif
+
+
 # =======================================================================
 # =========================== ** Main work ** ===========================
 
@@ -473,7 +514,7 @@ cd "${owdir}"
     -1Dfile         epi_01_volreg.1D                                         \
     -1Dmatrix_save  epi_01_volreg.aff12.1D                                   \
     -maxdisp1D      epi_01_volreg.maxdisp.1D                                 \
-    -base           0                                                        \
+    -base           "${vr_idx}"                                              \
     -zpad           2                                                        \
     -maxite         60                                                       \
     -x_thresh       0.005                                                    \
@@ -488,10 +529,14 @@ cat_matvec epi_01_volreg.aff12.1D -I > epi_01_volreg_INV.aff12.1D
 
 if ( "${inplaneflag}" == "0" ) then
     # script with 'vol' for inplane motion correction
+
+    echo "++ Run: adjunct_slomoco_vol_slicemoco_xy.tcsh"
     adjunct_slomoco_vol_slicemoco_xy.tcsh  ${do_echo}                       \
         -dset_base   epi_00+orig.HEAD                                       \
         -dset_mask   mask.nii.gz                                            \
         -moco_meth   ${moco_meth}                                           \
+        -volreg_base ${vr_idx}                                              \
+        -volreg_mat  epi_01_volreg.aff12.1D                                 \
         -file_tshift tshiftfile.1D                                          \
         -prefix      epi_02_slicemoco_xy
 

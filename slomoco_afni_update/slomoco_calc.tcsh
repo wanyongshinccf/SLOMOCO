@@ -1,5 +1,5 @@
 #!/bin/tcsh
-
+ 
 set version   = "0.0";  set rev_dat   = "Sep 20, 2023"
 # + tcsh version of Wanyong Shin's SLOMOCO program
 #

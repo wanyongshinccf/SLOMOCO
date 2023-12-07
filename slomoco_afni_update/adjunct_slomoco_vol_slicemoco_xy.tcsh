@@ -729,7 +729,7 @@ EOF
 
     if ( "$t" == "1" ) then
         set end_time = `date +%s.%3N`
-        set elapsed  = `echo "scale=3; (${end_time} - ${start_time}/1.0" | bc`
+        set elapsed  = `echo "scale=3; (${end_time} - ${start_time})/1.0" | bc`
         echo "++ Slicewise moco done in ${elapsed} sec per volume"
     endif
 
@@ -772,6 +772,128 @@ end  # end of t loop
 # ----- calc+report time taken
 set elapsed = `echo "scale=3; (${end_time} - ${total_start_time}/1.0" | bc`
 echo "++ Total slicewise moco done in ${elapsed} sec"
+
+# ----- concatenate outputs
+
+# [PT] why call this output "__temp_sli"?
+3dTcat \
+    -prefix __temp_sli.pvreg \
+    __temp_vol_pv.t????+orig.HEAD 
+
+# ----- normalized version of output
+
+3dTstat \
+    -mean \
+    -prefix __temp_sli.pvreg.mean \
+    __temp_sli.pvreg+orig.HEAD
+
+3dTstat \
+    -stdev \
+    -prefix __temp_sli.pvreg.std \
+    __temp_sli.pvreg+orig.HEAD
+
+3dcalc \
+    -a __temp_sli.pvreg.mean+orig.HEAD \
+    -b __temp_sli.pvreg.std+orig.HEAD \
+    -c mask.nii.gz \
+    -d __temp_sli.pvreg+orig.HEAD \
+    -expr 'step(c)*(d-a)/b' \
+    -prefix base_10_sli.pvreg 
+
+# ----- make final output dset
+3dTcat \
+    -prefix ../${opref} \
+    __temp_vol_mocoxy.t????+orig.HEAD 
+
+# clean up
+\rm -f /__temp_vol_pv.t????+orig.* \
+     __temp_vol_mocoxy.t????+orig.*
+
+
+# --------------------------------------------------------------------------
+# let's play with motion parameters here 
+
+# ----- make motion parameter time series file
+
+# start of file name and comment
+set mot_inplane_mat = motion.allineate.slicewise_inplane.header.1D
+cat <<EOF >> ${mot_inplane_mat}
+# null 3dAllineate/3dWarpdrive parameters:
+#  x-shift  y-shift  z-shift z-angle  x-angle y-angle x-scale y-scale z-scale y/x-shear z/x-shear z/y-shear
+EOF
+
+# loop over each z-slice: 0-based count
+foreach z ( `seq 0 1 ${zcount}` )
+    set zzz = `printf "%04d" $z`
+
+    # flip motion param 1D file for concatenation;
+    # loop over each subbrick: 0-based count
+    foreach t ( `seq 0 1 ${tcount}` )
+        set ttt   = `printf "%04d" $t`
+        set bname = "motion.allineate.slicewise_inplane.z${zzz}.t${ttt}"
+
+        # copy to temp file
+        1dcat ${bname}.1D > rm.inplane.add.1D
+        # transpose
+        1dtranspose rm.inplane.add.1D > rm.inplane.add.col.t${ttt}.1D
+
+        # copy
+        1dcat ${bname}.aff12.1D > rm.inplane.add.1D
+        # transpose 
+        1dtranspose rm.inplane.add.1D > rm.inplane.add.col.t${ttt}.aff12.1D
+    end  # end of t loop
+
+    # ----- concatenate rigid motion (6 par)
+
+    # NB: 3dAllineate's 1D file is: x-/y-/z-shift, z-/x-/y-rotation, ...,
+    # while 3dvolreg's 1D file is : z-/x-/y-rot, z-/x-/y-shift, and the shift
+    # direction is flipped.
+    # We store the inplane 1D file from 3dWarpDrive (3dAllineate),
+    # while out-of-plane motion from 3dvolreg motion params are used
+    # as regressors so that direction does not matter. The flipped
+    # direction of x-/y-/z-shift and 3dAllineate's convention will be
+    # handled in pre_slicemoco_regressor.sh and qa_slomoco.m
+
+    # concatenate over time (1D file)
+    1dcat rm.inplane.add.col.t????.1D \
+        > rm.motion.allineate.slicewise_inplane.col.1D
+    # ... and transpose from column
+    1dtranspose rm.motion.allineate.slicewise_inplane.col.1D \
+        > rm.motion.allineate.slicewise_inplane.1D
+    # dump to text file
+    # [PT] put letter 'z' before zzz variable here, like done above?
+    cat ${mot_inplane_mat} \
+        rm.motion.allineate.slicewise_inplane.1D \
+        > motion.allineate.slicewise_inplane.${zzz}.1D 
+
+    # concatenate over time (aff12 1D file)
+    1dcat rm.inplane.add.col.t????.aff12.1D \
+        > rm.motion.allineate.slicewise_inplane.col.aff12.1D
+    # ... and transpose from column
+    1dtranspose rm.motion.allineate.slicewise_inplane.col.aff12.1D \
+        > rm.motion.allineate.slicewise_inplane.aff12.1D
+    # format nicely for text file
+    # [PT] put letter 'z' before zzz variable here, like done above?
+    1d_tool.py \
+        -overwrite \
+        -infile rm.motion.allineate.slicewise_inplane.aff12.1D \
+        -write motion.allineate.slicewise_inplane.${zzz}.aff12.1D
+              
+    # clean up
+    \rm -f rm.*.1D
+
+end  # end of z loop
+
+# another clean up
+\rm -f __temp_* motion.allineate.slicewise_inplane.z????.t????*1D  
+\rm -f rm.*aff12.1D 
+
+
+
+
+
+
+
 
 
 # **** ADD MORE PARTS

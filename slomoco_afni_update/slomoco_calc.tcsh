@@ -479,7 +479,7 @@ else
     
     if ( `echo "${vr_base} > ${max_idx}" | bc` || \
          `echo "${vr_base} < 0" | bc` ) then
-        echo "** ERROR: allowed volreg_base range is : [0, ${max_idx}]}"
+        echo "** ERROR: allowed volreg_base range is : [0, ${max_idx}]"
         echo "   but the user's value is outside this: ${vr_base}"
         echo "   Consider using (default, and keyword opt): MIN_OUTLIER"
         goto BAD_EXIT

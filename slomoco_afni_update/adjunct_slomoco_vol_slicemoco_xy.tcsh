@@ -23,7 +23,6 @@ set wdir    = ""
 set epi      = ""   # base 3D+time EPI dataset to use to perform corrections
 set unsatepi = ""   # unsaturated EPI image, usually Scout_gdc.nii.gz
 set epi_mask = ""   # (opt) mask dset name
-set maskflag = 0    # no mask, by default
 
 set moco_meth   = ""  # req, one of: A, W
 set file_tshift = ""  # req, *.1D file
@@ -64,7 +63,6 @@ while ( $ac <= $#argv )
         if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
         @ ac += 1
         set epi_mask = "$argv[$ac]"
-        set maskflag = 1
 
     else if ( "$argv[$ac]" == "-moco_meth" ) then
         if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
@@ -200,12 +198,12 @@ else
         -prefix "${owdir}/base_00"
 endif
 
-# a mask is required here.
+# ----- mask is required input
+
 if ( "${epi_mask}" == "" ) then
-    echo "** ERROR: must input a mask with '-mask_dset ..'"
+    echo "** ERROR: must input a mask with '-dset_mask ..'"
     goto BAD_EXIT
 endif
-
 
 # ---- check other expected dsets; make sure they are OK and grid matches
 
@@ -261,6 +259,10 @@ if ( ${moco_meth} != "A" && \
     echo "** ERROR: bad moco method selected; must be one of: A, W."
     echo "   User provided: '${moco_meth}'"
     goto BAD_EXIT
+else if ( ${moco_meth} == "A" ) then
+    set moco_prog = 3dAllineate
+else if ( ${moco_meth} == "W" ) then
+    set moco_prog = 3dWarpDrive
 endif
 
 # ----- check tshift file was entered
@@ -313,7 +315,8 @@ else
     \cp "${vr_mat}" "${owdir}/volreg.aff12.1D"
     # ... along with inverse
     cat_matvec "${vr_mat}" -I > "${owdir}/volreg_INV.aff12.1D"
-
+    # ... and a transposed ver
+    1dtranspose "${vr_mat}" > "${owdir}/volreg.aff12.T.1D"
 endif
 
 
@@ -329,8 +332,9 @@ EOF
 # move to wdir to do work
 cd "${owdir}"
 
-# ----- get orient and parfix info
+# ----- get orient and parfix info 
 
+# create ...
 adjunct_slomoco_get_orient.tcsh  base_00+orig.HEAD  text_parfix.txt
 
 if ( $status ) then
@@ -338,11 +342,14 @@ if ( $status ) then
     goto BAD_EXIT
 endif
 
+# ... and read back in and store
+set parfixline = `cat text_parfix.txt`
+
 # ----- define variables
 
 set dims = `3dAttribute DATASET_DIMENSIONS base_00+orig.HEAD`
 set tdim = `3dnvals base_00+orig.HEAD`
-set zdim = ${dims[2]}
+set zdim = ${dims[3]}                           # tcsh uses 1-based counting
 
 echo "++ Num of z-dir slices : ${zdim}"
 echo "   Num of time points  : ${tdim}"
@@ -374,38 +381,397 @@ endif
 
 # this first quantity apparently should be the integer part of the div
 set zmbdim  = `echo "scale=0; ${zdim}/${SMSfactor}" | bc`
-@   tcount  = ${tdim} - 1
-@   zcount  = ${zmbdim} - 1
+@   tcount  = ${tdim} - 1                      # is for 0-based subbrick sel
+@   zcount  = ${zmbdim} - 1                    # is for 0-based slice sel
 @   kcount  = ${zdim} - 1
-@   MBcount = ${SMSfactor} - 1    
+@   MBcount = ${SMSfactor} - 1                 # this should keep '- 1'
 
-# ----- synthesize static image
+# ----- synthesize static images
 
 # one-step method to get constant 3D+t dataset, matching [vr_idx] vol
 3dcalc                                       \
     -a      base_00+orig.HEAD                \
     -b      base_00+orig.HEAD"[${vr_idx}]"   \
     -expr   'b'                              \
-    -prefix base_03_static
+    -prefix base_03_static                   \
+    >& /dev/null
+
+# one-step method to get constant 3D+t mask dataset
+3dcalc                                       \
+    -a      base_00+orig.HEAD                \
+    -b      mask.nii.gz                      \
+    -expr   'b'                              \
+    -prefix base_03_mask                     \
+    >& /dev/null
 
 # ----- inject volume motion (and inv vol mot) on static dsets
 
 # [PT] why cubic here, and not wsinc5?
-3dAllineate \
+3dAllineate                                  \
     -prefix         base_04_static_volmotinj \
     -1Dmatrix_apply volreg_inv.aff12.1D      \
     -source         base_03_static+orig.HEAD \
-    -final          cubic \
+    -final          cubic                    \
     >& /dev/null
 
-3dAllineate \
-    -prefix         base_05_vol_pvreg \
-    -1Dmatrix_apply volreg.aff12.1D \
+# [PT] really use cubic here? output mask won't be binary; but later,
+# I see we put "step()" on it, so might be OK
+3dAllineate                                  \
+    -prefix         base_04_mask_volmotinj   \
+    -1Dmatrix_apply volreg_inv.aff12.1D      \
+    -source         base_03_mask+orig.HEAD   \
+    -final          cubic                    \
+    >& /dev/null
+
+3dcalc                                            \
+    -a       base_04_static_volmotinj+orig.HEAD   \
+    -b       base_04_mask_volmotinj+orig.HEAD     \
+    -expr    'a*step(b)'                          \
+    -prefix  base_05_vol_wt_ts
+
+# ----- normalize vol pv regressor
+
+# [PT] isn't this just a blurry version of base_03?
+3dAllineate                                  \
+    -prefix         base_06_vol_pvreg        \
+    -1Dmatrix_apply volreg.aff12.1D          \
     -source         base_04_static_volmotinj+orig.HEAD \
-    -final          cubic \
+    -final          cubic                    \
+    >& /dev/null
+
+3dTstat                                      \
+    -mean                                    \
+    -prefix base_06_vol_pvreg_MEAN           \
+    base_06_vol_pvreg+orig.HEAD              \
+    >& /dev/null
+
+3dTstat                                      \
+    -stdev                                   \
+    -prefix base_06_vol_pvreg_STD            \
+    base_06_vol_pvreg+orig.HEAD              \
+    >& /dev/null
+
+3dcalc \
+    -a base_06_vol_pvreg_MEAN+orig.HEAD      \
+    -b base_06_vol_pvreg_STD+orig.HEAD       \
+    -c mask.nii.gz                           \
+    -d base_06_vol_pvreg+orig.HEAD           \
+    -expr 'step(c)*(d-a)/b'                  \
+    -prefix base_07_vol_pvreg_norm+orig.HEAD \
     >& /dev/null
 
 
+# ----- define non-zero voxel threshold
+
+set delta = `3dinfo -ad3 base_00+orig.HEAD`    # get abs of signed vox dims
+set xdim  = ${delta[1]}                        # tcsh uses 1-based counting
+set ydim  = ${delta[2]}
+
+# now 5cm x 5cm is the minimal size of 2d image to attempt image registration.
+set nspace_min = 2500
+set nvox_min   = `echo "${nspace_min}/${xdim}/${ydim}" | bc`
+
+echo "++ Setting nvox_min to (units: mm**2): $nvox_min"
+
+# ---------------------------------------------------------------------------
+
+# new starts
+
+set total_start_time = `date +%s.%3N`
+
+# loop over each subbrick: 0-based count
+foreach t ( `seq 0 1 ${tcount}` )
+    set ttt = `printf "%04d" $t`
+    set start_time = `date +%s.%3N`
+
+    # ----- select the reference volume
+    3dcalc \
+        -overwrite                            \
+        -a         "base_04_static_volmotinj+orig.HEAD[$t]" \
+        -expr      'a' \
+        -prefix    __temp_vol_base  #\
+        #>& /dev/null
+
+    # orig/input dset 
+    3dcalc \
+        -overwrite                            \
+        -a         "base_00+orig.HEAD[$t]"    \
+        -expr      'a' \
+        -prefix    __temp_vol_input #\
+        #>& /dev/null
+
+    # masked motion-shifted vol
+    3dcalc \
+        -overwrite                            \
+        -a         "base_05_vol_wt_ts+orig.HEAD[$t]" \
+        -expr      'a' \
+        -prefix    __temp_vol_weight #\
+        #>& /dev/null
+
+    # ----- select single time point of 3dvolreg transformation matrix
+
+    1d_tool.py                               \
+        -overwrite                           \
+        -infile   "volreg.aff12.T.1D[$t]"    \
+        -write    rm.vol.col.aff12.1D 
+
+    1dtranspose rm.vol.col.aff12.1D > rm.vol.aff12.1D 
+
+    # loop over each z-slice: 0-based count
+    foreach z ( `seq 0 1 ${zcount}` )
+        set zzz   = `printf "%04d" $z`
+        set bname = "motion.allineate.slicewise_inplane.z${zzz}.t${ttt}"
+        set zsimults = ""
+        set kstart   = 1
+
+        # [PT] below, this appears to assume that 'mb' will only ever
+        # be single digit. Are we *sure* about this?
+        foreach mb ( `seq 0 1 ${MBcount}` )   # really starts at 0
+            # update slice index
+            set k = `echo "${mb} * ${zmbdim} + ${z}" | bc`
+            set zsimults = "${zsimults} $k"   # updating+accumulating
+
+            # [PT] maybe come back and zeropad these mb-based names?
+
+            # split off each slice
+            3dZcutup \
+                -keep $k $k \
+                -prefix __temp_slc_$mb \
+                __temp_vol_input+orig.HEAD  #\
+                #>& /dev/null
+
+            3dZcutup \
+                -keep $k $k \
+                -prefix __temp_slc_base_$mb \
+                __temp_vol_base+orig.HEAD #\
+                #>& /dev/null
+
+            3dZcutup \
+                -keep $k $k \
+                -prefix __temp_slc_weight_$mb \
+                __temp_vol_weight+orig.HEAD  # \
+                #>& /dev/null
+        end  # end mb loop
+
+        # [PT] not *sure* this if condition is needed?
+        if ( `echo "${SMSfactor} > 1" | bc` ) then
+            3dZcat \
+                -overwrite \
+                -prefix __temp_slc \
+                __temp_slc_?+orig.HEAD 
+
+            3dZcat \
+                -overwrite \
+                -prefix __temp_slc_base  \
+                __temp_slc_base_?+orig.HEAD 
+                
+            3dZcat \
+                -overwrite \
+                -prefix __temp_slc_weight \
+                __temp_slc_weight_?+orig.HEAD 
+        else
+            3dcopy \
+                -overwrite \
+                __temp_slc_0+orig.HEAD  \
+                __temp_slc 
+
+            3dcopy \
+                -overwrite \
+                __temp_slc_base_0+orig.HEAD  \
+                __temp_slc_base 
+
+            3dcopy \
+                -overwrite \
+                __temp_slc_weight_0+orig.HEAD  \
+                __temp_slc_weight
+        endif
+
+        # clean a bit
+        \rm -f  __temp_slc_?+orig.*         \
+                __temp_slc_base_?+orig.*    \
+                __temp_slc_weight_?+orig.* 
+
+        # -----  get number of nonzero voxels (test below)
+        set nvox_nz = `3dBrickStat -non-zero -count \
+                            __temp_slc_weight+orig.HEAD`
+
+        # ----- disp some info in first loop
+        if ( "$t" == "1" ) then
+            echo "++ Num slices to simultaneously analyze: ${zsimults}"
+      
+            if ( `echo "${nvox_nz} < ${nvox_min}" | bc` ) then
+                echo "+* WARN: too few nonzero voxels      : ${nvox_nz}"
+                echo "   Wanted to have at least this many : ${nvox_min}"
+                echo "   Null ${moco_prog} matrix will be generated"
+                echo "   You can modify nvox_min if necessary"
+                echo "   (def area: ${nspace_min} mm**2)"
+            endif
+        else
+            if ( "$z" == "1" ) then
+                echo "++ Proc first slice of vol: ${t}"
+            endif
+        endif
+
+        # ----- alignment
+
+        if ( `echo "${nvox_nz} >= ${nvox_min}" | bc` ) then
+            if ( "${moco_meth}" == "W" ) then
+                # [PT] what cost should be used here? specify explicitly
+                3dWarpDrive \
+                    -overwrite \
+                    -affine_general -cubic -final cubic -maxite 300 -thresh 0.005 \
+                    -prefix        __temp_9999 \
+                    -base          __temp_slc_base+orig.HEAD  \
+                    -input         __temp_slc+orig.HEAD \
+                    -weight        __temp_slc_weight+orig.HEAD \
+                    -1Dfile        ${bname}.1D \
+                    -1Dmatrix_save ${bname}.aff12.1D \
+                    ${parfixline} \
+                    >& /dev/null
+
+                if ( $status ) then
+                    echo "** ERROR: failed in $moco_metho alignment"
+                    goto BAD_EXIT
+                endif
+            else if ( "${moco_meth}" == "A" ) then
+                3dAllineate \
+                    -overwrite \
+                    -interp cubic -final cubic -cost ls -conv 0.005 -onepass \
+                    -prefix        __temp_9999 \
+                    -base          __temp_slc_base+orig.HEAD  \
+                    -input         __temp_slc+orig.HEAD \
+                    -weight        __temp_slc_weight+orig.HEAD \
+                    -1Dfile        ${bname}.1D \
+                    -1Dmatrix_save ${bname}.aff12.1D \
+                    ${parfixline} \
+                    >& /dev/null
+
+                if ( $status ) then
+                    echo "** ERROR: failed in $moco_metho alignment"
+                    goto BAD_EXIT
+                endif
+            endif
+        else
+            # this is the null case: create null data and 1D files
+            3dcalc \
+                -overwrite \
+                -a __temp_slc+orig \
+                -expr 'a' \
+                -prefix __temp_9999 \
+                >& /dev/null
+
+# NB: do *not* indent these cats
+cat <<EOF > ${bname}.aff12.1D
+# null 3dAllineate matrix
+1 0 0 0 0 1 0 0 0 0 1 0
+EOF
+
+# [PT] what are the dollar signs doing here? **have removed for now**
+cat <<EOF > ${bname}.1D
+# null 3dAllineate/3dWarpDrive parameters:
+#  x-shift  y-shift  z-shift z-angle  x-angle y-angle x-scale y-scale z-scale y/x-shear z/x-shear z/y-shear
+0 0 0 0 0 0 1 1 1 0 0 0
+EOF
+        endif
+
+        # -----  generate partial volume regressors, and apply
+
+        cat_matvec ${bname}.aff12.1D    > rm.sli.aff12.1D
+        cat_matvec ${bname}.aff12.1D -I > rm.sli.inv.aff12.1D
+
+        3dAllineate \
+            -overwrite \
+            -prefix            __temp_slc_pvreg1 \
+            -1Dmatrix_apply    rm.sli.inv.aff12.1D \
+            -source            __temp_slc_base+orig.HEAD \
+            -final linear \
+            >& /dev/null
+
+        3dAllineate \
+            -overwrite \
+            -prefix            __temp_slc_pvreg2 \
+            -1Dmatrix_apply    rm.sli.aff12.1D \
+            -source            __temp_slc_pvreg1+orig.HEAD \
+            -final linear \
+            >& /dev/null
+    
+        if ( -f __temp_9999+orig.HEAD ) then
+
+            # ----- break down
+
+            foreach mb ( `seq 0 1 ${MBcount}` )   # really starts at 0
+                set k    = `echo "${mb} * ${zmbdim} + ${z}" | bc`
+                set kstr = `printf %04d $k`
+
+                3dZcutup \
+                    -keep $mb $mb \
+                    -prefix __temp_slc_mocoxy.z${kstr} \
+                    __temp_9999+orig.HEAD  \
+                    >& /dev/null
+                3dZcutup \
+                    -keep $mb $mb \
+                    -prefix  __temp_slc_pvreg.z${kstr} \
+                    __temp_slc_pvreg2+orig.HEAD  \
+                    >& /dev/null
+            end
+        else
+            echo "** ERROR: in ${this_prog}"
+            echo "   Unexpected error: Welcome to the coding world."
+            goto BAD_EXIT
+        endif
+
+        # clean
+        
+        \rm __temp_9999+orig.* __temp_slc_pvreg?+orig.* 
+        \rm __temp_slc+orig.*  __temp_slc_base+orig.*   __temp_slc_weight+orig.*   
+
+    end  # end of z loop
+
+    if ( "$t" == "1" ) then
+        set end_time = `date +%s.%3N`
+        set elapsed  = `echo "scale=3; (${end_time} - ${start_time}/1.0" | bc`
+        echo "++ Slicewise moco done in ${elapsed} sec per volume"
+    endif
+
+    # ----- stack up slice images to volume image
+    3dZcat \
+        -prefix __temp_vol_pv+orig \
+        __temp_slc_pvreg.z????+orig.HEAD \
+        >& /dev/null
+
+    3dZcat \
+        -prefix __temp_vol_mocoxy+orig \
+        __temp_slc_mocoxy.z????+orig.HEAD \
+        >& /dev/null
+
+    # clean
+    \rm __temp_slc_pvreg.z????+orig.* __temp_slc_mocoxy.z????+orig.*
+
+    # ----- move volume image back to baseline
+    
+    3dAllineate \
+        -overwrite \
+        -prefix __temp_vol_pv.t${ttt} \
+        -1Dmatrix_apply rm.vol.aff12.1D \
+        -source __temp_vol_pv+orig.HEAD \
+        -final cubic \
+        >& /dev/null
+
+    3dAllineate \
+        -overwrite \
+        -prefix __temp_vol_mocoxy.t${ttt} \
+        -1Dmatrix_apply rm.vol.aff12.1D \
+        -final cubic \
+        -input __temp_vol_mocoxy+orig.HEAD \
+        >& /dev/null
+
+    \rm     __temp_vol_pv+orig.* __temp_vol_mocoxy+orig.*
+
+end  # end of t loop
+
+# ----- calc+report time taken
+set elapsed = `echo "scale=3; (${end_time} - ${total_start_time}/1.0" | bc`
+echo "++ Total slicewise moco done in ${elapsed} sec"
 
 
 # **** ADD MORE PARTS

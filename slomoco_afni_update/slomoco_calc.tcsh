@@ -5,18 +5,19 @@ set version   = "0.0";  set rev_dat   = "Sep 20, 2023"
 #
 # ----------------------------------------------------------------
 
-set this_prog = "run_slomoco"
-#set tpname    = "${this_prog:gas///}"
-set here      = $PWD
+# -------------------- set environment vars -----------------------
+
+setenv AFNI_MESSAGE_COLORIZE     NO         # so all text is simple b/w
 
 # ----------------------- set defaults --------------------------
 
-set prefix  = ""
+set this_prog = "run_slomoco"
+set here      = $PWD
 
-set odir    = $here
-set opref   = ""
-
-set wdir    = ""
+set prefix    = ""
+set odir      = $here
+set opref     = ""
+set wdir      = ""
 
 # --------------------- slomoco-specific inputs --------------------
 
@@ -538,7 +539,8 @@ if ( "${inplaneflag}" == "0" ) then
         -volreg_base ${vr_idx}                                              \
         -volreg_mat  epi_01_volreg.aff12.1D                                 \
         -file_tshift tshiftfile.1D                                          \
-        -prefix      epi_02_slicemoco_xy
+        -prefix      epi_02_slicemoco_xy                                    \
+        |& tee       log_adjunct_slomoco_vol_slicemoco_xy.txt
 
     if ( $status ) then
         goto BAD_EXIT

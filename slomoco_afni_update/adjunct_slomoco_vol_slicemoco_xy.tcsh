@@ -5,6 +5,7 @@ set version   = "0.0";  set rev_dat   = "Sep 20, 2023"
 #
 # ----------------------------------------------------------------
 
+set this_prog_full = "adjunct_slomoco_vol_slicemoco_xy.tcsh"
 set this_prog = "adj_vol_slicemoco"
 #set tpname    = "${this_prog:gas///}"
 set here      = $PWD
@@ -770,7 +771,7 @@ EOF
 end  # end of t loop
 
 # ----- calc+report time taken
-set elapsed = `echo "scale=3; (${end_time} - ${total_start_time}/1.0" | bc`
+set elapsed = `echo "scale=3; (${end_time} - ${total_start_time})/1.0" | bc`
 echo "++ Total slicewise moco done in ${elapsed} sec"
 
 # ----- concatenate outputs
@@ -792,6 +793,7 @@ echo "++ Total slicewise moco done in ${elapsed} sec"
     -prefix __temp_sli.pvreg.std \
     __temp_sli.pvreg+orig.HEAD
 
+# [PT] maybe add "norm" to name here?
 3dcalc \
     -a __temp_sli.pvreg.mean+orig.HEAD \
     -b __temp_sli.pvreg.std+orig.HEAD \
@@ -800,15 +802,43 @@ echo "++ Total slicewise moco done in ${elapsed} sec"
     -expr 'step(c)*(d-a)/b' \
     -prefix base_10_sli.pvreg 
 
-# ----- make final output dset
+# ----- make final output dset (locally)
+
 3dTcat \
-    -prefix ../${opref} \
+    -prefix base_11_vol_mocoxy  \
     __temp_vol_mocoxy.t????+orig.HEAD 
+
+# ----- update header info in new dsets
+
+set all_atr  = ( TAXIS_NUMS TAXIS_FLOATS )
+set all_dset = ( base_11_vol_mocoxy+orig.HEAD     \
+                 base_10_sli.pvreg+orig.HEAD      \
+                 base_07_vol_pvreg_norm+orig.HEAD )
+
+foreach dset ( ${all_dset} )
+    # copy over and save t-axis nums and floats to new dsets
+    foreach atr ( ${all_atr} ) 
+        3drefit -saveatr -atrcopy base_00+orig.HEAD ${atr} ${dset}
+    end
+
+    # add slice timing info to new dsets
+    3drefit -Tslices `cat tshiftfile.1D` ${dset}
+end
+
+# add notes
+3dNotes -h "${this_prog_full} ${argv}"                            base_11_vol_mocoxy+orig.HEAD
+3dNotes -h "Time series vol-/sli-motion partial volume regressor" base_10_sli.pvreg+orig.HEAD 
+3dNotes -h "Time series volume motion partial volume regressor"   base_07_vol_pvreg_norm+orig.HEAD
+
+# ----- *** write primary output to main output location ***
+
+3dcopy     \
+    base_11_vol_mocoxy+orig.HEAD \
+    ../${opref}
 
 # clean up
 \rm -f /__temp_vol_pv.t????+orig.* \
      __temp_vol_mocoxy.t????+orig.*
-
 
 # --------------------------------------------------------------------------
 # let's play with motion parameters here 
@@ -886,19 +916,8 @@ end  # end of z loop
 
 # another clean up
 \rm -f __temp_* motion.allineate.slicewise_inplane.z????.t????*1D  
-\rm -f rm.*aff12.1D 
-
-
-
-
-
-
-
-
-
-# **** ADD MORE PARTS
-
-
+# [PT] will this clean be necessary, given one a few lines up?
+####\rm -f rm.*aff12.1D 
 
 # ---------------------------------------------------------------------
 
@@ -907,24 +926,18 @@ cd ..
 set whereout = $PWD
 
 if ( $DO_CLEAN == 1 ) then
-    echo ""
     echo "+* Removing temporary axialization working dir: '$wdir'"
-    echo ""
 
     # ***** clean
 
 else
-    echo ""
     echo "++ NOT removing temporary axialization working dir: '$wdir'"
-    echo ""
 endif
 
 echo ""
-echo "++ DONE.  View the finished, axialized product:"
-echo "     ****"
+echo "++ DONE.  Finished slicewise in-plane motion correction:"
+echo "     ${owdir}/${opref}*"
 echo ""
-
-
 
 
 goto GOOD_EXIT

@@ -91,7 +91,7 @@ function Usage () {
          <input file name>.slicemocoxy_afni.slomoco.pestica.errt
            residual time-series after slicewise motion correction, motion/physio regress-out and detrending  
 	
-         slomoco.TDmetric.txt & slomoco.TDzmetric.txt
+         slomoco.TDmetric.txt & slomoco.TDzmetric.txt    
            slicewise motion index parameter - used as an outlier (see Bealls and Mark's paper, 2014) 
 
 EOF

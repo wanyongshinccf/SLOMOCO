@@ -1,59 +1,76 @@
-#!/bin/bash
+#!/bin/tcsh
 
+set epi = ""
+set epi_mask = ""
+set prefix_vr = ""
+set prefix_pv = "vol_pvreg"
+set refvol = 0
+# ------------------- process options, a la rr ----------------------
 
-function Usage () {
-  cat <<EOF
+if ( $#argv == 0 ) goto SHOW_HELP
 
- Usage:  gen_vol_pvreg.sh  -i epi  (for AFNI BRIK format)
- Flags:
-  -b = base 3D+time EPI dataset you will run ICA and physio estimation upon
-  -p = 3D+time EPI dataset you will save the output as
-  -h = this help
+set ac = 1
+while ( $ac <= $#argv )
+    # terminal options
+    if ( ("$argv[$ac]" == "-h" ) || ("$argv[$ac]" == "-help" )) then
+        goto SHOW_HELP
+    endif
+    if ( "$argv[$ac]" == "-ver" ) then
+        goto SHOW_VERSION
+    endif
 
-EOF
-  exit 1
-}
+    if ( "$argv[$ac]" == "-echo" ) then
+        set echo
+        set do_echo = "-echo"
 
-epi=""
-pvreg="epi_vol_pvreg" # default
-while getopts hi:p:m: opt; do
-  case $opt in
-    h)
-       Usage
-       exit 1
-       ;;
-    i) # input 3D+time EPI dataset to use as <basename>
-       epi=$OPTARG
-       ;;
-    p) # set output dataname prefix (default if not specified is the <basefilename>.slicemocoxy)
-       pvreg=$OPTARG
-       ;;
-    m) # single time point of mask 
-       epi_mask=$OPTARG
-       ;;
-    :)
-      echo "option requires input"
-      exit 1
-      ;;
-  esac
-done
+    # --------- required
 
-# handling input/output
-if [ ${epi} == "" ]; then
-  echo "** ERROR: Missing input data"
-  exit
-fi
+    else if ( "$argv[$ac]" == "-dset_epi" ) then
+        if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
+        @ ac += 1
+        set epi = "$argv[$ac]"
+
+    else if ( "$argv[$ac]" == "-prefix_vr" ) then
+        if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
+        @ ac += 1
+        set prefix_vr = "$argv[$ac]"
+
+    else if ( "$argv[$ac]" == "-prefix_pv" ) then
+        if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
+        @ ac += 1
+        set prefix_pv = "$argv[$ac]"
+
+    else if ( "$argv[$ac]" == "-vr_idx" ) then
+        if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
+        @ ac += 1
+        set refvol = "$argv[$ac]"
+
+    else if ( "$argv[$ac]" == "-dset_mask" ) then
+        if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
+        @ ac += 1
+        set epi_mask = "$argv[$ac]"
+        set maskflag = 1
+        
+    else
+        echo ""
+        echo "** ERROR: unexpected option #$ac = '$argv[$ac]'"
+        echo ""
+        goto BAD_EXIT
+        
+    endif
+    @ ac += 1
+end
 
 
 # calc 6 DF (rigid) alignment pars
 3dvolreg                                                                     \
     -verbose                                                                 \
-    -prefix         epi_volreg                                       \
-    -dfile          epi_volreg.txt                                        \
-    -1Dfile         epi_volreg.1D                                         \
-    -1Dmatrix_save  epi_volreg.aff12.1D                                   \
-    -maxdisp1D      epi_volreg.maxdisp.1D                                 \
-    -base           0                                                        \
+    -prefix         "${prefix_vr}"                                       \
+    -dfile          "${prefix_vr}"_volreg.txt                                        \
+    -1Dfile         "${prefix_vr}"_volreg.1D                                         \
+    -1Dmatrix_save  "${prefix_vr}"_volreg.aff12.1D                                   \
+    -maxdisp1D      "${prefix_vr}"_volreg.maxdisp.1D                                 \
+    -base           "${refvol}"                                              \
     -zpad           2                                                        \
     -maxite         60                                                       \
     -x_thresh       0.005                                                    \
@@ -62,35 +79,39 @@ fi
     ${epi}
 
 # inverse affine matrix
-cat_matvec epi_volreg.aff12.1D -I > epi_volreg_INV.aff12.1D
+cat_matvec "${prefix_vr}"_volreg.aff12.1D -I > "${prefix_vr}"_volreg_INV.aff12.1D
 
 # generating motsim
-tdim=`3dnvals ${epi}`
-let tcount=$tdim-1
+set tdim = `3dnvals ${epi}`
+set t = 0
+while ( $t < $tdim ) 
+  set tttt   = `printf "%04d" $t`
+  3dcalc -a ${epi}'[0]' -expr 'a' -prefix ___temp_static.${tttt}+orig >& /dev/null
+  3dcalc -a ${epi_mask} -expr 'a' -prefix ___temp_mask.${tttt}+orig  >& /dev/null
+  @ t++ 
+end
 
-for t in $(seq 0 $tcount) ; do
-  3dcalc -a ${epi}'[0]' -expr 'a' -prefix ___temp_static.`printf %04d $t`+orig  > /dev/null 2>&1
-  3dcalc -a ${epi_mask} -expr 'a' -prefix ___temp_mask.`printf %04d $t`+orig    > /dev/null 2>&1
-done
+# concatenate mask and static image
+3dTcat -prefix ___temp_mask+orig   ___temp_mask.????+orig.HEAD   >& /dev/null
+3dTcat -prefix ___temp_static+orig ___temp_static.????+orig.HEAD  >& /dev/null
 
-3dTcat -prefix ___temp_mask+orig   ___temp_mask.????+orig.HEAD   
-3dTcat -prefix ___temp_static+orig ___temp_static.????+orig.HEAD  > /dev/null 2>&1
+# clean up
 rm -f ___temp_static.* ___temp_mask.*
 
 # inject inverse volume motion on static images
 3dAllineate                                  \
   -prefix ___temp_mask4d+orig          \
-  -1Dmatrix_apply epi_volreg_INV.aff12.1D \
+  -1Dmatrix_apply "${prefix_vr}"_volreg_INV.aff12.1D \
   -source ___temp_mask+orig                  \
   -final NN 
 3dAllineate                                  \
   -prefix epi_motsim+orig                 \
-  -1Dmatrix_apply epi_volreg_INV.aff12.1D \
+  -1Dmatrix_apply "${prefix_vr}"_volreg_INV.aff12.1D \
   -source ___temp_static+orig                \
   -final cubic 
 3dAllineate \
   -prefix ___temp_vol_pvreg+orig            \
-  -1Dmatrix_apply epi_volreg.aff12.1D    \
+  -1Dmatrix_apply "${prefix_vr}"_volreg.aff12.1D    \
   -source epi_motsim+orig                \
   -final cubic 
 

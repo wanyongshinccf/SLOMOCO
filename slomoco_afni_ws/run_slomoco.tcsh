@@ -439,14 +439,17 @@ else
 
     # just use that number
     set vr_idx = "${vr_base}"
-
 endif
+echo $vr_idx volume will be the reference volume
 
 # =======================================================================
 # =========================== ** Main work ** ===========================
 
 # move to wdir to do work
 cd "${owdir}"
+
+ # save name to apply
+set epi_mask = "mask.nii.gz"
 
 # PT: what about using MIN_OUTLIER as reference volume here? would be better***
 
@@ -455,10 +458,19 @@ cd "${owdir}"
 1dcat epi_polort_xmat.1D > epi_polort.1D 
 
 # step 0 PV regressor
-gen_vol_pvreg.sh -i epi_00+orig -m epi_mask+orig # epi_in is BRIK file
+
+gen_vol_pvreg.tcsh \
+    -dset_epi ${epi_in}+orig \
+    -dset_mask ${epi_mask} \
+    -vr_idx "${vr_idx}" \
+    -prefix_pv vol_pvreg \
+    -prefix_vr "${epi_in}"_volreg 
+
 cat <<EOF >> ${histfile}
 ++ Voxelwise partial volume motion nuisance regressors is generated.
 EOF
+
+exit
 
 # step1 inplane moco
 if ( "${ep2dpace}" == "" ) then

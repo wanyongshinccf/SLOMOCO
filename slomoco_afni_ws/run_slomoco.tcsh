@@ -336,7 +336,6 @@ set epi_mask = "${owdir}/mask.nii.gz"
     -b "${epi}"        \
     -expr "step(a)*b"  \
     -prefix "${owdir}/epi_00_mskd"
-set epi_in = "epi_00_mskd"
 
 # ----- check about physio/pestica regressors, cp to wdir if present
 
@@ -448,27 +447,62 @@ echo $vr_idx volume will be the reference volume
 # move to wdir to do work
 cd "${owdir}"
 
- # save name to apply
+# update mask file name
 set epi_mask = "mask.nii.gz"
 
-# PT: what about using MIN_OUTLIER as reference volume here? would be better***
-
 # linear detrending matrix
-3dDeconvolve -polort 1 -input ${epi_in}+orig -x1D_stop -x1D epi_polort_xmat.1D
+3dDeconvolve -polort 1 -input epi_00+orig -x1D_stop -x1D epi_polort_xmat.1D
 1dcat epi_polort_xmat.1D > epi_polort.1D 
 
-# step 0 PV regressor
+# ----- voxelwise time-series PV regressor
+# volreg output is also generated.
 
-gen_vol_pvreg.tcsh \
-    -dset_epi ${epi_in}+orig \
-    -dset_mask ${epi_mask} \
-    -vr_idx "${vr_idx}" \
-    -prefix_pv vol_pvreg \
-    -prefix_vr "${epi_in}"_volreg 
-
+gen_vol_pvreg.tcsh                \
+    -dset_epi   epi_00+orig       \
+    -dset_mask  ${epi_mask}       \
+    -vr_idx    "${vr_idx}"        \
+    -prefix_pv epi_01_pvreg       \
+    -prefix_vr epi_01_volreg      \
+    |& tee     log_gen_vol_pvreg.txt
 cat <<EOF >> ${histfile}
 ++ Voxelwise partial volume motion nuisance regressors is generated.
 EOF
+
+# ----- slicewise moco in xy plane
+
+if ( "${ep2dpace}" == "" ) then
+    # script with 'vol' for inplane motion correction
+
+    echo "++ Run: adjunct_slomoco_vol_slicemoco_xy.tcsh"
+    adjunct_slomoco_vol_slicemoco_xy.tcsh  ${do_echo}                       \
+        -dset_base   epi_00+orig                                     \
+        -dset_mask   ${epi_mask}                                            \
+        -moco_meth   ${moco_meth}                                           \
+        -volreg_base ${vr_idx}                                              \
+        -volreg_mat  epi_01_volreg.aff12.1D                                 \
+        -file_tshift tshiftfile.1D                                          \
+        -prefix      epi_01_slicemoco_xy                                    \
+        |& tee       log_adjunct_slomoco_vol_slicemoco_xy.txt
+
+else
+  # script with 'vol' for inplane motion correction
+
+    echo "++ Run: adjunct_slomoco_slicemoco_xy.tcsh" 
+    adjunct_slomoco_slicemoco_xy.tcsh  ${do_echo}                       \
+        -dset_base   epi_00+orig.HEAD                                       \
+        -dset_mask   mask.nii.gz                                            \
+        -moco_meth   ${moco_meth}                                           \
+        -volreg_base ${vr_idx}                                              \
+        -volreg_mat  epi_01_volreg.aff12.1D                                 \
+        -file_tshift tshiftfile.1D                                          \
+        -prefix      epi_02_slicemoco_xy                                    \
+        |& tee       log_adjunct_slomoco_vol_slicemoco_xy.txt
+    
+endif
+
+if ( $status ) then
+    goto BAD_EXIT
+endif
 
 exit
 

@@ -61,25 +61,25 @@ while ( $ac <= $#argv )
     @ ac += 1
 end
 
-
+echo $epi
 # calc 6 DF (rigid) alignment pars
-3dvolreg                                                                     \
-    -verbose                                                                 \
+3dvolreg                                                                 \
+    -verbose                                                             \
     -prefix         "${prefix_vr}"                                       \
-    -dfile          "${prefix_vr}"_volreg.txt                                        \
-    -1Dfile         "${prefix_vr}"_volreg.1D                                         \
-    -1Dmatrix_save  "${prefix_vr}"_volreg.aff12.1D                                   \
-    -maxdisp1D      "${prefix_vr}"_volreg.maxdisp.1D                                 \
-    -base           "${refvol}"                                              \
-    -zpad           2                                                        \
-    -maxite         60                                                       \
-    -x_thresh       0.005                                                    \
-    -rot_thresh     0.008                                                    \
-    -heptic                                                                  \
+    -dfile          "${prefix_vr}".txt                                   \
+    -1Dfile         "${prefix_vr}".1D                                    \
+    -1Dmatrix_save  "${prefix_vr}".aff12.1D                              \
+    -maxdisp1D      "${prefix_vr}".maxdisp.1D                            \
+    -base           "${refvol}"                                          \
+    -zpad           2                                                    \
+    -maxite         60                                                   \
+    -x_thresh       0.005                                                \
+    -rot_thresh     0.008                                                \
+    -heptic                                                              \
     ${epi}
 
 # inverse affine matrix
-cat_matvec "${prefix_vr}"_volreg.aff12.1D -I > "${prefix_vr}"_volreg_INV.aff12.1D
+cat_matvec "${prefix_vr}".aff12.1D -I > "${prefix_vr}"_INV.aff12.1D
 
 # generating motsim
 set tdim = `3dnvals ${epi}`
@@ -101,17 +101,17 @@ rm -f ___temp_static.* ___temp_mask.*
 # inject inverse volume motion on static images
 3dAllineate                                  \
   -prefix ___temp_mask4d+orig          \
-  -1Dmatrix_apply "${prefix_vr}"_volreg_INV.aff12.1D \
+  -1Dmatrix_apply "${prefix_vr}"_INV.aff12.1D \
   -source ___temp_mask+orig                  \
   -final NN 
 3dAllineate                                  \
   -prefix epi_motsim+orig                 \
-  -1Dmatrix_apply "${prefix_vr}"_volreg_INV.aff12.1D \
+  -1Dmatrix_apply "${prefix_vr}".aff12.1D \
   -source ___temp_static+orig                \
   -final cubic 
 3dAllineate \
   -prefix ___temp_vol_pvreg+orig            \
-  -1Dmatrix_apply "${prefix_vr}"_volreg.aff12.1D    \
+  -1Dmatrix_apply "${prefix_vr}".aff12.1D    \
   -source epi_motsim+orig                \
   -final cubic 
 
@@ -126,10 +126,10 @@ rm -f ___temp_static.* ___temp_mask.*
        -c ${epi_mask}                          \
        -d ___temp_vol_pvreg+orig               \
        -expr 'step(b)*step(c)*(d-a)/b*step(b)' \
-       -prefix epi_vol_pvreg
+       -prefix "${prefix_pv}"
 rm  ___temp* 
 
 # copy header
-3drefit -saveatr -atrcopy ${epi} TAXIS_NUMS   epi_vol_pvreg+orig 
-3drefit -saveatr -atrcopy ${epi} TAXIS_FLOATS epi_vol_pvreg+orig 
+3drefit -saveatr -atrcopy ${epi} TAXIS_NUMS   "${prefix_vr}"+orig 
+3drefit -saveatr -atrcopy ${epi} TAXIS_FLOATS "${prefix_vr}"+orig 
 

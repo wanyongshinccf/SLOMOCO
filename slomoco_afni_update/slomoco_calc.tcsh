@@ -506,7 +506,7 @@ cd "${owdir}"
 # ---- volumetric motion correction ("mocoafni" in original code)
 
 # PT: what about using MIN_OUTLIER as reference volume here? would be better***
-
+# WS: I added MIN_ENORM option as well as MIN_OUTLIER
 # calc 6 DF (rigid) alignment pars
 3dvolreg                                                                     \
     -verbose                                                                 \

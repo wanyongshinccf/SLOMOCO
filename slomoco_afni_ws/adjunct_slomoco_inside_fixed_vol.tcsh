@@ -302,7 +302,6 @@ while ( $z < $zmbdim )
   set zsimults = ""
   set zzzz  = `printf "%04d" $z`
   set bname = "motion.wholevol_zt.${zzzz}"
-  echo $z
   set mb = 0    
   while ($mb < $SMSfactor )
     set k = `echo "${mb} * ${zmbdim} + ${z}" | bc`

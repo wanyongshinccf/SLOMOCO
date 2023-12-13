@@ -85,7 +85,7 @@ set tdim = `3dnvals ${epi}`
 set t = 0
 while ( $t < $tdim ) 
   set tttt   = `printf "%04d" $t`
-  3dcalc -a ${epi}'[0]' -expr 'a' -prefix ___temp_static.${tttt}+orig >& /dev/null
+  3dcalc -a "${epi}[${refvol}]" -expr 'a' -prefix ___temp_static.${tttt}+orig >& /dev/null
   3dcalc -a ${epi_mask} -expr 'a' -prefix ___temp_mask.${tttt}+orig  >& /dev/null
   @ t++ 
 end
@@ -95,7 +95,7 @@ end
 3dTcat -prefix ___temp_static+orig ___temp_static.????+orig.HEAD  
 
 # clean up
-\rm -f ___temp_static.* ___temp_mask.*
+rm ___temp_static.* ___temp_mask.*
 
 # inject inverse volume motion on static images
 3dAllineate                                  \
@@ -126,7 +126,7 @@ end
        -d ___temp_vol_pvreg+orig               \
        -expr 'step(b)*step(c)*(d-a)/b*step(b)' \
        -prefix "${prefix_pv}"
-\rm  ___temp* 
+rm  ___temp* 
 
 # copy header
 3drefit -saveatr -atrcopy ${epi} TAXIS_NUMS   "${prefix_vr}"+orig 
@@ -135,3 +135,25 @@ end
 # add info
 3dNotes -h "Time series volume motion partial volume regressor"   "${prefix_vr}"+orig.HEAD
 
+goto GOOD_EXIT
+
+# ========================================================================
+# ========================================================================
+
+SHOW_HELP:
+cat << EOF
+-------------------------------------------------------------------------
+
+Voxelwise partial volume regressor
+Citation: Wanyong Shin and Mark J. Lowe, International Society of Magnetic Resonance in Medicine, 2023 #????
+
+EOF
+
+# ----------------------------------------------------------------------
+
+
+BAD_EXIT:
+    exit 1
+
+GOOD_EXIT:
+    exit 0

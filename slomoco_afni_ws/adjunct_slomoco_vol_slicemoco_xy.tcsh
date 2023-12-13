@@ -269,6 +269,8 @@ else if ( ${moco_meth} == "W" ) then
     set moco_prog = 3dWarpDrive
 endif
 
+echo " ${moco_prog} runs for inplane motion correction "
+
 # ----- check tshift file was entered
 
 if ( "${file_tshift}" == "" ) then
@@ -525,12 +527,14 @@ foreach t ( `seq 0 1 ${tcount}` )
                             __temp_slc_weight+orig.HEAD`
 
         # ----- disp some info in first loop
-        if ( "$t" == "1" ) then
-            echo "++ Num slices to simultaneously analyze: ${zsimults}"
-        endif
+       
         
-        if ( "$z" == "1" ) then
-            echo "++ Proc first slice of vol: ${t}"
+        if ( "$z" == "0" ) then
+	    echo "++ Proc first slice of vol: ${t}"
+        endif
+
+	if ( "$t" == "0" ) then
+           echo "++ Num slices to simultaneously analyze: ${zsimults}"
         endif
         
         if ( `echo "${nvox_nz} < ${nvox_min}" | bc` ) then
@@ -548,7 +552,7 @@ foreach t ( `seq 0 1 ${tcount}` )
         if ( `echo "${nvox_nz} >= ${nvox_min}" | bc` ) then
             if ( "${moco_meth}" == "W" ) then
                 # [PT] what cost should be used here? specify explicitly
-                $AFNI_SLOMOCO/3dWarpDrive \
+                $AFNI_SLOMOCO_DIR/3dWarpDrive \
                     -overwrite \
                     -affine_general -cubic -final cubic -maxite 300 -thresh 0.005 \
                     -prefix        __temp_9999 \
@@ -672,6 +676,10 @@ EOF
     \rm     __temp_vol_pv+orig.* __temp_vol_mocoxy+orig.*
 
 end  # end of t loop
+
+set end_time = `date +%s.%3N`
+set elapsed  = `echo "scale=3; (${end_time} - ${total_start_time})/1.0" | bc`
+echo "++ Slicewise moco done in ${elapsed} sec"
 
 # ----- concatenate outputs
 

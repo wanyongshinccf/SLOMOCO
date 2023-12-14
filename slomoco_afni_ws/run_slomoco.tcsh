@@ -378,7 +378,7 @@ if ( "${epi_mask}" == "" ) then
         -overwrite
 
     # clean a bit
-    rm "${owdir}/___tmp*nii.gz"
+    rm ${owdir}/___tmp*nii.gz
 else
   echo "** Note that reference volume is selected $vr_idx volume of input **"
   echo "** IF input mask is not generated from $vr_idx volume, "
@@ -417,7 +417,10 @@ endif
 
 
 # ----- slice timing file info
-if ( "$jsonfile" != "")  then
+if ( "$jsonfile" != "" && "$tfile" != "")  then
+  echo " ** ERROR:  Both jsonfile and tfile options should not be used."
+  goto BAD_EXIT
+else if ( "$jsonfile" != "")  then
   abids_json_info.py -json $jsonfile -field SliceTiming | sed "s/[][]//g" | sed "s/,//g" | xargs printf "%s\n" > ${owdir}/tshiftfile.1D
 else if ( "$tfile" != "")  then
   cp $tfile ${owdir}/tshiftfile.1D
@@ -449,7 +452,7 @@ set epi_mask = "mask.nii.gz"
 
 # ----- step 1 voxelwise time-series PV regressor
 # volreg output is also generated.
-if ( $step1flag != "skip" ) then
+if ( $step1flag != 'skip' ) then
     gen_vol_pvreg.tcsh                 \
         -dset_epi   epi_00+orig        \
         -dset_mask  epi_base_mask+orig \
@@ -462,9 +465,9 @@ if ( $step1flag != "skip" ) then
         goto BAD_EXIT
     endif
 
-# cat <<EOF >> ${histfile}
-# ++ Voxelwise partial volume motion nuisance regressors is generated.
-# EOF
+cat <<EOF >> ${histfile}
+++ Voxelwise partial volume motion nuisance regressors is generated.
+EOF
 
 endif
 
@@ -472,7 +475,7 @@ endif
 
 # script for inplane motion correction
 
-if ( $step2flag != "skip" ) then
+if ( $step2flag != 'skip' ) then
     echo "++ Run: adjunct_slomoco_vol_slicemoco_xy.tcsh"
     adjunct_slomoco_vol_slicemoco_xy.tcsh  ${do_echo}                       \
         -dset_epi    epi_00+orig                                     \
@@ -489,9 +492,9 @@ if ( $step2flag != "skip" ) then
         goto BAD_EXIT
     endif
 
-# cat <<EOF >> ${histfile}
-# ++ slicewise inplane motion correction is done.
-# EOF
+cat <<EOF >> ${histfile}
+++ slicewise inplane motion correction is done.
+EOF
 
 endif
 
@@ -499,7 +502,7 @@ endif
 # ----- step 3 slicewise out of plane moco
 
 # script for out-of-plane motion correction
-if ( $step3flag != "skip" ) then
+if ( $step3flag != 'skip' ) then
     echo "++ Run: adjunct_slomoco_inside_fixed_vol.tcsh"
     adjunct_slomoco_inside_fixed_vol.tcsh  ${do_echo}                       \
         -dset_epi    epi_02_slicemoco_xy+orig                               \
@@ -512,16 +515,16 @@ if ( $step3flag != "skip" ) then
         goto BAD_EXIT
     endif
 
-# cat <<EOF >> ${histfile}
-# ++ slicewise out-of-plane motion correction is done.
-# EOF
+cat <<EOF >> ${histfile}
+++ slicewise out-of-plane motion correction is done.
+EOF
 
 endif
 
 # ----- step 4 generate slicewise 6 rigid motion parameter regressor 
 
 # script for slice mopa nuisance regressor
-if ( $step4flag != "skip" ) then
+if ( $step4flag != 'skip' ) then
     adjunct_slomoco_calc_slicemopa.tsch                                     \
         -dset_epi    epi_02_slicemoco_xy+orig                               \
         -indir       inplane                                                \
@@ -535,9 +538,9 @@ if ( $step4flag != "skip" ) then
         goto BAD_EXIT
     endif
 
-# cat <<EOF >> ${histfile}
-# ++ slicewise motion nuisance regressor is generated.
-# EOF
+cat <<EOF >> ${histfile}
+++ slicewise motion nuisance regressor is generated.
+EOF
 
 endif
 
@@ -576,9 +579,9 @@ if ( $step5flag != "skip" ) then
         goto BAD_EXIT
     endif
 
-# cat <<EOF >> ${histfile}
-# ++ The residual motion artifact is regressed out with motion nuisance parameters.
-# EOF
+cat <<EOF >> ${histfile}
+++ The residual motion artifact is regressed out with motion nuisance parameters.
+EOF
 
 endif
 
@@ -594,9 +597,9 @@ if ( $step6flag != "skip" ) then
         goto BAD_EXIT
     endif
 
-# cat <<EOF >> ${histfile}
-# ++ Quality Assurance of SLOMOCO is generated.
-# EOF
+cat <<EOF >> ${histfile}
+++ Quality Assurance of SLOMOCO is generated.
+EOF
 
 endif
 

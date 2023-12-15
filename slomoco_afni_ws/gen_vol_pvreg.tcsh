@@ -4,7 +4,7 @@ set epi = ""
 set epi_mask = ""
 set prefix_vr = ""
 set prefix_pv = "vol_pvreg"
-set refvol = 0
+set vr_idx = 0
 # ------------------- process options, a la rr ----------------------
 
 if ( $#argv == 0 ) goto SHOW_HELP
@@ -43,7 +43,7 @@ while ( $ac <= $#argv )
     else if ( "$argv[$ac]" == "-vr_idx" ) then
         if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
         @ ac += 1
-        set refvol = "$argv[$ac]"
+        set vr_idx = "$argv[$ac]"
 
     else if ( "$argv[$ac]" == "-dset_mask" ) then
         if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
@@ -69,7 +69,7 @@ end
     -1Dfile         "${prefix_vr}".1D                                    \
     -1Dmatrix_save  "${prefix_vr}".aff12.1D                              \
     -maxdisp1D      "${prefix_vr}".maxdisp.1D                            \
-    -base           "${refvol}"                                          \
+    -base           "${vr_idx}"                                          \
     -zpad           2                                                    \
     -maxite         60                                                   \
     -x_thresh       0.005                                                \
@@ -85,7 +85,7 @@ set tdim = `3dnvals ${epi}`
 set t = 0
 while ( $t < $tdim ) 
   set tttt   = `printf "%04d" $t`
-  3dcalc -a "${epi}[${refvol}]" -expr 'a' -prefix ___temp_static.${tttt}+orig >& /dev/null
+  3dcalc -a "${epi}[${vr_idx}]" -expr 'a' -prefix ___temp_static.${tttt}+orig >& /dev/null
   3dcalc -a ${epi_mask} -expr 'a' -prefix ___temp_mask.${tttt}+orig  >& /dev/null
   @ t++ 
 end
@@ -105,7 +105,7 @@ rm ___temp_static.* ___temp_mask.*
   -final NN 
 3dAllineate                                  \
   -prefix epi_motsim+orig                 \
-  -1Dmatrix_apply "${prefix_vr}".aff12.1D \
+  -1Dmatrix_apply "${prefix_vr}"_INV.aff12.1D \
   -source ___temp_static+orig                \
   -final cubic 
 3dAllineate \
@@ -145,7 +145,8 @@ cat << EOF
 -------------------------------------------------------------------------
 
 Voxelwise partial volume regressor
-Citation: Wanyong Shin and Mark J. Lowe, International Society of Magnetic Resonance in Medicine, 2023 #????
+Time sereries of motion nuisance regresors is generated based on 3d rigid volume motion
+Citation: Wanyong Shin and Mark J. Lowe, "Effectove removal of the residual head motion artifact after motion correction in fMRI data", International Society of Magnetic Resonance in Medicine, 2023 #1821
 
 EOF
 

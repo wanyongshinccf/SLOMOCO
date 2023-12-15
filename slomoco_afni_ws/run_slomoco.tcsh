@@ -545,14 +545,14 @@ EOF
 endif
 
 # -----  step 5 second order regress out
-echo wtf
+
 # script for 2nd order regress-out
 if ( $step5flag != "skip" ) then
-    echo where am I 1
     if ( $regflag == "MATLAB" ) then
         1dcat epi_polort_xmat.1D > rm_polort.1D
         1dcat epi_slireg.1D > rm_slireg.1D
         matlab -nodesktop -nosplash -r "addpath ${MATLAB_SLOMOCO_DIR};  gen_regout('epi_02_slicemoco_xy+orig','epi_base_mask+orig','physio','rm_physio.1D','polort','rm_polort.1D','volreg','epi_01_volreg.1D','slireg','rm_slicemopa.1D','voxreg','epi_01_pvreg+orig','out','${prefix}'); exit;"
+        rm rm_*
     else 
         echo "afni version of vol/sli/voxelwise regression pipeline is working in progress" 
     
@@ -637,102 +637,6 @@ cat << EOF
 SLOMOCO: slicewise motion correction software (required PESTICA
 library package)
 
-Update history
-slomoco v5.5
-distributed separately from PESTICA
-
-***should not be needed*** compatibility issue with new version of
-AFNI commands, e.g. 3dWarpDrive SLOMOCO does not work with the latest
-version of AFNI 3dWarDrive command <<AFNI_SLOMOCO_DIR>> should be
-defined in setup_slomoco.sh depending on which OS system you are
-using, e.g. linux or macOS The working version of LINUX AFNI commands
-are stored in <<AFNI_SLOMOCO_DIR>> However, we haven't found working
-version of 3dWarpDrive for Mac.
-In case that you use MAC, you have two options.
-1) find the working version of 3dWarpDrive and compile/use it
-2) Use 3dAllineate instead of 3dWarpDrive. To do it, you should set 
-   <<AFNI_SLOMOCO>>=A
-in setup_slomoco.sh. However, we found the different final result when
-using 3dAllineate based on 3dWarpDrive. We are investigating, but
-yours is also welcome.
-
-Check "readme.txt" file in <<AFNI_PESTIAC_DIR>>
-Feel free to add the working version of commands if necesary.
-debugging a few
-
-update from v5.2 to v5.3
-It was reported that accidental slow trending was added after SLOMOCO
-output.  If you runs any detrending or temporal filtering,
-e.g. <0.01Hz, the previous version of output should generate the same
-result from v5.3
-
-Update from v5.x to v5.5
-==============================================================================
-DO NOT use any motion corrected data as an input in slicemoco_newalgorithm.sh.
-==============================================================================
-
-IF your data is acquired using Siemens ep2d_pace (retrospective motion 
-  correction)
-  The previous version of SLOMOCO (v5.4) should be used.
-  ep2d_PACE data already includes 3d volume registration by refining the 
-  relative cordinate at each volume. 
-IF your data is acquired with ep2d_bold or conventional EPI sequence
-  INPUT SHOULD BE NO-MOTION-CORRECTED DATA
-  the pipeline includes 3d volume registration process.
-
-SLICE ACQUISITION TIMING
-We strongly suggest to provide slice acquisition timing file, named as "tshiftfile_sec.1D"
-Each row includes the slince acquisition time with a second unit.
-tshiftfile_sec.1D file will be copied to SLOMOCO directory and renamed as "tshiftfile.1D" 
-If -p or -r option is selected, tshiftfile.1D should be located in PESTICA5 or PHYSIO directory,
-and it will be copied to SLOMOCO5 directory
-If tshiftfile_sec.1D is not provided, the script assumes single band EPI with the interleaved order,
-and tshiftfile.1D is generated. CHECK GENERATED TSHIFT FILE.
-
-Algorithm: this script first runs slicewise in-plane (xy) 3DOF motion correction
-           then runs a slicewise 6DOF rigid-body correction for each slice
-      this script reads these motion parameters back in and regress on voxel timeseries
-
-WARNING, make sure you have removed unsaturated images at start 
-You can test first volumes for spin saturation with: 3dToutcount <epi_filename> | 1dplot -stdin -one
-Is the first volume much higher than rest? If so, you may need to remove first several volumes first
-If you don't know what this means, consult someone who does know, this is very important,
-regression corrections (and analyses) perform poorly when the data has unsaturated volumes at the start
-Simple method to remove 1st 4: 3dcalc -a "<epi_file>+orig[4..\$]" -expr a -prefix <epi_file>.steadystate
-
- Usage:  run_slomoco.sh -d <epi_filename>  -m MBfactor
- 	     -d = dataset: <epi_filename> is the file prefix of
-	     the 3D+time dataset to use and correct.
-               Note: this script will detect suffix for epi_filename
-
-         run_slomoc.sh -d <epi_filename> -r
-             -r = perform in parallel with final PESTICA regression correction
-                  this assumes PESTICA estimation steps 1-5 have been run and exist in subdir pestica5/
-
-         run_slomoc.sh -d <epi_filename> -p
-             -p = same as -r option, but assuming you used PMU data instead of PESTICA for the correction
-
- Recommended, run after running PESTICA or PMU correction, so we can incorporate all regressions in parallel:
-	       run_slomoc.sh -d <epi_file> -r
-	   OR, run_slomoc.sh -d <epi_file> -p
-
- output: <input file name>.slicemocoxy_afni.slomoco
-         <input file name>.slicemocoxy_afni.slomoco.pmu
-         <input file name>.slicemocoxy_afni.slomoco.pestica
-           slicewise motion correction and second order motion/RETROICOR/PESTICA regresed out from input file 
-
-         <input file name>.slicemocoxy_afni.slomoco.bucket
-         <input file name>.slicemocoxy_afni.slomoco.pmu.bucket
-         <input file name>.slicemocoxy_afni.slomoco.pestica.bucket
-	   fitting results 
-
-         <input file name>.slicemocoxy_afni.slomoco.errt
-         <input file name>.slicemocoxy_afni.slomoco.pmu.errt
-         <input file name>.slicemocoxy_afni.slomoco.pestica.errt
-           residual time-series after slicewise motion correction, motion/physio regress-out and detrending  
-	
-         slomoco.TDmetric.txt & slomoco.TDzmetric.txt
-           slicewise motion index parameter - used as an outlier (see Bealls and Mark's paper, 2014) 
 
 EOF
 

@@ -75,21 +75,29 @@ end
     -x_thresh       0.005                                                \
     -rot_thresh     0.008                                                \
     -heptic                                                              \
-    ${epi} -overwrite
+    -overwrite                                                           \
+    ${epi} 
 
 # inverse affine matrix
 cat_matvec "${prefix_vr}".aff12.1D -I > "${prefix_vr}"_INV.aff12.1D
 
 # generating motsim
-3dTstat -mean -prefix epi_base_mean "${prefix_vr}"+orig
+3dTstat
+     -mean \
+     -prefix epi_base_mean \
+     -overwrite \
+     "${prefix_vr}"+orig 
 
 set tdim = `3dnvals ${epi}`
 set t = 0
 while ( $t < $tdim ) 
   set tttt   = `printf "%04d" $t`
-  #3dcalc -a "${epi}[${vr_idx}]" -expr 'a' -prefix ___temp_static.${tttt}+orig >& /dev/null
-  3dcalc -a epi_base_mean+orig -expr 'a' -prefix ___temp_static.${tttt}+orig >& /dev/null
-  3dcalc -a ${epi_mask} -expr 'a' -prefix ___temp_mask.${tttt}+orig  >& /dev/null
+  3dcalc -a epi_base_mean+orig \
+        -expr 'a'              \
+        -prefix ___temp_static.${tttt}+orig >& /dev/null
+  3dcalc -a ${epi_mask} \
+         -expr 'a'      \
+         -prefix ___temp_mask.${tttt}+orig  >& /dev/null
   @ t++ 
 end
 
@@ -101,24 +109,32 @@ end
 rm ___temp_static.* ___temp_mask.*
 
 # inject inverse volume motion on static images
-3dAllineate                                  \
-  -prefix ___temp_mask4d+orig          \
+3dAllineate                                   \
+  -prefix ___temp_mask4d+orig                 \
   -1Dmatrix_apply "${prefix_vr}"_INV.aff12.1D \
-  -source ___temp_mask+orig                  \
-  -final NN -overwrite
-3dAllineate                                  \
-  -prefix epi_motsim+orig                 \
+  -source ___temp_mask+orig                   \
+  -final NN                                   \
+  -overwrite
+3dAllineate                                   \
+  -prefix epi_motsim+orig                     \
   -1Dmatrix_apply "${prefix_vr}"_INV.aff12.1D \
-  -source ___temp_static+orig                \
-  -final cubic -overwrite
-3dAllineate \
-  -prefix ___temp_vol_pvreg+orig            \
-  -1Dmatrix_apply "${prefix_vr}".aff12.1D    \
-  -source epi_motsim+orig                \
-  -final cubic -overwrite
+  -source ___temp_static+orig                 \
+  -final cubic                                \
+  -float                                      \
+  -overwrite
+3dAllineate                                   \
+  -prefix ___temp_vol_pvreg+orig              \
+  -1Dmatrix_apply "${prefix_vr}".aff12.1D     \
+  -source epi_motsim+orig                     \
+  -final cubic                                \
+  -overwrite
 
 # mask 
-3dcalc -a ___temp_mask4d+orig -expr 'step(a)' -prefix epi_motsim_mask4d+orig -nscale -overwrite        
+3dcalc -a ___temp_mask4d+orig         \
+       -expr 'step(a)'                \
+       -prefix epi_motsim_mask4d+orig \
+       -nscale                        \
+       -overwrite        
 
 # normalize vol pv regressor  
 3dTstat -mean  -prefix ___temp_vol_pvreg_mean ___temp_vol_pvreg+orig 
@@ -127,8 +143,9 @@ rm ___temp_static.* ___temp_mask.*
        -b ___temp_vol_pvreg_std+orig           \
        -c ${epi_mask}                          \
        -d ___temp_vol_pvreg+orig               \
-       -expr 'step(b)*step(c)*(d-a)/b*step(b)' \
-       -prefix "${prefix_pv}" -overwrite
+       -expr 'step(b)*step(c)*(d-a)/b'         \
+       -prefix "${prefix_pv}"                  \
+       -overwrite
 rm  ___temp* 
 
 # copy header

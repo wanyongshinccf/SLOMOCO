@@ -188,7 +188,7 @@ for k= 1:zdim
                 A = [Asli squeeze(voxreg(i,j,k,:))];
             end
             if dofdispflag
-              disp(['Number of all nuisance regressors is ' num2str(size(A,2))]))
+              disp(['Number of all nuisance regressors is ' num2str(size(A,2))])
               dofdispflag = 0;
             end
             

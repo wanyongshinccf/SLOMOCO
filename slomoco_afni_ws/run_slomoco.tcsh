@@ -551,7 +551,7 @@ if ( $step5flag != "skip" ) then
     if ( $regflag == "MATLAB" ) then
         1dcat epi_polort_xmat.1D > rm_polort.1D
         1dcat epi_slireg.1D > rm_slireg.1D
-        matlab -nodesktop -nosplash -r "addpath ${MATLAB_SLOMOCO_DIR};  gen_regout('epi_02_slicemoco_xy+orig','epi_base_mask+orig','physio','rm_physio.1D','polort','rm_polort.1D','volreg','epi_01_volreg.1D','slireg','rm_slicemopa.1D','voxreg','epi_01_pvreg+orig','out','${prefix}'); exit;"
+        matlab -nodesktop -nosplash -r "addpath ${MATLAB_SLOMOCO_DIR};  gen_regout('epi_02_slicemoco_xy+orig','epi_base_mask+orig','physio','rm_physio.1D','polort','rm_polort.1D','volreg','epi_01_volreg.1D','slireg','rm_slireg.1D','voxreg','epi_01_pvreg+orig','out','${prefix}'); exit;"
         rm rm_*
     else 
         echo "afni version of vol/sli/voxelwise regression pipeline is working in progress" 

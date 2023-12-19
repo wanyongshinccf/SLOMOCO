@@ -44,10 +44,10 @@ set histfile = slomoco_history.txt
 set do_echo  = ""
 
 # test purpose (W.S)
-set step1flag = "nskip" # voxelwise PV regressor
-set step2flag = "nskip" # inplance moco
-set step3flag = "nskip" # outofplane moco
-set step4flag = "nskip" # slicewise motion 1D
+set step1flag = "skip" # voxelwise PV regressor
+set step2flag = "skip" # inplance moco
+set step3flag = "skip" # outofplane moco
+set step4flag = "skip" # slicewise motion 1D
 set step5flag = "nskip" # 2nd order regress-out
 set step6flag = "nskip" # qa plot
 
@@ -276,15 +276,21 @@ else if ( "${vr_base}" == "MIN_ENORM" ) then
         "${epi}"
 
     1d_tool.py -infile "${owdir}"/___temp_volreg.1D \
-               -derivative -collapse_cols euclidean_norm -write "${owdir}"/enorm_deriv.1D
+               -derivative \
+               -collapse_cols euclidean_norm \
+               -write "${owdir}"/enorm_deriv.1D -overwrite
     1d_tool.py -infile "${owdir}"/___temp_volreg.1D \
-               -collapse_cols euclidean_norm -write "${owdir}"/enorm.1D
-    1d_tool.py -infile "${owdir}"/enorm.1D -demean -write "${owdir}"/enorm_demean.1D
-    1deval -a "${owdir}"/enorm_demean.1D \
-           -b "${owdir}"/enorm_deriv.1D \
-           -expr 'abs(a)+b' > "${owdir}"/min_enorm_disp_deriv.1D
+               -collapse_cols euclidean_norm \
+               -write "${owdir}"/enorm.1D -overwrite
+    1d_tool.py -infile "${owdir}"/enorm.1D \
+               -demean \
+               -write "${owdir}"/enorm_demean.1D -overwrite
+    1deval     -a "${owdir}"/enorm_demean.1D \
+               -b "${owdir}"/enorm_deriv.1D \
+               -expr 'abs(a)+b' \
+               > "${owdir}"/min_enorm_disp_deriv.1D
     set vr_idx = `3dTstat -argmin -prefix - "${owdir}"/min_enorm_disp_deriv.1D\'`
-    rm ___temp_volreg*
+    rm "${owdir}"/___temp_volreg*
 else 
     # not be choice, but hope user entered an int
     set max_idx = `3dinfo -nvi "${epi}"`

@@ -152,15 +152,14 @@ end
 
 % define variables  
 errtmap = zeros(xdim,ydim,zdim,tdim);
-[tdimp regn] = size(P); dofp = regn/zdim;
-disp(['Degree of Freedom of physio regressors is ' num2str(dofp)])
+[tdimp regn] = size(P); 
 
 % start with volreg               
 Avol = [polort_reg volreg];
 
 % due to propensity for regressors to covary (and thus solution be ill-conditioned), use more robust least-squares methods  
 warning off all
-
+dofdispflag=1;
 for k= 1:zdim
   if isempty(P)  
     Psli=[];
@@ -187,6 +186,10 @@ for k= 1:zdim
                 A = Asli;
             else
                 A = [Asli squeeze(voxreg(i,j,k,:))];
+            end
+            if dofdispflag
+              disp(['Number of all nuisance regressors is ' num2str(size(A,2))]))
+              dofdispflag = 0;
             end
             
             % solve linear regression

@@ -44,10 +44,10 @@ set histfile = slomoco_history.txt
 set do_echo  = ""
 
 # test purpose (W.S)
-set step1flag = "skip" # voxelwise PV regressor
-set step2flag = "skip" # inplance moco
-set step3flag = "skip" # outofplane moco
-set step4flag = "skip" # slicewise motion 1D
+set step1flag = "nskip" # voxelwise PV regressor
+set step2flag = "nskip" # inplance moco
+set step3flag = "nskip" # outofplane moco
+set step4flag = "nskip" # slicewise motion 1D
 set step5flag = "nskip" # 2nd order regress-out
 set step6flag = "nskip" # qa plot
 

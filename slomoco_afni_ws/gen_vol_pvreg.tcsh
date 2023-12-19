@@ -75,6 +75,7 @@ end
     -x_thresh       0.005                                                \
     -rot_thresh     0.008                                                \
     -heptic                                                              \
+    -overwrite                                                           \
     ${epi}
 
 # inverse affine matrix
@@ -98,24 +99,32 @@ end
 rm ___temp_static.* ___temp_mask.*
 
 # inject inverse volume motion on static images
-3dAllineate                                  \
-  -prefix ___temp_mask4d+orig          \
+3dAllineate                                   \
+  -prefix ___temp_mask4d+orig                 \
   -1Dmatrix_apply "${prefix_vr}"_INV.aff12.1D \
-  -source ___temp_mask+orig                  \
-  -final NN 
-3dAllineate                                  \
-  -prefix epi_motsim+orig                 \
+  -source ___temp_mask+orig                   \
+  -final NN                                   \
+  -overwrite
+3dAllineate                                   \
+  -prefix epi_motsim+orig                     \
   -1Dmatrix_apply "${prefix_vr}"_INV.aff12.1D \
-  -source ___temp_static+orig                \
-  -final cubic 
-3dAllineate \
-  -prefix ___temp_vol_pvreg+orig            \
-  -1Dmatrix_apply "${prefix_vr}".aff12.1D    \
-  -source epi_motsim+orig                \
-  -final cubic 
+  -source ___temp_static+orig                 \
+  -final cubic                                \
+  -float                                      \
+  -overwrite 
+3dAllineate                                   \
+  -prefix ___temp_vol_pvreg+orig              \
+  -1Dmatrix_apply "${prefix_vr}".aff12.1D     \
+  -source epi_motsim+orig                     \
+  -final cubic                                \
+  -overwrite
 
 # mask 
-3dcalc -a ___temp_mask4d+orig -expr 'step(a)' -prefix epi_motsim_mask4d+orig -nscale        
+3dcalc -a ___temp_mask4d+orig         \
+       -expr 'step(a)'                \
+       -prefix epi_motsim_mask4d+orig \
+       -nscale                        \
+       -overwrite
 
 # normalize vol pv regressor  
 3dTstat -mean  -prefix ___temp_vol_pvreg_mean ___temp_vol_pvreg+orig 
@@ -124,13 +133,14 @@ rm ___temp_static.* ___temp_mask.*
        -b ___temp_vol_pvreg_std+orig           \
        -c ${epi_mask}                          \
        -d ___temp_vol_pvreg+orig               \
-       -expr 'step(b)*step(c)*(d-a)/b*step(b)' \
-       -prefix "${prefix_pv}"
+       -expr 'step(b)*step(c)*(d-a)/b' \
+       -prefix "${prefix_pv}"                  \
+       -overwrite
 rm  ___temp* 
 
 # copy header
 3drefit -saveatr -atrcopy ${epi} TAXIS_NUMS   "${prefix_vr}"+orig 
-3drefit -saveatr -atrcopy ${epi} TAXIS_FLOATS "${prefix_vr}"+orig 
+# 3drefit -saveatr -atrcopy ${epi} TAXIS_FLOATS "${prefix_vr}"+orig 
 
 # add info
 3dNotes -h "Time series volume motion partial volume regressor"   "${prefix_vr}"+orig.HEAD

@@ -193,7 +193,8 @@ else
     3dcalc \
         -a "${epi}" \
         -expr 'a'   \
-        -prefix "${owdir}/epi_00"
+        -prefix "${owdir}/epi_00" \
+        -overwrite
 endif
 
 echo "++ Work on reference volume datasets"
@@ -220,7 +221,8 @@ else
     3dcalc \
         -a "${refvol}" \
         -expr 'a'   \
-        -prefix "${owdir}/epi_01_refvol"
+        -prefix "${owdir}/epi_01_refvol" \
+        -overwrite
 endif
 
 # ----- mask is required input
@@ -247,7 +249,8 @@ else
     3dcalc \
         -a "${epi_mask}" \
         -expr 'a'   \
-        -prefix "${owdir}/epi_00_mask"
+        -prefix "${owdir}/epi_00_mask" \
+        -overwrite
 endif
 
 # ---- check other expected dsets; make sure they are OK and grid matches
@@ -685,7 +688,7 @@ echo "++ Slicewise moco done in ${elapsed} sec"
 
 3dTcat \
     -prefix epi_02_vol_mocoxy  \
-    __temp_vol_mocoxy.t????+orig.HEAD 
+    __temp_vol_mocoxy.t????+orig.HEAD  
 
 # ----- update header info in new dsets
 

@@ -362,25 +362,25 @@ EOF
 if ( "${epi_mask}" == "" ) then
     echo "++ No mask provided, will make one" |& tee ${histfile}
     # remove skull (PT: could use 3dAutomask)
-    3dSkullStrip \
-        -input "${owdir}"/epi_base+orig \
+    3dSkullStrip                               \
+        -input "${owdir}"/epi_base+orig        \
         -prefix "${owdir}/___tmp_mask0.nii.gz" \
         -overwrite
 
     # binarize
-    3dcalc  \
-        -a "${owdir}/___tmp_mask0.nii.gz" \
-        -expr 'step(a)' \
+    3dcalc                                     \
+        -a "${owdir}/___tmp_mask0.nii.gz"      \
+        -expr 'step(a)'                        \
         -prefix "${owdir}/___tmp_mask1.nii.gz" \
-        -datum byte -nscale \
+        -datum byte -nscale                    \
         -overwrite
 
     # inflate mask; name must match wlab name for user mask, above
     3dcalc \
-        -a "${owdir}/___tmp_mask1.nii.gz"  \
+        -a "${owdir}/___tmp_mask1.nii.gz"         \
         -b a+i -c a-i -d a+j -e a-j -f a+k -g a-k \
-        -expr 'amongst(1,a,b,c,d,e,f,g)' \
-        -prefix "${owdir}/epi_base_mask" \
+        -expr 'amongst(1,a,b,c,d,e,f,g)'          \
+        -prefix "${owdir}/epi_base_mask"          \
         -overwrite
 
     # clean a bit
@@ -460,8 +460,8 @@ set epi_mask = "epi_base_mask+orig"
 # volreg output is also generated.
 if ( $step1flag != 'skip' ) then
     gen_vol_pvreg.tcsh                 \
-        -dset_epi  epi_00+orig        \
-        -dset_mask "${epi_mask}"      \
+        -dset_epi  epi_00+orig         \
+        -dset_mask "${epi_mask}"       \
         -vr_idx    "${vr_idx}"         \
         -prefix_pv epi_01_pvreg        \
         -prefix_vr epi_01_volreg       \
@@ -484,14 +484,15 @@ endif
 if ( $step2flag != 'skip' ) then
     echo "++ Run: adjunct_slomoco_vol_slicemoco_xy.tcsh"
     adjunct_slomoco_vol_slicemoco_xy.tcsh  ${do_echo}                       \
-        -dset_epi    epi_00+orig                                     \
-        -dset_base   epi_motsim+orig                                     \
+        -dset_epi    epi_00+orig                                            \
+        -dset_base   epi_motsim+orig                                        \
         -dset_mask   epi_motsim_mask4d+orig                                 \
         -moco_meth   ${moco_meth}                                           \
         -workdir     inplane                                                \
         -volreg_mat  epi_01_volreg.aff12.1D                                 \
         -tfile       tshiftfile.1D                                          \
         -prefix      epi_02_slicemoco_xy                                    \
+        -do_clean                                                           \
         |& tee       log_adjunct_slomoco_vol_slicemoco_xy.txt
 
     if ( $status ) then
@@ -537,7 +538,7 @@ if ( $step4flag != 'skip' ) then
         -outdir      outofplane                                             \
         -workdir     combined_slicemopa                                     \
         -tfile       tshiftfile.1D                                          \
-        -prefix      epi_slireg.1D                                       \
+        -prefix      epi_slireg.1D                                          \
         |& tee       log_adjunct_slomoco_calc_slicemopa.txt
     
     if ( $status ) then
@@ -574,15 +575,15 @@ if ( $step5flag != "skip" ) then
         endif
   
         # [TO P.T] it does not run since slireg.demean.1D includes zero columns
-        3dREMLfit \ 
+        3dREMLfit                                \ 
             -input      epi_02_slicemoco_xy+orig \
-            -matim      volreg.all.1D \
-            -mask       epi_base_mask+orig \
-            -addbase_sm slire.demean.1D \
-            -dsort      epi_01_pvreg+orig \
-            -Rerrt      errts_slomoco+orig
+            -matim      volreg.all.1D            \
+            -mask       epi_base_mask+orig       \
+            -addbase_sm slire.demean.1D          \
+            -dsort      epi_01_pvreg+orig        \
+            -Rerrt      errts_slomoco+orig       \
+            -overwrite
     
-  
     endif   
 
     if ( $status ) then
@@ -662,8 +663,8 @@ Required options:
  
 Optional:
  -volreg_base refvol = reference volume number, "MIN_ENORM" or "MIN_OUTLIER"
-                       "MIN_ENORM" provides the volume number with the minimal summation of absolute volume shift and its derivatives 
-                       "MIN_OUTLIER" provides [P.T will add]
+                       "MIN_ENORM" provides the volume number with the minimal summation of absolute volume diplacement and its derivatives 
+                       "MIN_OUTLIER" selects the minimal absolute derivative of the volume displacement.
                        Defaulty is "0"
  -workdir  directory = intermediate output data will be generated in the defined directory.
  -do_clean           = this option will delete working directory 

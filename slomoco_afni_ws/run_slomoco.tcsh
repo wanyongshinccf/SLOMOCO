@@ -555,23 +555,27 @@ if ( $step5flag != "skip" ) then
         rm rm_*
     else 
         echo "afni version of vol/sli/voxelwise regression pipeline is working in progress" 
-    
-        if ( -f "physioreg.1D" ) then
-            1d_tool.py -infile physioreg.1D -demean -write physioreg.demean.1D
-        endif
-
+                
         1d_tool.py -infile epi_01_volreg.1D -demean -write volreg.demean.1D
+        1dcat epi_polort_xmat.1D volreg.demean.1D > volreg.all.1D
+        
         1d_tool.py -infile epi_slireg.1D -demean -write slireg.demean.1D
+        
+        if ( -e "physioreg.1D" ) then
+            1d_tool.py -infile physioreg.1D -demean -write physioreg.demean.1D
+            # add physio slice regressor with slireg.demean.1D here
+            # [To P.T] How we can combine slireg.demean.1D with physioreg.1D file? 
+        endif
   
-        adjunct_slomoco_regout.tcsh 
-            -dset_epi epi_02_slicemoco_xy+orig \
-            -dset_mask epi_base_mask+orig \
-            -polort epi_polort_xmat.1D \
-            -physio physioreg.demean.1D \
-            -volreg volreg.demean.1D \
-            -slireg slireg.demean.1D \
-            -volreg epi_01_pvreg+orig \
-            -prefix $prefix
+        # [TO P.T] it does not run since slireg.demean.1D includes zero columns
+        3dREMLfit \ 
+            -input      epi_02_slicemoco_xy+orig \
+            -matim      volreg.all.1D \
+            -mask       epi_base_mask+orig \
+            -addbase_sm slire.demean.1D \
+            -dsort      epi_01_pvreg+orig \
+            -Rerrt      errts_slomoco+orig
+    
   
     endif   
 

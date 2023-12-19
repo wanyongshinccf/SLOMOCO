@@ -252,6 +252,63 @@ else
         -overwrite
 endif
 
+# ----- volreg base: MIN_OUTLIER
+
+if ( "${vr_base}" == "MIN_OUTLIER" ) then
+    # count outliers, as afni_proc.py would
+    3dToutcount                                           \
+        -automask                                         \
+        -fraction -polort 3 -legendre                     \
+        "${epi}"                                          \
+        > "${owdir}/outcount_rall.1D"
+
+    # get TR index for minimum outlier volume
+    set vr_idx = `3dTstat -argmin -prefix - "${owdir}"/outcount_rall.1D\'`
+    echo "++ MIN_OUTLIER vr_idx : $vr_idx" \
+        | tee "${owdir}/out.min_outlier.txt"
+
+else if ( "${vr_base}" == "MIN_ENORM" ) then
+
+    3dvolreg                                    \
+        -1Dfile "${owdir}"/___temp_volreg.1D    \
+        -prefix "${owdir}"/___temp_volreg+orig  \
+        -overwrite                              \
+        "${epi}"
+
+    1d_tool.py -infile "${owdir}"/___temp_volreg.1D \
+               -derivative -collapse_cols euclidean_norm -write "${owdir}"/enorm_deriv.1D
+    1d_tool.py -infile "${owdir}"/___temp_volreg.1D \
+               -collapse_cols euclidean_norm -write "${owdir}"/enorm.1D
+    1d_tool.py -infile "${owdir}"/enorm.1D -demean -write "${owdir}"/enorm_demean.1D
+    1deval -a "${owdir}"/enorm_demean.1D \
+           -b "${owdir}"/enorm_deriv.1D \
+           -expr 'abs(a)+b' > "${owdir}"/min_enorm_disp_deriv.1D
+    set vr_idx = `3dTstat -argmin -prefix - "${owdir}"/min_enorm_disp_deriv.1D\'`
+    rm ___temp_volreg*
+else 
+    # not be choice, but hope user entered an int
+    set max_idx = `3dinfo -nvi "${epi}"`
+    
+    if ( `echo "${vr_base} > ${max_idx}" | bc` || \
+         `echo "${vr_base} < 0" | bc` ) then
+        echo "** ERROR: allowed volreg_base range is : [0, ${max_idx}]"
+        echo "   but the user's value is outside this: ${vr_base}"
+        echo "   Consider using (default, and keyword opt): MIN_OUTLIER"
+        goto BAD_EXIT
+    endif
+
+    # just use that number
+    set vr_idx = "${vr_base}"
+endif
+echo $vr_idx volume will be the reference volume
+
+# save reference volume
+3dcalc -a "${epi}[$vr_idx]" -expr 'a' -prefix "${owdir}"/epi_base -overwrite
+
+cat <<EOF >> ${histfile}
+++ epi_base+orig is the reference volume (basline), $vr_idx th volume of input
+EOF
+
 # ---- check dsets that are optional, to verify (if present)
 # unsaturated EPI image might be useful for high SMS accelrated dataset, e.g. HCP
 # the below is commmented (out 20231208, W.S)
@@ -336,62 +393,6 @@ endif
 # ----- save name to apply
 set epi_mask = "${owdir}/epi_base_mask+orig"
 
-# ----- volreg base: MIN_OUTLIER
-
-if ( "${vr_base}" == "MIN_OUTLIER" ) then
-    # count outliers, as afni_proc.py would
-    3dToutcount                                           \
-        -mask "${epi_mask}"                               \
-        -fraction -polort 3 -legendre                     \
-        "${epi}"                                          \
-        > "${owdir}/outcount_rall.1D"
-
-    # get TR index for minimum outlier volume
-    set vr_idx = `3dTstat -argmin -prefix - "${owdir}"/outcount_rall.1D\'`
-    echo "++ MIN_OUTLIER vr_idx : $vr_idx" \
-        | tee "${owdir}/out.min_outlier.txt"
-
-else if ( "${vr_base}" == "MIN_ENORM" ) then
-
-    3dvolreg                                    \
-        -1Dfile "${owdir}"/___temp_volreg.1D    \
-        -prefix "${owdir}"/___temp_volreg+orig  \
-        -overwrite                              \
-        "${epi}"
-
-    1d_tool.py -infile "${owdir}"/___temp_volreg.1D \
-               -derivative -collapse_cols euclidean_norm -write "${owdir}"/enorm_deriv.1D
-    1d_tool.py -infile "${owdir}"/___temp_volreg.1D \
-               -collapse_cols euclidean_norm -write "${owdir}"/enorm.1D
-    1d_tool.py -infile "${owdir}"/enorm.1D -demean -write "${owdir}"/enorm_demean.1D
-    1deval -a "${owdir}"/enorm_demean.1D \
-           -b "${owdir}"/enorm_deriv.1D \
-           -expr 'abs(a)+b' > "${owdir}"/min_enorm_disp_deriv.1D
-    set vr_idx = `3dTstat -argmin -prefix - "${owdir}"/min_enorm_disp_deriv.1D\'`
-    rm ___temp_volreg*
-else 
-    # not be choice, but hope user entered an int
-    set max_idx = `3dinfo -nvi "${epi}"`
-    
-    if ( `echo "${vr_base} > ${max_idx}" | bc` || \
-         `echo "${vr_base} < 0" | bc` ) then
-        echo "** ERROR: allowed volreg_base range is : [0, ${max_idx}]"
-        echo "   but the user's value is outside this: ${vr_base}"
-        echo "   Consider using (default, and keyword opt): MIN_OUTLIER"
-        goto BAD_EXIT
-    endif
-
-    # just use that number
-    set vr_idx = "${vr_base}"
-endif
-echo $vr_idx volume will be the reference volume
-
-# save reference volume
-3dcalc -a "${epi}[$vr_idx]" -expr 'a' -prefix "${owdir}"/epi_base -overwrite
-
-cat <<EOF >> ${histfile}
-++ epi_base+orig is the reference volume (basline), $vr_idx th volume of input
-EOF
 
 # ----- check about physio/pestica regressors, cp to wdir if present
 
@@ -444,7 +445,7 @@ endif
 cd "${owdir}"
 
 # update mask file name
-set epi_mask = "mask.nii.gz"
+set epi_mask = "epi_base_mask+orig"
 
 # linear detrending matrix
 3dDeconvolve -polort 1 -input epi_00+orig -x1D_stop -x1D epi_polort_xmat.1D
@@ -453,8 +454,8 @@ set epi_mask = "mask.nii.gz"
 # volreg output is also generated.
 if ( $step1flag != 'skip' ) then
     gen_vol_pvreg.tcsh                 \
-        -dset_epi   epi_00+orig        \
-        -dset_mask  epi_base_mask+orig \
+        -dset_epi  epi_00+orig        \
+        -dset_mask "${epi_mask}"      \
         -vr_idx    "${vr_idx}"         \
         -prefix_pv epi_01_pvreg        \
         -prefix_vr epi_01_volreg       \
@@ -633,9 +634,29 @@ SHOW_HELP:
 cat << EOF
 -------------------------------------------------------------------------
 
-SLOMOCO: slicewise motion correction software (required PESTICA
-library package)
+SLOMOCO: slicewise motion correction script based on AFNI commands
 
+run_slomoco.tcsh [option] 
+
+Required options:
+ -dset_epi input     = input data is non-motion corrected 4D EPI images. 
+                       DO NOT apply any motion correction on input data.
+                       It is not recommended to apply physiologic noise correction on the input data
+                       Physiologoc noise components can be regressed out with -phyio option 
+ -tfile 1Dfile       = 1D file is slice acquisition timing info.
+                       For example, 5 slices, 1s of TR, ascending interleaved acquisition
+                       [0 0.4 0.8 0.2 0.6]
+      or 
+ -jsonfile jsonfile  = json file from dicom2nii(x) is given
+ -prefix output      = output filename
+ 
+Optional:
+ -volreg_base refvol = reference volume number, "MIN_ENORM" or "MIN_OUTLIER"
+                       "MIN_ENORM" provides the volume number with the minimal summation of absolute volume shift and its derivatives 
+                       "MIN_OUTLIER" provides [P.T will add]
+                       Defaulty is "0"
+ -workdir  directory = intermediate output data will be generated in the defined directory.
+ -do_clean           = this option will delete working directory 
 
 EOF
 

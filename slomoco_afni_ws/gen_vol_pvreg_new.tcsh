@@ -75,14 +75,14 @@ end
     -x_thresh       0.005                                                \
     -rot_thresh     0.008                                                \
     -heptic                                                              \
-    ${epi}
+    ${epi} -overwrite
 
 # inverse affine matrix
 cat_matvec "${prefix_vr}".aff12.1D -I > "${prefix_vr}"_INV.aff12.1D
 
 # generating motsim
+3dTstat -mean -prefix epi_base_mean "${prefix_vr}"+orig
 
-3dTstat -mean -prefix epi_base_mean "${prefix_vr}"
 set tdim = `3dnvals ${epi}`
 set t = 0
 while ( $t < $tdim ) 
@@ -105,20 +105,20 @@ rm ___temp_static.* ___temp_mask.*
   -prefix ___temp_mask4d+orig          \
   -1Dmatrix_apply "${prefix_vr}"_INV.aff12.1D \
   -source ___temp_mask+orig                  \
-  -final NN 
+  -final NN -overwrite
 3dAllineate                                  \
   -prefix epi_motsim+orig                 \
   -1Dmatrix_apply "${prefix_vr}"_INV.aff12.1D \
   -source ___temp_static+orig                \
-  -final cubic 
+  -final cubic -overwrite
 3dAllineate \
   -prefix ___temp_vol_pvreg+orig            \
   -1Dmatrix_apply "${prefix_vr}".aff12.1D    \
   -source epi_motsim+orig                \
-  -final cubic 
+  -final cubic -overwrite
 
 # mask 
-3dcalc -a ___temp_mask4d+orig -expr 'step(a)' -prefix epi_motsim_mask4d+orig -nscale        
+3dcalc -a ___temp_mask4d+orig -expr 'step(a)' -prefix epi_motsim_mask4d+orig -nscale -overwrite        
 
 # normalize vol pv regressor  
 3dTstat -mean  -prefix ___temp_vol_pvreg_mean ___temp_vol_pvreg+orig 
@@ -128,7 +128,7 @@ rm ___temp_static.* ___temp_mask.*
        -c ${epi_mask}                          \
        -d ___temp_vol_pvreg+orig               \
        -expr 'step(b)*step(c)*(d-a)/b*step(b)' \
-       -prefix "${prefix_pv}"
+       -prefix "${prefix_pv}" -overwrite
 rm  ___temp* 
 
 # copy header

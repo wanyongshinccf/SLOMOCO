@@ -537,17 +537,14 @@ foreach t ( `seq 0 1 ${tcount}` )
         endif
 
 	if ( "$t" == "0" ) then
-           echo "++ Num slices to simultaneously analyze: ${zsimults}"
-        endif
-        
-        if ( `echo "${nvox_nz} < ${nvox_min}" | bc` ) then
-            echo "+* WARN: too few nonzero voxels      : ${nvox_nz} at ${zsimults} slice(s)"
-            if ( "$t" == "1" ) then
-              echo "   Wanted to have at least this many : ${nvox_min}"
-              echo "   Null ${moco_prog} matrix will be generated"
-              echo "   You can modify nvox_min if necessary"
-              echo "   (def area: ${nspace_min} mm**2)"
-            endif
+           echo "++ Num slices to simultaneously analyze: ${zsimults}"        
+           if ( `echo "${nvox_nz} < ${nvox_min}" | bc` ) then
+                echo "+* WARN: too few nonzero voxels      : ${nvox_nz} at ${zsimults} slice(s)"
+                echo "   Wanted to have at least this many : ${nvox_min}"
+                echo "   Null ${moco_prog} matrix will be generated"
+                echo "   You can modify nvox_min if necessary"
+                echo "   (def area: ${nspace_min} mm**2)"
+	   endif
         endif
 
         # ----- alignment

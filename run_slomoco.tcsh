@@ -471,16 +471,20 @@ if ( $step1flag != 'skip' ) then
         -vr_idx    "${vr_idx}"         \
         -prefix_pv epi_01_pvreg        \
         -prefix_vr epi_01_volreg       \
-        -do_clean                      \
         |& tee     log_gen_vol_pvreg.txt
     
     if ( $status ) then
         goto BAD_EXIT
     endif
 
-cat <<EOF >> ../${histfile}
+cat << EOF >> ../${histfile}
 ++ Voxelwise partial volume motion nuisance regressors is generated.
-gen_vol_pvreg.tcsh -dset_epi epi_00+orig -dset_mask ${epi_mask} -vr_idx ${vr_idx} -prefix_pv epi_01_pvreg -prefix_vr epi_01_volreg -do_clean    
+gen_vol_pvreg.tcsh 
+  -dset_epi epi_00+orig 
+  -dset_mask ${epi_mask} 
+  -vr_idx ${vr_idx} 
+  -prefix_pv epi_01_pvreg 
+  -prefix_vr epi_01_volreg     
 EOF
 
 endif
@@ -502,10 +506,19 @@ if ( $step2flag != 'skip' ) then
         	-do_clean                                                           \
         	|& tee       log_adjunct_slomoco_slicemoco_xy.txt
         	
-cat <<EOF >> ../${histfile}
+cat << EOF >> ../${histfile}
 ++ slicewise inplane motion correction is done.
-adjunct_slomoco_slicemoco_xy.tcsh  ${do_echo} -dset_epi epi_01_volreg+orig -dset_mask ${epi_mask} -moco_meth ${moco_meth} -workdir inplane -volreg_mat epi_01_volreg.aff12.1D -tfile tshiftfile.1D -prefix epi_02_slicemoco_xy -do_clean
+adjunct_slomoco_slicemoco_xy.tcsh  ${do_echo} 
+  -dset_epi epi_01_volreg+orig 
+  -dset_mask ${epi_mask} 
+  -moco_meth ${moco_meth} 
+  -workdir inplane 
+  -volreg_mat epi_01_volreg.aff12.1D 
+  -tfile tshiftfile.1D 
+  -prefix epi_02_slicemoco_xy 
+  -do_clean
 EOF
+
     else
        	echo "++ Run: adjunct_slomoco_vol_slicemoco_xy.tcsh"
     	adjunct_slomoco_vol_slicemoco_xy.tcsh  ${do_echo}                       \
@@ -520,9 +533,19 @@ EOF
         	-do_clean                                                           \
         	|& tee       log_adjunct_slomoco_vol_slicemoco_xy.txt
         	
-cat <<EOF >> ../${histfile}
-adjunct_slomoco_vol_slicemoco_xy.tcsh  ${do_echo} -dset_epi epi_00+orig -dset_base epi_motsim+orig -dset_mask epi_motsim_mask4d+orig -moco_meth ${moco_meth} -workdir inplane -volreg_mat epi_01_volreg.aff12.1D -tfile tshiftfile.1D -prefix epi_02_slicemoco_xy -do_clean
-EOF        	
+cat << EOF >> ../${histfile}
+adjunct_slomoco_vol_slicemoco_xy.tcsh  $do_echo 
+  -dset_epi epi_00+orig 
+  -dset_base epi_motsim+orig 
+  -dset_mask epi_motsim_mask4d+orig 
+  -moco_meth $moco_meth 
+  -workdir inplane 
+  -volreg_mat epi_01_volreg.aff12.1D 
+  -tfile tshiftfile.1D 
+  -prefix epi_02_slicemoco_xy 
+  -do_clean
+EOF
+        	
      endif
 endif
 
@@ -546,8 +569,12 @@ if ( $step3flag != 'skip' ) then
         goto BAD_EXIT
     endif
 
-cat <<EOF >> ../${histfile}
-adjunct_slomoco_inside_fixed_vol.tcsh  ${do_echo} -dset_epi epi_02_slicemoco_xy+orig -dset_mask epi_base_mask+orig -workdir outofplane  -tfile tshiftfile.1D
+cat << EOF >> ../${histfile}
+adjunct_slomoco_inside_fixed_vol.tcsh  ${do_echo} 
+  -dset_epi epi_02_slicemoco_xy+orig 
+  -dset_mask epi_base_mask+orig 
+  -workdir outofplane  
+  -tfile tshiftfile.1D
 EOF
 
 endif
@@ -569,8 +596,14 @@ if ( $step4flag != 'skip' ) then
         goto BAD_EXIT
     endif
 
-cat <<EOF >> ../${histfile}
-adjunct_slomoco_calc_slicemopa.tcsh -dset_epi epi_02_slicemoco_xy+orig -indir inplane -outdir outofplane -workdir combined_slicemopa -tfile tshiftfile.1D -prefix epi_slireg.1D
+cat << EOF >> ../${histfile}
+adjunct_slomoco_calc_slicemopa.tcsh 
+  -dset_epi epi_02_slicemoco_xy+orig 
+  -indir inplane 
+  -outdir outofplane 
+  -workdir combined_slicemopa 
+  -tfile tshiftfile.1D 
+  -prefix epi_slireg.1D
 EOF
 
 endif
@@ -614,7 +647,7 @@ if ( $step5flag != "skip" ) then
         goto BAD_EXIT
     endif
 
-cat <<EOF >> ../${histfile}
+cat << EOF >> ../${histfile}
 ++ The residual motion artifact is regressed out with motion nuisance parameters.
 EOF
 
@@ -632,8 +665,11 @@ if ( $step6flag != "skip" ) then
         goto BAD_EXIT
     endif
 
-cat <<EOF >> ${histfile}
-matlab -nodesktop -nosplash -r "addpath ${MATLAB_SLOMOCO_DIR}; qa_slomoco_new('epi_02_slicemoco_xy+orig','epi_base_mask+orig','epi_01_volreg.1D','epi_slireg.1D'); exit;"
+cat << EOF >> ../${histfile}
+matlab -nodesktop -nosplash -r 
+addpath ${MATLAB_SLOMOCO_DIR}; 
+qa_slomoco_new('epi_02_slicemoco_xy+orig','epi_base_mask+orig','epi_01_volreg.1D','epi_slireg.1D'); exit;
+
 EOF
 
 endif

@@ -19,6 +19,7 @@ set odir      = $here
 set opref     = ""
 set wdir      = ""
 
+
 # --------------------- volmoco-specific inputs --------------------
 
 # all allowed slice acquisition keywords
@@ -31,9 +32,9 @@ set roi_mask = ""   # (opt) tissue mask to report SD reduction after nuisance re
 
 set physiofile = "" # physio1D file, from RETROICOR or PESTICA
 set regflag = "AFNI" # MATLAB or AFNI
-set qaflag = "MATLAB" # MATLAB or AFNI
 
-set DO_CLEAN     = 0                       # default: keep working dir
+set DO_CLEAN     = 0        # default: keep working dir
+set DO_COMPACT   = 0		# default keep all the files
 
 set histfile = log_volmoco.txt
 
@@ -106,6 +107,9 @@ while ( $ac <= $#argv )
 
     else if ( "$argv[$ac]" == "-do_clean" ) then
         set DO_CLEAN     = 1
+        
+    else if ( "$argv[$ac]" == "-compact" ) then
+        set DO_COMPACT   = 1
         
     else
         echo ""
@@ -231,7 +235,7 @@ endif
 if ( "${roi_mask}" == "" ) then
 	set roi_mask = "epi_base_mask+orig" 
 else
-	set roi_mask = "${owdir}"/"${roi_mask}" 
+	set roi_mask = ../"${roi_mask}" 
 endif
 
 # ----- physio file sanity check
@@ -239,6 +243,13 @@ endif
 cat <<EOF >> ${histfile}
 ++ epi_base+orig is the reference volume (basline), $vr_idx th volume of input
 EOF
+
+# check CLEAN and compact options
+if ( $DO_CLEAN == 1 && $DO_COMPACT == 1 ) then
+  	DO_COMPACT == 0  
+	echo "++ both -do_clean and -do_compact cannot be selected. do_clean is only activated."
+endif
+
 
 # =======================================================================
 # =========================== ** Main work ** ===========================
@@ -251,24 +262,18 @@ set epi_mask = "epi_base_mask+orig"
 
 # ----- step 1 voxelwise time-series PV regressor
 # volreg output is also generated.
-if ( $step1flag != 'skip' ) then
-    gen_vol_pvreg.tcsh                 \
-        -dset_epi  epi_00+orig        \
-        -dset_mask "${epi_mask}"      \
-        -vr_idx    "${vr_idx}"         \
-        -prefix_pv epi_01_pvreg        \
-        -prefix_vr epi_01_volreg       \
-        |& tee     log_gen_vol_pvreg.txt
+gen_vol_pvreg.tcsh                 \
+	-dset_epi  epi_00+orig        \
+    -dset_mask "${epi_mask}"      \
+    -vr_idx    "${vr_idx}"         \
+    -prefix_pv epi_02_pvreg        \
+    -prefix_vr epi_01_volreg       \
+    |& tee     log_gen_vol_pvreg.txt
     
-    if ( $status ) then
-        goto BAD_EXIT
-    endif
-
-cat <<EOF >> ${histfile}
-++ Voxelwise partial volume motion nuisance regressors is generated.
-EOF
-
+if ( $status ) then
+    goto BAD_EXIT
 endif
+
 
 # ----- step 2 second order 
 
@@ -301,13 +306,13 @@ endif
   	-Oerrts errt.det			\
   	|& tee     log_gen_vol_pvreg.txt	
   	  
-if ( $physiofile == "") then
+if ( $physiofile == "" ) then
  	# 6 Vol-mopa + PV + linear detrending terms 
 	3dREMLfit 						\
 		-input epi_01_volreg+orig 	\
 		-mask epi_base_mask+orig 	\
   		-matrix mopa6.1D 			\
-  		-dsort epi_01_pvreg+orig 	\
+  		-dsort epi_02_pvreg+orig 	\
   		-dsort_nods					\
   		-Oerrts errt.mopa6.pvreg	\
   		|& tee     log_gen_vol_pvreg.txt
@@ -318,7 +323,7 @@ else
 		-input epi_01_volreg+orig 	\
 		-mask epi_base_mask+orig 	\
   		-matrix mopa6.1D 			\
-  		-dsort epi_01_pvreg+orig 	\
+  		-dsort epi_02_pvreg+orig 	\
   		-slibase_sm $physiofile		\
   		-dsort_nods					\
   		-Oerrts errt.mopa6.pvreg	\
@@ -326,10 +331,7 @@ else
 
 endif
  
-cat <<EOF >> ${histfile}
-++ Nuisance regressros are regressed out.
-EOF
- 
+
 # present SD reduction (optional)
 3dTstat -stdev 						\
 	-prefix errt.det.std	\
@@ -341,39 +343,47 @@ EOF
 	-prefix errt.mopa6.std 			\
 	errt.mopa6.pvreg_nods+orig
 
-# ROIstats
+echo $roi_mask
 3dROIstats -quiet					\
-	mask "${roi_mask}"				\
+	-mask "${roi_mask}"				\
 	errt.det.std+orig > SDreduction.1D
 
 3dROIstats -quiet					\
-	mask "${roi_mask}"				\
-	errt.mopa6.pvreg_nods.std+orig	>> SDreduction.1D
+	-mask "${roi_mask}"				\
+	errt.mopa6.std+orig	>> SDreduction.1D
 
 3dROIstats -quiet					\
-	mask "${roi_mask}"				\
+	-mask "${roi_mask}"				\
 	errt.mopa6.pvreg.std+orig	>> SDreduction.1D
 
 echo +++++++++++++++++++++	
 if ( $physiofile == "" ) then
-	echo ++ average SD in a mask (baseline, 6 Vol-mopa, 6 vol-mopa + PV )	
+	echo "++ average SD in a mask (baseline, 6 Vol-mopa, 6 vol-mopa + PV )"	
 else
-	echo ++ average SD in a mask (baseline, 6 Vol-mopa + physio, 6 vol-mopa + physio + PV )	
+	echo "++ average SD in a mask (baseline, 6 Vol-mopa + physio, 6 vol-mopa + physio + PV )"	
 endif
 cat SDreduction.1D
 echo +++++++++++++++++++++
 
-rm errt.det+orig.* errt.mopa6.pvreg_nods+orig.* _.*   
-
+# delete large size of temporary files
+rm 	errt.det+orig.* 				\
+	errt.det.std+orig* 				\
+	errt.mopa6.pvreg_nods+orig.* 	\
+	errt.mopa6.pvreg.std+orig.* 	\
+	errt.mopa6.std+orig.*								
+	
 
 # move out of wdir to the odir
 cd ..
 set whereout = $PWD
 
-# copy the final result
-3dcalc -a "${owdir}"/errt.mopa6.pvreg+orig -expr 'a' \
-	-prefix "${prefix}" . # output only
- 
+# copy the final result, add EPI tissue contrast to the residual time-series.
+3dcalc									\
+	-a "${owdir}"/errt.mopa6.pvreg+orig \
+	-b "${owdir}"/epi_base_mean+orig 	\
+	-expr 'a+b' 						\
+	-prefix "${prefix}" 				\
+	-overwrite 				# output only
 
 if ( $DO_CLEAN == 1 ) then
     echo "\n+* Removing temporary axialization working dir: '$wdir'\n"
@@ -383,6 +393,14 @@ if ( $DO_CLEAN == 1 ) then
 
 else
     echo "\n++ NOT removing temporary axialization working dir: '$wdir'\n"
+    if ( $DO_COMPACT == 1 ) then
+      	echo "\n++ Removing temporary files under working dir: '$wdir'\n"
+    	rm -rf 	"${owdir}"/epi_00+orig.* 		\
+    			"${owdir}"/epi_motsim** 		\
+    			"${owdir}"/epi_base_mean+orig.* 		
+      
+    endif
+    
 endif
 
 echo ""
@@ -432,7 +450,8 @@ Optional:
  -workdir  directory = intermediate output data will be generated in the defined directory.\
  
  -do_clean           = this option will delete working directory 
-
+ -compact            = this option will delete the large size of files under working directory
+	  
 EOF
 
 # ----------------------------------------------------------------------

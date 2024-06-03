@@ -126,6 +126,7 @@ endif
 # simplify path to wdir
 set owdir = "${odir}/${wdir}"
 
+echo $owdir
 # make the working directory
 if ( ! -e "${owdir}" ) then
     echo "++ Making working directory: ${owdir}"

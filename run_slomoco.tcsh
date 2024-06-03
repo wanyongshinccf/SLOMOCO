@@ -21,14 +21,12 @@ set wdir      = ""
 
 # --------------------- slomoco-specific inputs --------------------
 
-# all allowed slice acquisition keywords
-set slomocov   = 6                      # ver
+# all allowed slice acquisition keywords                    
 set moco_meth  = "W"  # 'AFNI_SLOMOCO': W -> 3dWarpDrive; A -> 3dAllineate
 set vr_base    = "0" # select either "MIN_OUTLIER" or "MIN_ENORM", or integer
 set vr_idx     = -1            # will get set by vr_base in opt proc
 
 set epi      = ""   # base 3D+time EPI dataset to use to perform corrections
-set unsatepi = ""   # unsaturated EPI image, usually Scout_gdc.nii.gz
 set epi_mask = ""   # (opt) mask dset name
 set jsonfile = ""   # json file
 set tfile = ""      # tshiftfile (sec)
@@ -43,11 +41,11 @@ set histfile = log_slomoco.txt
 set do_echo  = ""
 
 # test purpose (W.S)
-set step1flag = "nskip" # voxelwise PV regressor
-set step2flag = "nskip" # inplance moco
-set step3flag = "nskip" # outofplane moco
-set step4flag = "nskip" # slicewise motion 1D
-set step5flag = "nskip" # 2nd order regress-out
+set step1flag = "skip" # voxelwise PV regressor
+set step2flag = "skip" # inplance moco
+set step3flag = "skip" # outofplane moco
+set step4flag = "skip" # slicewise motion 1D
+set step5flag = "skip" # 2nd order regress-out
 set step6flag = "nskip" # qa plot
 
 if ( "$OSTYPE" == "darwin" ) then
@@ -56,7 +54,14 @@ if ( "$OSTYPE" == "darwin" ) then
   echo "++ SLOMOCO is running on Mac OX"
   echo "++ 3dvolreg is applied and SLOMOCO is running on volume motion corrected images" 
   echo "++ 3dAllineate is used for slicewise motion correction "
-endif     # Mac OSX
+else
+  set volregfirst = 0
+  set moco_meth = "W"   
+  echo "++ SLOMOCO is running on non-Mac OX"
+  echo "++ MotSim data is used for the reference image of SLOMOCO" 
+  echo "++ SLOMOCO is running on non-volume motion corrected images" 
+  echo "++ 3dWarpDrive included in the package is used for slicewise motion correction "
+endif     
 
 
 # ------------------- process options, a la rr ----------------------
@@ -469,24 +474,13 @@ if ( $step1flag != 'skip' ) then
         -dset_epi  epi_00+orig         \
         -dset_mask "${epi_mask}"       \
         -vr_idx    "${vr_idx}"         \
-        -prefix_pv epi_01_pvreg        \
+        -prefix_pv epi_02_pvreg        \
         -prefix_vr epi_01_volreg       \
         |& tee     log_gen_vol_pvreg.txt
     
     if ( $status ) then
         goto BAD_EXIT
     endif
-
-cat << EOF >> ../${histfile}
-++ Voxelwise partial volume motion nuisance regressors is generated.
-gen_vol_pvreg.tcsh 
-  -dset_epi epi_00+orig 
-  -dset_mask ${epi_mask} 
-  -vr_idx ${vr_idx} 
-  -prefix_pv epi_01_pvreg 
-  -prefix_vr epi_01_volreg     
-EOF
-
 endif
 
 # ----- step 2 slicewise moco in xy plane
@@ -502,23 +496,10 @@ if ( $step2flag != 'skip' ) then
         	-workdir     inplane                                                \
         	-volreg_mat  epi_01_volreg.aff12.1D                                 \
         	-tfile       tshiftfile.1D                                          \
-        	-prefix      epi_02_slicemoco_xy                                    \
+        	-prefix      epi_03_slicemoco_xy                                    \
         	-do_clean                                                           \
         	|& tee       log_adjunct_slomoco_slicemoco_xy.txt
         	
-cat << EOF >> ../${histfile}
-++ slicewise inplane motion correction is done.
-adjunct_slomoco_slicemoco_xy.tcsh  ${do_echo} 
-  -dset_epi epi_01_volreg+orig 
-  -dset_mask ${epi_mask} 
-  -moco_meth ${moco_meth} 
-  -workdir inplane 
-  -volreg_mat epi_01_volreg.aff12.1D 
-  -tfile tshiftfile.1D 
-  -prefix epi_02_slicemoco_xy 
-  -do_clean
-EOF
-
     else
        	echo "++ Run: adjunct_slomoco_vol_slicemoco_xy.tcsh"
     	adjunct_slomoco_vol_slicemoco_xy.tcsh  ${do_echo}                       \
@@ -529,22 +510,9 @@ EOF
         	-workdir     inplane                                                \
         	-volreg_mat  epi_01_volreg.aff12.1D                                 \
         	-tfile       tshiftfile.1D                                          \
-        	-prefix      epi_02_slicemoco_xy                                    \
+        	-prefix      epi_03_slicemoco_xy                                    \
         	-do_clean                                                           \
         	|& tee       log_adjunct_slomoco_vol_slicemoco_xy.txt
-        	
-cat << EOF >> ../${histfile}
-adjunct_slomoco_vol_slicemoco_xy.tcsh  $do_echo 
-  -dset_epi epi_00+orig 
-  -dset_base epi_motsim+orig 
-  -dset_mask epi_motsim_mask4d+orig 
-  -moco_meth $moco_meth 
-  -workdir inplane 
-  -volreg_mat epi_01_volreg.aff12.1D 
-  -tfile tshiftfile.1D 
-  -prefix epi_02_slicemoco_xy 
-  -do_clean
-EOF
         	
      endif
 endif
@@ -559,7 +527,7 @@ endif
 if ( $step3flag != 'skip' ) then
     echo "++ Run: adjunct_slomoco_inside_fixed_vol.tcsh"
     adjunct_slomoco_inside_fixed_vol.tcsh  ${do_echo}                       \
-        -dset_epi    epi_02_slicemoco_xy+orig                               \
+        -dset_epi    epi_03_slicemoco_xy+orig                               \
         -dset_mask   epi_base_mask+orig                                     \
         -workdir     outofplane                                             \
         -tfile       tshiftfile.1D                                          \
@@ -569,14 +537,6 @@ if ( $step3flag != 'skip' ) then
         goto BAD_EXIT
     endif
 
-cat << EOF >> ../${histfile}
-adjunct_slomoco_inside_fixed_vol.tcsh  ${do_echo} 
-  -dset_epi epi_02_slicemoco_xy+orig 
-  -dset_mask epi_base_mask+orig 
-  -workdir outofplane  
-  -tfile tshiftfile.1D
-EOF
-
 endif
 
 # ----- step 4 generate slicewise 6 rigid motion parameter regressor 
@@ -584,7 +544,7 @@ endif
 # script for slice mopa nuisance regressor
 if ( $step4flag != 'skip' ) then
     adjunct_slomoco_calc_slicemopa.tcsh                                     \
-        -dset_epi    epi_02_slicemoco_xy+orig                               \
+        -dset_epi    epi_03_slicemoco_xy+orig                               \
         -indir       inplane                                                \
         -outdir      outofplane                                             \
         -workdir     combined_slicemopa                                     \
@@ -596,16 +556,6 @@ if ( $step4flag != 'skip' ) then
         goto BAD_EXIT
     endif
 
-cat << EOF >> ../${histfile}
-adjunct_slomoco_calc_slicemopa.tcsh 
-  -dset_epi epi_02_slicemoco_xy+orig 
-  -indir inplane 
-  -outdir outofplane 
-  -workdir combined_slicemopa 
-  -tfile tshiftfile.1D 
-  -prefix epi_slireg.1D
-EOF
-
 endif
 
 # -----  step 5 second order regress out
@@ -615,7 +565,7 @@ if ( $step5flag != "skip" ) then
     if ( $regflag == "MATLAB" ) then
         1dcat epi_polort_xmat.1D > rm_polort.1D
         1dcat epi_slireg.1D > rm_slireg.1D
-        matlab -nodesktop -nosplash -r "addpath ${MATLAB_SLOMOCO_DIR};  gen_regout('epi_02_slicemoco_xy+orig','epi_base_mask+orig','physio','rm_physio.1D','polort','rm_polort.1D','volreg','epi_01_volreg.1D','slireg','epi_slireg.1D','voxreg','epi_01_pvreg+orig','out','${prefix}'); exit;"
+        matlab -nodesktop -nosplash -r "addpath ${MATLAB_SLOMOCO_DIR};  gen_regout('epi_03_slicemoco_xy+orig','epi_base_mask+orig','physio','rm_physio.1D','polort','rm_polort.1D','volreg','epi_01_volreg.1D','slireg','epi_slireg.1D','voxreg','epi_01_pvreg+orig','out','${prefix}'); exit;"
         rm rm_*
     else 
         echo "afni version of vol/sli/voxelwise regression pipeline is working in progress" 
@@ -631,7 +581,7 @@ if ( $step5flag != "skip" ) then
             # [To P.T] How we can combine slireg.demean.1D with physioreg.1D file? 
         endif
   
-        # [TO P.T] it does not run since slireg.demean.1D includes zero columns
+        # 3dREMLfit does not run since slireg.demean.1D includes zero columns
         3dREMLfit                                \ 
             -input      epi_02_slicemoco_xy+orig \
             -matim      volreg.all.1D            \
@@ -647,16 +597,12 @@ if ( $step5flag != "skip" ) then
         goto BAD_EXIT
     endif
 
-cat << EOF >> ../${histfile}
-++ The residual motion artifact is regressed out with motion nuisance parameters.
-EOF
-
 endif
 
 # -----  step 6 QA SLOMOCO
 if ( $step6flag != "skip" ) then
     if ( $qaflag == "MATLAB" ) then
-        matlab -nodesktop -nosplash -r "addpath ${MATLAB_SLOMOCO_DIR}; qa_slomoco_new('epi_02_slicemoco_xy+orig','epi_base_mask+orig','epi_01_volreg.1D','epi_slireg.1D'); exit;"
+        matlab -nodesktop -nosplash -r "addpath ${MATLAB_SLOMOCO_DIR}; qa_slomoco('epi_03_slicemoco_xy+orig','epi_base_mask+orig','epi_01_volreg.1D','epi_slireg.1D'); exit;"
     else
         echo "afni version of qa display is working in progress" 
     endif  
@@ -664,13 +610,6 @@ if ( $step6flag != "skip" ) then
     if ( $status ) then
         goto BAD_EXIT
     endif
-
-cat << EOF >> ../${histfile}
-matlab -nodesktop -nosplash -r 
-addpath ${MATLAB_SLOMOCO_DIR}; 
-qa_slomoco_new('epi_02_slicemoco_xy+orig','epi_base_mask+orig','epi_01_volreg.1D','epi_slireg.1D'); exit;
-
-EOF
 
 endif
 

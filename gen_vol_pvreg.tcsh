@@ -117,7 +117,7 @@ cat_matvec "${prefix_vr}".aff12.1D -I > "${prefix_vr}"_INV.aff12.1D
      	"${prefix_vr}"+orig 
 
 # concatenate images
-echo "++ Concatenate images; running 3dcalc; no msg ++"
+echo "++ Generating MotSim dataset; running 3dcalc; no msg ++"
 set tdim = `3dnvals ${epi}`
 set t = 0
 while ( $t < $tdim ) 

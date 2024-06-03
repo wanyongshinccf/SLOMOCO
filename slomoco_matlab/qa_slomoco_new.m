@@ -1,4 +1,4 @@
-function [volslimot_final slimot_final_jiang] =  qa_slomoco_new(ep2d_filename,mask_filename,vol_filename, sli_filename)
+function [volslimot_final slimot_final_jiang] =  qa_slomoco(ep2d_filename,mask_filename,vol_filename, sli_filename)
 %function qa_slomoco(ep2d_filename,filestr_out,filestr_in,slice_timing,filter_width,sub_xy_offsets)
 % script reads in SLOMOCO files and fit data in local directory (currently inside pestica/ subdirectory)
 % plot motion parameters, histograms of excessive motion, histograms of motion coupling t-score (sum across model)

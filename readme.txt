@@ -17,6 +17,14 @@ Open the terminal and type "matlab" in your shell. It should work for SLOMOCO
 If you are running run_slomoco.tcsh in linux or Mac OS, the result is slightly different.
 DO NOT mix up SLOMOCO results from Linux or Mac OS in your study.
 
+We suggest to run PESTICA (or RETROICOR) before SLOMOCO and to add physiologic nuisance
+regressors to SLOMOCO motion nuisance regression model.
+e.g. run_pestica.tcsh 	-dset_epi epi+orig -tfile tshiftfile -prefix epi.pestica \
+						-workdir PESTICA5 -auto
+     run_slomoco.tcsh 	-dset_epi epi+orig -tfile tshiftfile -prefix epi.slomoco \
+     					-physio PESTICA5/RetroTS.PESTICA5.slibase.1D \
+     					-workdir SLOMOCO5
+
 In addition, run_volmoco.tcsh provides voxelwise partial volume (PV) motion nuisance 
 regress-out pipeline (After 3dvolreg, 6 rigid volume motion + PV regress-out)
 The detail is found in Citation 1)

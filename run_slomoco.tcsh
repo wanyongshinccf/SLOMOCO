@@ -45,7 +45,7 @@ set step1flag = "skip" # voxelwise PV regressor
 set step2flag = "skip" # inplance moco
 set step3flag = "skip" # outofplane moco
 set step4flag = "skip" # slicewise motion 1D
-set step5flag = "skip" # 2nd order regress-out
+set step5flag = "nskip" # 2nd order regress-out
 set step6flag = "nskip" # qa plot
 
 if ( "$OSTYPE" == "darwin" ) then
@@ -172,11 +172,7 @@ set fullcommand = "$0"
 setenv SLOMOCO_DIR `dirname "${fullcommand}"`
 setenv MATLAB_SLOMOCO_DIR $SLOMOCO_DIR/slomoco_matlab
 setenv AFNI_SLOMOCO_DIR $SLOMOCO_DIR/afni_linux
-
-echo $fullcommand
-cat <<EOF >> ${histfile}
-$fullcommand -dset_epi $epi -dset_mask $epi_mask -tfile $tfile -json $jsonfile -physio $physiofile -moco_meth $moco_meth -wdir $wdir -volreg_base -volreg_base $vr_base -volregfirst $volregfirst
-EOF
+setenv MATLAB_AFNI_DIR  $SLOMOCO_DIR/afni_matlab
 
 # ----- find AFNI 
 
@@ -196,13 +192,13 @@ endif
 echo "++ Work on output naming"
 
 if ( "${prefix}" == "" ) then
-    echo "** ERROR: need to provide output name with '-prefix ..'"
+    echo "** ERROR: need to provide output name with '-prefix ..'" |& tee -a $histfile
     goto BAD_EXIT
 endif
 
 # check output directory, use input one if nothing given
 if ( ! -e "${odir}" ) then
-    echo "++ Making new output directory: $odir"
+    echo "++ Making new output directory: $odir" |& tee -a $histfile
     \mkdir -p "${odir}"
 endif
 
@@ -217,24 +213,24 @@ set owdir = "${odir}/${wdir}"
 
 # make the working directory
 if ( ! -e "${owdir}" ) then
-    echo "++ Making working directory: ${owdir}"
+    echo "++ Making working directory: ${owdir}" |& tee -a $histfile
     \mkdir -p "${owdir}"
 else
-    echo "+* WARNING:  Somehow found a premade working directory:"
+    echo "+* WARNING:  Somehow found a premade working directory:" |& tee -a $histfile
     echo "      ${owdir}"
 endif
 
 # find slice acquisition timing
 if ( "${jsonfile}" == "" && "${tfile}" == "" ) then
-    echo "** ERROR: slice acquisition timing info should be given with -json or -tfile option"
+    echo "** ERROR: slice acquisition timing info should be given with -json or -tfile option" |& tee -a $histfile
     goto BAD_EXIT
 else
   if ( ! -e "${jsonfile}" && "${jsonfile}" != "" ) then
-    echo "** ERROR: Json file does not exist"
+    echo "** ERROR: Json file does not exist" |& tee -a $histfile
     goto BAD_EXIT
   endif
   if ( ! -e "${tfile}" && "${tfile}" != "" ) then
-    echo "** ERROR: tshift file does not exist"
+    echo "** ERROR: tshift file does not exist" |& tee -a $histfile
     goto BAD_EXIT
   endif
 endif
@@ -242,20 +238,20 @@ endif
 # ----- find required dsets, and any properties
 
 if ( "${epi}" == "" ) then
-    echo "** ERROR: need to provide EPI dataset with '-dset_epi ..'"
+    echo "** ERROR: need to provide EPI dataset with '-dset_epi ..'" |& tee -a $histfile
     goto BAD_EXIT
 else
     # verify dset is OK to read
     3dinfo "${epi}"  >& /dev/null
     if ( ${status} ) then
-        echo "** ERROR: cannot read/open dset: ${epi}"
+        echo "** ERROR: cannot read/open dset: ${epi}" |& tee -a $histfile
         goto BAD_EXIT
     endif
 
     # must have +orig space for input EPI
     set av_space = `3dinfo -av_space "${epi}" `
     if ( "${av_space}" != "+orig" ) then
-        echo "** ERROR: input EPI must have +orig av_space, not: ${av_space}"
+        echo "** ERROR: input EPI must have +orig av_space, not: ${av_space}" |& tee -a $histfile
         goto BAD_EXIT
     endif
 
@@ -288,7 +284,7 @@ else if ( "${vr_base}" == "MIN_ENORM" ) then
         -1Dfile "${owdir}"/___temp_volreg.1D    \
         -prefix "${owdir}"/___temp_volreg+orig  \
         -overwrite                              \
-        "${epi}"
+        "${epi}"	|& tee -a $histfile						
 
     1d_tool.py -infile "${owdir}"/___temp_volreg.1D \
                -derivative \
@@ -312,19 +308,19 @@ else
     
     if ( `echo "${vr_base} > ${max_idx}" | bc` || \
          `echo "${vr_base} < 0" | bc` ) then
-        echo "** ERROR: allowed volreg_base range is : [0, ${max_idx}]"
-        echo "   but the user's value is outside this: ${vr_base}"
-        echo "   Consider using (default, and keyword opt): MIN_OUTLIER"
+        echo "** ERROR: allowed volreg_base range is : [0, ${max_idx}]" |& tee -a $histfile
+        echo "   but the user's value is outside this: ${vr_base}" |& tee -a $histfile
+        echo "   Consider using (default, and keyword opt): MIN_OUTLIER" |& tee -a $histfile
         goto BAD_EXIT
     endif
 
     # just use that number
     set vr_idx = "${vr_base}"
 endif
-echo $vr_idx volume will be the reference volume
+echo $vr_idx volume will be the reference volume |& tee -a $histfile
 
 # save reference volume
-3dcalc -a "${epi}[$vr_idx]" -expr 'a' -prefix "${owdir}"/epi_base -overwrite
+3dcalc -a "${epi}[$vr_idx]" -expr 'a' -prefix "${owdir}"/epi_base -overwrite 
 
 # ---- check dsets that are optional, to verify (if present)
 # unsaturated EPI image might be useful for high SMS accelrated dataset, e.g. HCP
@@ -371,7 +367,7 @@ echo $vr_idx volume will be the reference volume
 # ----- make automask, if one is not provided
 
 if ( "${epi_mask}" == "" ) then
-    echo "++ No mask provided, will make one" |& tee ${histfile}
+    echo "++ No mask provided, will make one" |& tee -a $histfile
     # remove skull (PT: could use 3dAutomask)
     3dSkullStrip                               \
         -input "${owdir}"/epi_base+orig        \
@@ -397,9 +393,9 @@ if ( "${epi_mask}" == "" ) then
     # clean a bit
     rm ${owdir}/___tmp*nii.gz
 else
-  echo "** Note that reference volume is selected $vr_idx volume of input **"
-  echo "** IF input mask is not generated from $vr_idx volume, "
-  echo "** SLOMOCO might underperform. " 
+  echo "** Note that reference volume is selected $vr_idx volume of input **" |& tee -a $histfile
+  echo "** IF input mask is not generated from $vr_idx volume, " |& tee -a $histfile
+  echo "** SLOMOCO might underperform. "  |& tee -a $histfile
     3dcalc -a "${epi_mask}"                 \
            -expr 'step(a)'                        \
            -prefix "${owdir}/epi_base_mask" \
@@ -415,27 +411,23 @@ set epi_mask = "${owdir}/epi_base_mask+orig"
 
 if ( "${physiofile}" != "" ) then
     if ( ! -e "${physiofile}" ) then 
-        echo "** ERROR: cannot ${physiofile} "
+        echo "** ERROR: cannot ${physiofile} " |& tee -a $histfile
         goto BAD_EXIT
     else
         1dcat $physiofile  > ${owdir}/physioreg.1D 
-
-cat <<EOF >> ${histfile}
-++ Second order SLOMOCO will be conducted with  ${physiofile}
-EOF
+		echo "++ Second order SLOMOCO will be conducted with  ${physiofile} " |& tee -a $histfile
 
     endif
 
-cat <<EOF >> ${histfile}
-++ Second order SLOMOCO will be conducted without physiofile
-EOF
+else
+	echo "++ Second order SLOMOCO will be conducted without physiofile " |& tee -a $histfile
     
 endif
 
 
 # ----- slice timing file info
 if ( "$jsonfile" != "" && "$tfile" != "")  then
-  echo " ** ERROR:  Both jsonfile and tfile options should not be used."
+  echo " ** ERROR:  Both jsonfile and tfile options should not be used." |& tee -a $histfile
   goto BAD_EXIT
 else if ( "$jsonfile" != "")  then
   abids_json_info.py -json $jsonfile -field SliceTiming | sed "s/[][]//g" | sed "s/,//g" | xargs printf "%s\n" > ${owdir}/tshiftfile.1D
@@ -448,8 +440,8 @@ endif
 # value can only be one of a short list
 if ( ${moco_meth} != "A" && \
      ${moco_meth} != "W" ) then
-    echo "** ERROR: bad moco method selected; must be one of: A, W."
-    echo "   User provided: '${moco_meth}'"
+    echo "** ERROR: bad moco method selected; must be one of: A, W." |& tee -a $histfile
+    echo "   User provided: '${moco_meth}'" |& tee -a $histfile
     goto BAD_EXIT
 endif
 
@@ -457,7 +449,6 @@ endif
 
 # =======================================================================
 # =========================== ** Main work ** ===========================
-
 # move to wdir to do work
 cd "${owdir}"
 
@@ -470,6 +461,7 @@ set epi_mask = "epi_base_mask+orig"
 # ----- step 1 voxelwise time-series PV regressor
 # volreg output is also generated.
 if ( $step1flag != 'skip' ) then
+	echo "++ Run: gen_vol_pvreg.tcsh"  |& tee -a ../$histfile
     gen_vol_pvreg.tcsh                 \
         -dset_epi  epi_00+orig         \
         -dset_mask "${epi_mask}"       \
@@ -488,7 +480,7 @@ endif
 
 if ( $step2flag != 'skip' ) then
     if ( $volregfirst == 1 ) then
-    	echo "++ Run: adjunct_slomoco_slicemoco_xy.tcsh"
+    	echo "++ Run: adjunct_slomoco_slicemoco_xy.tcsh" |& tee -a ../$histfile
     	adjunct_slomoco_slicemoco_xy.tcsh  ${do_echo}                       \
         	-dset_epi    epi_01_volreg+orig                                     \
         	-dset_mask "${epi_mask}"       										\
@@ -501,7 +493,7 @@ if ( $step2flag != 'skip' ) then
         	|& tee       log_adjunct_slomoco_slicemoco_xy.txt
         	
     else
-       	echo "++ Run: adjunct_slomoco_vol_slicemoco_xy.tcsh"
+       	echo "++ Run: adjunct_slomoco_vol_slicemoco_xy.tcsh" |& tee -a ../$histfile
     	adjunct_slomoco_vol_slicemoco_xy.tcsh  ${do_echo}                       \
         	-dset_epi    epi_00+orig                                            \
         	-dset_base   epi_motsim+orig                                        \
@@ -525,7 +517,7 @@ endif
 
 # script for out-of-plane motion correction
 if ( $step3flag != 'skip' ) then
-    echo "++ Run: adjunct_slomoco_inside_fixed_vol.tcsh"
+    echo "++ Run: adjunct_slomoco_inside_fixed_vol.tcsh" |& tee -a ../$histfile
     adjunct_slomoco_inside_fixed_vol.tcsh  ${do_echo}                       \
         -dset_epi    epi_03_slicemoco_xy+orig                               \
         -dset_mask   epi_base_mask+orig                                     \
@@ -543,6 +535,7 @@ endif
 
 # script for slice mopa nuisance regressor
 if ( $step4flag != 'skip' ) then
+    echo "++ Run: adjunct_slomoco_calc_slicemopa.tcsh" |& tee -a ../$histfile
     adjunct_slomoco_calc_slicemopa.tcsh                                     \
         -dset_epi    epi_03_slicemoco_xy+orig                               \
         -indir       inplane                                                \
@@ -563,12 +556,13 @@ echo ${MATLAB_SLOMOCO_DIR}
 # script for 2nd order regress-out
 if ( $step5flag != "skip" ) then
     if ( $regflag == "MATLAB" ) then
+     	echo "++ Run: Nuisance regerssors are regress-out on SLOMOCO images" |& tee -a ../$histfile
         1dcat epi_polort_xmat.1D > rm_polort.1D
         1dcat epi_slireg.1D > rm_slireg.1D
-        matlab -nodesktop -nosplash -r "addpath ${MATLAB_SLOMOCO_DIR};  gen_regout('epi_03_slicemoco_xy+orig','epi_base_mask+orig','physio','rm_physio.1D','polort','rm_polort.1D','volreg','epi_01_volreg.1D','slireg','epi_slireg.1D','voxreg','epi_01_pvreg+orig','out','${prefix}'); exit;"
+        matlab -nodesktop -nosplash -r "addpath ${MATLAB_SLOMOCO_DIR};  gen_regout('epi_03_slicemoco_xy+orig','epi_base_mask+orig','physio','physioreg.1D','polort','rm_polort.1D','volreg','epi_01_volreg.1D','slireg','epi_slireg.1D','voxreg','epi_02_pvreg+orig','out','${prefix}'); exit;" 
         rm rm_*
     else 
-        echo "afni version of vol/sli/voxelwise regression pipeline is working in progress" 
+        echo "afni version of vol/sli/voxelwise regression pipeline is working in progress" |& tee -a ../$histfile
                 
         1d_tool.py -infile epi_01_volreg.1D -demean -write volreg.demean.1D
         1dcat epi_polort_xmat.1D volreg.demean.1D > volreg.all.1D
@@ -602,9 +596,10 @@ endif
 # -----  step 6 QA SLOMOCO
 if ( $step6flag != "skip" ) then
     if ( $qaflag == "MATLAB" ) then
-        matlab -nodesktop -nosplash -r "addpath ${MATLAB_SLOMOCO_DIR}; qa_slomoco('epi_03_slicemoco_xy+orig','epi_base_mask+orig','epi_01_volreg.1D','epi_slireg.1D'); exit;"
+    	echo "++ Run: QA SLOMOCO, generating estimated in-/out-of-plane motion and motion indices " |& tee -a ../$histfile
+        matlab -nodesktop -nosplash -r "addpath ${MATLAB_SLOMOCO_DIR}; addpath ${MATLAB_AFNI_DIR}; qa_slomoco('epi_03_slicemoco_xy+orig','epi_base_mask+orig','epi_01_volreg.1D','epi_slireg.1D'); exit;" 
     else
-        echo "afni version of qa display is working in progress" 
+    	echo "afni version of qa display is working in progress" 
     endif  
  
     if ( $status ) then
@@ -621,19 +616,19 @@ set whereout = $PWD
 cp -f "${owdir}"/"${prefix}"* . # output only
 
 if ( $DO_CLEAN == 1 ) then
-    echo "\n+* Removing temporary axialization working dir: '$wdir'\n"
+    echo "+* Removing temporary axialization working dir: '$wdir' " |& tee -a $histfile
 
     # ***** clean
     rm -rf "${owdir}"
 
 else
-    echo "\n++ NOT removing temporary axialization working dir: '$wdir'\n"
+    echo "++ NOT removing temporary axialization working dir: '$wdir' " |& tee -a $histfile
 endif
 
-echo ""
-echo "++ DONE.  View the finished, axialized product:"
-echo "     $whereout"
-echo ""
+echo "" 
+echo "++ DONE.  View the finished, axialized product:" |& tee -a $histfile
+echo "     $whereout" 
+echo "" 
 
 goto GOOD_EXIT
 

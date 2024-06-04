@@ -149,10 +149,14 @@ if ~isempty(voxreg) && (size(voxreg,4) ~= tdim )
   disp('the length of pv regressor does not match input EPI')
   return
 end
+if ~isempty(P)
+  [tdimp regn] = size(P); 
+  regn=regn/zdim;
+  disp(['Number of physio regressors is ' num2str(regn) ]) 
+end
 
 % define variables  
 errtmap = zeros(xdim,ydim,zdim,tdim);
-[tdimp regn] = size(P); 
 
 % start with volreg               
 Avol = [polort_reg volreg];
@@ -164,7 +168,7 @@ for k= 1:zdim
   if isempty(P)  
     Psli=[];
   else
-    Psli= P(:,dofp*(k-1)+1:dofp*k); 
+    Psli= P(:,regn*(k-1)+1:regn*k); 
   end
   
   % if slicewise regressor exists

@@ -40,30 +40,6 @@ set histfile = log_slomoco.txt
 
 set do_echo  = ""
 
-# test purpose (W.S)
-set step1flag = "skip" # voxelwise PV regressor
-set step2flag = "skip" # inplance moco
-set step3flag = "skip" # outofplane moco
-set step4flag = "skip" # slicewise motion 1D
-set step5flag = "nskip" # 2nd order regress-out
-set step6flag = "nskip" # qa plot
-
-if ( "$OSTYPE" == "darwin" ) then
-  set volregfirst = 1
-  set moco_meth = "A"   
-  echo "++ SLOMOCO is running on Mac OX"
-  echo "++ 3dvolreg is applied and SLOMOCO is running on volume motion corrected images" 
-  echo "++ 3dAllineate is used for slicewise motion correction "
-else
-  set volregfirst = 0
-  set moco_meth = "W"   
-  echo "++ SLOMOCO is running on non-Mac OX"
-  echo "++ MotSim data is used for the reference image of SLOMOCO" 
-  echo "++ SLOMOCO is running on non-volume motion corrected images" 
-  echo "++ 3dWarpDrive included in the package is used for slicewise motion correction "
-endif     
-
-
 # ------------------- process options, a la rr ----------------------
 
 if ( $#argv == 0 ) goto SHOW_HELP
@@ -173,6 +149,39 @@ setenv SLOMOCO_DIR `dirname "${fullcommand}"`
 setenv MATLAB_SLOMOCO_DIR $SLOMOCO_DIR/slomoco_matlab
 setenv AFNI_SLOMOCO_DIR $SLOMOCO_DIR/afni_linux
 setenv MATLAB_AFNI_DIR  $SLOMOCO_DIR/afni_matlab
+
+# initialize a log file
+echo "" >> $histfile
+date >> $histfile
+echo "" >> $histfile
+
+
+# check OS system. In case of Mac, 3dAllineate is used after Volmoco
+if ( "$OSTYPE" == "darwin" ) then
+  	set volregfirst = 1
+  	set moco_meth = "A"   
+  	echo "++ SLOMOCO is running on Mac OX" |& tee -a $histfile
+  	echo "++ 3dvolreg is applied and SLOMOCO is running on volume motion corrected images" |& tee -a $histfile
+  	echo "++ 3dAllineate is used for slicewise motion correction " |& tee -a $histfile
+else
+  	echo "++ SLOMOCO is running on non-Mac OX" |& tee -a $histfile
+  	if  ( volregfirst == 1 ) then
+		echo "++ You select running SLOMOCO on volume motion corrected images" |& tee -a $histfile
+  		echo "++ SLOMOCO is recomended to be used on non-volume motion corrected images" |& tee -a $histfile
+  		echo "++ You should know what you are doing. I warn you. " |& tee -a $histfile
+  	else
+  		echo "++ MotSim data is used for the reference image of SLOMOCO" |& tee -a $histfile 
+		echo "++ SLOMOCO is running on non-volume motion corrected images"  |& tee -a $histfile
+	endif
+	if  ( moco_meth = "A"  ) then 
+		echo "++ 3dAllineate is used for slicewise motion correction " |& tee -a $histfile
+		echo "++ Our emperical result shows 3dWarpdrive performs better than 3dAllineate " |& tee -a $histfile
+		echo "++ You should know what you are doing. I warn you. " |& tee -a $histfile
+	else
+		echo "++ 3dWarpDrive included in the package is used for slicewise motion correction " |& tee -a $histfile
+	endif
+endif     
+
 
 # ----- find AFNI 
 
@@ -284,7 +293,7 @@ else if ( "${vr_base}" == "MIN_ENORM" ) then
         -1Dfile "${owdir}"/___temp_volreg.1D    \
         -prefix "${owdir}"/___temp_volreg+orig  \
         -overwrite                              \
-        "${epi}"	|& tee -a $histfile						
+        "${epi}"					
 
     1d_tool.py -infile "${owdir}"/___temp_volreg.1D \
                -derivative \
@@ -421,7 +430,7 @@ if ( "${physiofile}" != "" ) then
 
 else
 	echo "++ Second order SLOMOCO will be conducted without physiofile " |& tee -a $histfile
-    
+    rm -f ${owdir}/physioreg.1D
 endif
 
 
@@ -460,25 +469,32 @@ set epi_mask = "epi_base_mask+orig"
 
 # ----- step 1 voxelwise time-series PV regressor
 # volreg output is also generated.
-if ( $step1flag != 'skip' ) then
-	echo "++ Run: gen_vol_pvreg.tcsh"  |& tee -a ../$histfile
-    gen_vol_pvreg.tcsh                 \
-        -dset_epi  epi_00+orig         \
-        -dset_mask "${epi_mask}"       \
-        -vr_idx    "${vr_idx}"         \
-        -prefix_pv epi_02_pvreg        \
-        -prefix_vr epi_01_volreg       \
-        |& tee     log_gen_vol_pvreg.txt
+echo "++ Run: gen_vol_pvreg.tcsh"  |& tee -a ../$histfile
+gen_vol_pvreg.tcsh                 \
+    -dset_epi  epi_00+orig         \
+    -dset_mask "${epi_mask}"       \
+    -vr_idx    "${vr_idx}"         \
+    -prefix_pv epi_02_pvreg        \
+    -prefix_vr epi_01_volreg       \
+    |& tee     log_gen_vol_pvreg.txt
     
-    if ( $status ) then
-        goto BAD_EXIT
-    endif
+if ( $status ) then
+    goto BAD_EXIT
 endif
+
 
 # ----- step 2 slicewise moco in xy plane
 # script for inplane motion correction
 
-if ( $step2flag != 'skip' ) then
+if ( -d inplane ) then
+	if ( $volregfirst == 1 ) then	
+		echo "++ Skip: adjunct_slomoco_slicemoco_xy.tcsh. inplane directory exists. " |& tee -a ../$histfile
+  	else
+  		echo "++ Skip: adjunct_slomoco_vol_slicemoco_xy.tcsh. inplane directory exists. " |& tee -a ../$histfile
+  	endif
+  	echo "++ If you need to redo slicewise inplane moco, delete inplane directory and re-run it. " |& tee -a ../$histfile
+		
+else
     if ( $volregfirst == 1 ) then
     	echo "++ Run: adjunct_slomoco_slicemoco_xy.tcsh" |& tee -a ../$histfile
     	adjunct_slomoco_slicemoco_xy.tcsh  ${do_echo}                       \
@@ -516,7 +532,11 @@ endif
 # ----- step 3 slicewise out of plane moco
 
 # script for out-of-plane motion correction
-if ( $step3flag != 'skip' ) then
+if ( -d outofplane ) then
+	echo "++ Skip: adjunct_slomoco_inside_fixed_vol.tcsh. outofplane directory exists. " |& tee -a ../$histfile
+	echo "++ If you need to redo slicewise out-of-plane moco, delete outofplane directory and re-run it. " |& tee -a ../$histfile
+	
+else
     echo "++ Run: adjunct_slomoco_inside_fixed_vol.tcsh" |& tee -a ../$histfile
     adjunct_slomoco_inside_fixed_vol.tcsh  ${do_echo}                       \
         -dset_epi    epi_03_slicemoco_xy+orig                               \
@@ -534,7 +554,12 @@ endif
 # ----- step 4 generate slicewise 6 rigid motion parameter regressor 
 
 # script for slice mopa nuisance regressor
-if ( $step4flag != 'skip' ) then
+if ( -d combined_slicemopa ) then
+	echo "++ Skip: adjunct_slomoco_calc_slicemopa.tcsh. combined_slicemopa directory exists. " |& tee -a ../$histfile
+	echo "++ If you need to redo in and out-of-plane motion parameter calculation, " |& tee -a ../$histfile
+	echo "++   delete outofplane directory and re-run it. " |& tee -a ../$histfile
+	
+else
     echo "++ Run: adjunct_slomoco_calc_slicemopa.tcsh" |& tee -a ../$histfile
     adjunct_slomoco_calc_slicemopa.tcsh                                     \
         -dset_epi    epi_03_slicemoco_xy+orig                               \
@@ -552,74 +577,76 @@ if ( $step4flag != 'skip' ) then
 endif
 
 # -----  step 5 second order regress out
-echo ${MATLAB_SLOMOCO_DIR}
+
 # script for 2nd order regress-out
-if ( $step5flag != "skip" ) then
-    if ( $regflag == "MATLAB" ) then
-     	echo "++ Run: Nuisance regerssors are regress-out on SLOMOCO images" |& tee -a ../$histfile
-        1dcat epi_polort_xmat.1D > rm_polort.1D
-        1dcat epi_slireg.1D > rm_slireg.1D
-        matlab -nodesktop -nosplash -r "addpath ${MATLAB_SLOMOCO_DIR};  gen_regout('epi_03_slicemoco_xy+orig','epi_base_mask+orig','physio','physioreg.1D','polort','rm_polort.1D','volreg','epi_01_volreg.1D','slireg','epi_slireg.1D','voxreg','epi_02_pvreg+orig','out','${prefix}'); exit;" 
-        rm rm_*
-    else 
-        echo "afni version of vol/sli/voxelwise regression pipeline is working in progress" |& tee -a ../$histfile
+if ( $regflag == "MATLAB" ) then
+   	echo "++ Run: Nuisance regerssors are regress-out on SLOMOCO images" |& tee -a ../$histfile
+    1dcat epi_polort_xmat.1D > rm_polort.1D
+    1dcat epi_slireg.1D > rm_slireg.1D
+    matlab -nodesktop -nosplash -r "addpath ${MATLAB_SLOMOCO_DIR};  gen_regout('epi_03_slicemoco_xy+orig','epi_base_mask+orig','physio','physioreg.1D','polort','rm_polort.1D','volreg','epi_01_volreg.1D','slireg','epi_slireg.1D','voxreg','epi_02_pvreg+orig','out','epi_03_slicemoco_xy.slomoco'); exit;" 
+    rm rm_*
+
+else 
+    echo "afni version of vol/sli/voxelwise regression pipeline is working in progress" |& tee -a ../$histfile
                 
-        1d_tool.py -infile epi_01_volreg.1D -demean -write volreg.demean.1D
-        1dcat epi_polort_xmat.1D volreg.demean.1D > volreg.all.1D
+    1d_tool.py -infile epi_01_volreg.1D -demean -write volreg.demean.1D
+    1dcat epi_polort_xmat.1D volreg.demean.1D > volreg.all.1D
         
-        1d_tool.py -infile epi_slireg.1D -demean -write slireg.demean.1D
-        
-        if ( -e "physioreg.1D" ) then
-            1d_tool.py -infile physioreg.1D -demean -write physioreg.demean.1D
-            # add physio slice regressor with slireg.demean.1D here
-            # [To P.T] How we can combine slireg.demean.1D with physioreg.1D file? 
-        endif
-  
-        # 3dREMLfit does not run since slireg.demean.1D includes zero columns
-        3dREMLfit                                \ 
-            -input      epi_02_slicemoco_xy+orig \
-            -matim      volreg.all.1D            \
-            -mask       epi_base_mask+orig       \
-            -addbase_sm slire.demean.1D          \
-            -dsort      epi_01_pvreg+orig        \
-            -Rerrt      errts_slomoco+orig       \
-            -overwrite
-    
-    endif   
-
-    if ( $status ) then
-        goto BAD_EXIT
+    1d_tool.py -infile epi_slireg.1D -demean -write slireg.demean.1D
+       
+    if ( -e "physioreg.1D" ) then
+        1d_tool.py -infile physioreg.1D -demean -write physioreg.demean.1D
+        # add physio slice regressor with slireg.demean.1D here
+        # [To P.T] How we can combine slireg.demean.1D with physioreg.1D file? 
     endif
+  
+    # 3dREMLfit does not run since slireg.demean.1D includes zero columns
+    3dREMLfit                                \ 
+        -input      epi_02_slicemoco_xy+orig \
+        -matim      volreg.all.1D            \
+        -mask       epi_base_mask+orig       \
+        -addbase_sm slire.demean.1D          \
+        -dsort      epi_01_pvreg+orig        \
+        -Rerrt      errts_slomoco+orig       \
+        -overwrite
 
+endif   
+
+if ( $status ) then
+    goto BAD_EXIT
 endif
 
 # -----  step 6 QA SLOMOCO
-if ( $step6flag != "skip" ) then
-    if ( $qaflag == "MATLAB" ) then
-    	echo "++ Run: QA SLOMOCO, generating estimated in-/out-of-plane motion and motion indices " |& tee -a ../$histfile
-        matlab -nodesktop -nosplash -r "addpath ${MATLAB_SLOMOCO_DIR}; addpath ${MATLAB_AFNI_DIR}; qa_slomoco('epi_03_slicemoco_xy+orig','epi_base_mask+orig','epi_01_volreg.1D','epi_slireg.1D'); exit;" 
-    else
-    	echo "afni version of qa display is working in progress" 
-    endif  
+if ( $qaflag == "MATLAB" ) then
+  	echo "++ Run: QA SLOMOCO, generating estimated in-/out-of-plane motion and motion indices " |& tee -a ../$histfile
+    matlab -nodesktop -nosplash -r "addpath ${MATLAB_SLOMOCO_DIR}; addpath ${MATLAB_AFNI_DIR}; qa_slomoco('epi_03_slicemoco_xy+orig','epi_base_mask+orig','epi_01_volreg.1D','epi_slireg.1D'); exit;" 
+else
+  	echo "afni version of qa display is working in progress" 
+endif  
  
-    if ( $status ) then
-        goto BAD_EXIT
-    endif
-
+if ( $status ) then
+    goto BAD_EXIT
 endif
+
 
 # move out of wdir to the odir
 cd ..
 set whereout = $PWD
 
 # copy the final result
-cp -f "${owdir}"/"${prefix}"* . # output only
+3dcalc 												\
+	-a "${owdir}"/epi_03_slicemoco_xy.slomoco+orig	\
+	-expr 'a'										\
+	-prefix "${prefix}"								\
+	-overwrite
 
 if ( $DO_CLEAN == 1 ) then
-    echo "+* Removing temporary axialization working dir: '$wdir' " |& tee -a $histfile
+    echo "+* Removing the large size of temporary files in working dir: '$wdir' " |& tee -a $histfile
 
     # ***** clean
-    rm -rf "${owdir}"
+    rm -rf 	"${owdir}"/epi_00+orig.*			\
+    		"${owdir}"/epi_motsim+orig.*		\
+    		"${owdir}"/epi_motsim_mask4d+orig.*	
 
 else
     echo "++ NOT removing temporary axialization working dir: '$wdir' " |& tee -a $histfile

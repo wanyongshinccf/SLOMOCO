@@ -165,7 +165,7 @@ if ( "$OSTYPE" == "darwin" ) then
   	echo "++ 3dAllineate is used for slicewise motion correction " |& tee -a $histfile
 else
   	echo "++ SLOMOCO is running on non-Mac OX" |& tee -a $histfile
-  	if  ( volregfirst == 1 ) then
+  	if  ( $volregfirst == "1" ) then
 		echo "++ You select running SLOMOCO on volume motion corrected images" |& tee -a $histfile
   		echo "++ SLOMOCO is recomended to be used on non-volume motion corrected images" |& tee -a $histfile
   		echo "++ You should know what you are doing. I warn you. " |& tee -a $histfile
@@ -173,13 +173,15 @@ else
   		echo "++ MotSim data is used for the reference image of SLOMOCO" |& tee -a $histfile 
 		echo "++ SLOMOCO is running on non-volume motion corrected images"  |& tee -a $histfile
 	endif
-	if  ( moco_meth = "A"  ) then 
+	
+	if  ( $moco_meth == "A"  ) then 
 		echo "++ 3dAllineate is used for slicewise motion correction " |& tee -a $histfile
 		echo "++ Our emperical result shows 3dWarpdrive performs better than 3dAllineate " |& tee -a $histfile
 		echo "++ You should know what you are doing. I warn you. " |& tee -a $histfile
 	else
 		echo "++ 3dWarpDrive included in the package is used for slicewise motion correction " |& tee -a $histfile
 	endif
+	
 endif     
 
 

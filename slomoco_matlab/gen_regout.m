@@ -7,7 +7,7 @@ sli_filename='';
 vox_filename=''; 
 output_filename='';
 Opt.Format = 'matrix';
-RVTflag = "" % (W.S 20240605) set it to 1 if you like to include 5 RVT regressors
+RVTflag = 0 % (W.S 20240605) set it to 1 if you like to include 5 RVT regressors
 
 for i=1:floor(length(varargin)/2)
   option=varargin{i*2-1};

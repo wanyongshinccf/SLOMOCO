@@ -1,9 +1,14 @@
 function gen_regout(ep2d_filename,mask_filename,varargin)
-%function slicemoco_regout(ep2d_filename,mask_filename,filestr,polortMat,physiostr)
     
-polortmat=''; phy_filename=''; vol_filename=''; 
-sli_filename=''; vox_filename=''; output_filename='';
+polortmat=''; 
+phy_filename=''; 
+vol_filename=''; 
+sli_filename=''; 
+vox_filename=''; 
+output_filename='';
 Opt.Format = 'matrix';
+RVTflag = "" % (W.S 20240605) set it to 1 if you like to include 5 RVT regressors
+
 for i=1:floor(length(varargin)/2)
   option=varargin{i*2-1};
   option_value=varargin{i*2};
@@ -152,6 +157,28 @@ end
 if ~isempty(P)
   [tdimp regn] = size(P); 
   regn=regn/zdim;
+  if (regn == 13) && (RVTflag == 0) % we assumed RVT is included
+    disp('RETROICOR regressors are included')
+    disp('RVT is excluded from RetroTS.pmu.slicebase.1D')
+    disp('If you like to include 5 RVT regressor, set RVTflat to one in gen_regout.m');
+    P_temp = [];
+    for z = 1:zdim
+  	  P_temp = [P_temp P(:,13*z-7:13*z)];
+  	end
+  	P = P_temp;
+  	[tdimp regn] = size(P);
+  	if ( regn ~= 8)
+  	  disp('Error: the number of RETROICOR regressors is expected to be 8')
+  	  return
+  	end
+  elseif ( regn == 8 ) 
+    disp('RETROICOR regressors are included')
+  elseif (regn == 5 ) 
+    disp('PESTICA regressors are included')
+  else
+  	disp('Error: the number of physio regressors is expected to be 8 or 5')
+  	return
+  end
   disp(['Number of physio regressors is ' num2str(regn) ]) 
 end
 

@@ -673,25 +673,50 @@ SLOMOCO: slicewise motion correction script based on AFNI commands
 run_slomoco.tcsh [option] 
 
 Required options:
- -dset_epi input     = input data is non-motion corrected 4D EPI images. 
-                       DO NOT apply any motion correction on input data.
-                       It is not recommended to apply physiologic noise correction on the input data
-                       Physiologoc noise components can be regressed out with -phyio option 
- -tfile 1Dfile       = 1D file is slice acquisition timing info.
-                       For example, 5 slices, 1s of TR, ascending interleaved acquisition
-                       [0 0.4 0.8 0.2 0.6]
+ -dset_epi input     	= input data is non-motion corrected 4D EPI images. 
+                       	DO NOT apply any motion correction on input data.
+                       	It is not recommended to apply physiologic noise correction on the input data
+                       	Physiologoc noise components can be regressed out with -phyio option 
+ -tfile 1Dfile       	= 1D file is slice acquisition timing info.
+                       	For example, 5 slices, 1s of TR, ascending interleaved acquisition
+                       	[0 0.4 0.8 0.2 0.6]
       or 
- -jsonfile jsonfile  = json file from dicom2nii(x) is given
- -prefix output      = output filename
+ -jsonfile jsonfile  	= json file from dicom2nii(x) is given
+ -prefix output      	= output filename
  
 Optional:
- -volreg_base refvol = reference volume number, "MIN_ENORM" or "MIN_OUTLIER"
-                       "MIN_ENORM" provides the volume number with the minimal summation of absolute volume diplacement and its derivatives 
-                       "MIN_OUTLIER" selects the minimal absolute derivative of the volume displacement.
-                       Defaulty is "0"
- -workdir  directory = intermediate output data will be generated in the defined directory.
- -do_clean           = this option will delete working directory 
-
+ -volreg_base refvol 	= reference volume number, "MIN_ENORM" or "MIN_OUTLIER"
+                       	"MIN_ENORM" provides the volume number with the minimal summation of absolute volume diplacement and its derivatives. 
+                       	"MIN_OUTLIER" selects the minimal absolute derivative of the volume displacement.
+                       	Defaulty is "0"
+ -workdir  directory 	= intermediate output data will be generated in the defined directory.
+ -physio   1Dfile    	= slicebase 1D file. For example, RETROICOR or PESTICA 1D file.
+ 					   	For example, 3 slices, 2 time series regressors (reg0 & reg1)
+ 					   	reg0@sli0 reg1@sli0 reg0@sli1 reg1@sli1 reg0@sli2 reg1@sli2
+ 					   	, where regX@sliY is the colume vector.
+ 					   	PESTICA 1D file (RetroTS.PESTICA5.slicebase.1D) or RETROICOR 1D file (RetroTS.PMU.slicebase.1D) could be input.
+ -do_clean				= this option will delete the large size of files in working directory 
+ -moco_meth	"W" or "A"  = "W" for 3dWarpdrive, "A" for 3dAllineate. Defaulty is "W"
+ -volregfirst           = 3dvolreg (Volmoco) is applied to the input, if defined. 
+ 						Defaulty is 0
+ 						 
+ 						Slicewise motion correction could be done in two ways.
+ 						case 1) 3d volume motion (Volmoco) correction first then Slicewise motion correction (Slimoco) on Volmoco reference images( 0 volume )
+ 						case 2) the reference image is defined at each slice using the inverse motion afine matrix to the referece image (0 volume), then Slimoco is applied.
+ 						In short, case 1) aligned source slice to the reference image vs case 2) native source slice to the aligned reference image.
+ 						Imperically, we find the case 2 with 3dWarpdrive works marginally better than case 2 with 3dAllineate and case 1 with 3dWarpdrive or 3dAllineate.
+ 						Even the case 1 with 3dAllineate overfits in-/out-of-slice motion, resulting in the bad alignment.
+ 						 
+ 						In this reaon, case 2) with 3dWarpdrive is our top choice. 
+ 						To do, -volrefirst should NOT be selected (default), and -moco_meth = "W" (default). 
+ 						Then the next prefered one would be case 1) with 3dAllineate or 3dWarpdrive.
+ 						
+ 						However, the latest version of 3dWarpdrive stops supporting 2D slice alignment (with "zero---ish" error). 
+ 						We find the specific version of 3dWarpdrive (afni.afni.openmp.v18.3.16), included in this package only works for linux.
+ 						
+ 						In this reason, if you run SLOMOCO on Mac OS, the script selects -volregfirst and runs with 3dAllineate from YOUR AFNI software automatically.
+ 				
+ 						
 EOF
 
 # ----------------------------------------------------------------------

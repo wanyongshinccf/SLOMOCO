@@ -186,7 +186,7 @@ end
 % Step 3.   apply a Savitsky-Golay filter with 2 seconds of window
   % this should be turned off for data with really fast motion (like SimPACE data with motion on only one slice)
 for m = 1:6
-  volslimot_fit(:,m) = sgolayfilt(volslimot(:,m),3,zmbdim);
+  volslimot_fit(:,m) = sgolayfilt(volslimot(:,m),3,floor(zmbdim/2)*2+1); % debugged (W.S) 20250611
   % in case of signal processing box is not availble, uncommnet the below
 %   SGbin = round(Fs/2)*4+1;
 %   i =  -2*round(Fs/2): 2*round(Fs/2);
@@ -218,9 +218,9 @@ volslimot_fit_jiang(:,1:3) = -1*volslimot_fit_jiang(:,1:3);
 fp=fopen('slomoco.iTDmetric.txt','w'); fprintf(fp,'%g\n',td_slomoco); fclose(fp);
 fp=fopen('slomoco.iTDzmetric.txt','w'); fprintf(fp,'%g\n',tdz_slomoco); fclose(fp);
  
-% for a volumetric metric of motion corruption, use the max across slices within a volume
-fp=fopen('slomoco.volumetric.iTDmetric.txt','w'); fprintf(fp,'%g\n',max(reshape(td_slomoco,[zmbdim tdim]))); fclose(fp);
-fp=fopen('slomoco.volumetric.iTDzmetric.txt','w'); fprintf(fp,'%g\n',max(reshape(tdz_slomoco,[zmbdim tdim]))); fclose(fp);
+% for a volumetric metric of motion corruption, use the mean across slices within a volume (W.S 20240611)
+fp=fopen('slomoco.volumetric.iTDmetric.txt','w'); fprintf(fp,'%g\n',mean(reshape(td_slomoco,[zmbdim tdim]))); fclose(fp);
+fp=fopen('slomoco.volumetric.iTDzmetric.txt','w'); fprintf(fp,'%g\n',mean(reshape(tdz_slomoco,[zmbdim tdim]))); fclose(fp);
  
 % 3dvolreg motion x,y,z trans are inverted w.r.t. 3dWarpDrive
 % [td_volmoco,tdz_volmoco]=parallelepiped_jiang(volmot_jiang);

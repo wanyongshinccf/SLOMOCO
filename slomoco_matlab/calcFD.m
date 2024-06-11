@@ -67,4 +67,5 @@ for t = 2:size(mopa6,1)
 dxyz(t-1,:) = abs(mopa6(t,[2 3 1])-mopa6(t-1,[2 3 1]));
 end
 
-fd = (mean(dxyz,2) + mean(drot,2));
+fd = zeros(size(mopa6,1), 1); % W.S  20240611
+fd(2:end) = (mean(dxyz,2) + mean(drot,2));

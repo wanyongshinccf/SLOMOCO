@@ -1,4 +1,4 @@
-function [dv idv] = calciDVARS(ep2d_filename,mask_filename,slice_timing)
+function [dv idv] = calcDVARS(ep2d_filename,mask_filename,slice_timing)
 
 [err, ep2d, ainfo, ErrMessage]  = BrikLoad(ep2d_filename);
 xdim=ainfo.DATASET_DIMENSIONS(1);
@@ -22,15 +22,15 @@ nvox = length(mask_vec);
 img_vec = reshape(ep2d,[xdim*ydim*zdim tdim]);
 imgc_vec = img_vec(find(mask_vec),:);
 
-dv = zeros(tdim-1,1);
+dv = zeros(tdim,1); % W.S 20240611
 for t = 2:tdim
   tmask_vec = isfinite(imgc_vec(:,t));
   dc = 100*(imgc_vec(find(tmask_vec),t)-imgc_vec(find(tmask_vec),t-1))./imgc_vec(find(tmask_vec),t);
-  dv(t-1) = sqrt(sum(dc(isfinite(dc)).^2)/nvox);
+  dv(t) = sqrt(sum(dc(isfinite(dc)).^2)/nvox);
 end
 
-% idv
-idv = zeros(zmbdim*(tdim-1),1); 
+% idv % W.S 20240611
+idv = zeros(zmbdim*tdim,1); 
 for t = 2:tdim
   for z = 1: zmbdim % slice time order index
     
@@ -44,7 +44,7 @@ for t = 2:tdim
     dc_2d_masked = dc_2d_vec(find(mask_mb));
     tmask_vec = isfinite(dc_2d_masked);
     if sum(tmask_vec)
-      idv((t-2)*zmbdim + z) = sqrt(sum(dc_2d_masked(find(tmask_vec)).^2)/sum(tmask_vec));
+      idv((t-1)*zmbdim + z) = sqrt(sum(dc_2d_masked(find(tmask_vec)).^2)/sum(tmask_vec));
     end
   end
 end

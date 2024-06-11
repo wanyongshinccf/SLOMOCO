@@ -585,7 +585,7 @@ if ( $regflag == "MATLAB" ) then
    	echo "++ Run: Nuisance regerssors are regress-out on SLOMOCO images" |& tee -a ../$histfile
     1dcat epi_polort_xmat.1D > rm_polort.1D
     1dcat epi_slireg.1D > rm_slireg.1D
-    matlab -nodesktop -nosplash -r "addpath ${MATLAB_SLOMOCO_DIR};  gen_regout('epi_03_slicemoco_xy+orig','epi_base_mask+orig','physio','physioreg.1D','polort','rm_polort.1D','volreg','epi_01_volreg.1D','slireg','epi_slireg.1D','voxreg','epi_02_pvreg+orig','out','epi_03_slicemoco_xy.slomoco'); exit;" 
+    matlab -nodesktop -nosplash -r "addpath ${MATLAB_SLOMOCO_DIR}; addpath ${MATLAB_AFNI_DIR}; gen_regout('epi_03_slicemoco_xy+orig','epi_base_mask+orig','physio','physioreg.1D','polort','rm_polort.1D','volreg','epi_01_volreg.1D','slireg','epi_slireg.1D','voxreg','epi_02_pvreg+orig','out','epi_03_slicemoco_xy.slomoco'); exit;" 
     rm rm_*
 
 else 

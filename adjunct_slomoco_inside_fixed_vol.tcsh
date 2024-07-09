@@ -292,14 +292,6 @@ while ( $z < $zdim )
   @ z++ 
 end
 
-# To save the computation time, compression process will be skipped if any
-set myAFNI_AUTOGZIP = `afni -q -no_detach -VAFNI_AUTOGZIP= ` 
-set myAFNI_COMPRESSOR = `afni -q -no_detach -VAFNI_COMPRESSOR= `
-if ( $myAFNI_AUTOGZIP == "YES" ||  $myAFNI_COMPRESSOR == "GZIP"  ) then
-  set brikpostfix = ".gz"
-else
-  set brikpostfix = ""
-endif
 
 set z = 0
 while ( $z < $zmbdim ) 
@@ -363,8 +355,9 @@ cd ..
 set whereout = $PWD
 
 if ( $DO_CLEAN == 1 ) then
-    echo "+* Removing temporary working dir: '${wdir}'"
-    \rm -rf "${wdir}"
+    #echo "+* Removing temporary working dir: '${wdir}'"
+    #\rm -rf "${wdir}"
+    echo "** NB: will NOT clean this temporary working dir: '${wdir}'"
 else
     echo "++ NOT removing temporary working dir: '${wdir}'"
 endif

@@ -245,62 +245,64 @@ set outplane_str = $outplane_dir/motion.wholevol_zt
 # while 3dvolreg 1dfile ouput is z-/x-/y-rot and z-/x-/y-shift and shift direction is flipped
 # move to wdir to do work
   
-rm -rf ${owdir}/rm.slicemopa.1D
+\rm -rf "${owdir}/rm.slicemopa.1D"
 
 set z = 0
 while ( $z < $zmbdim )
   set zzzz = `printf "%04d" $z`
   # z-rot (inplane) 
-  1dcat  $inplane_str."${zzzz}".1D'[3]'  > ${owdir}/rm.temp.zrot.1D
+  1dcat  $inplane_str."${zzzz}".1D'[3]'  > "${owdir}/rm.temp.zrot.1D"
   # x-rot (out-of-plane)  
-  1dcat  $outplane_str."${zzzz}".1D'[1]' > ${owdir}/rm.temp.xrot.1D
+  1dcat  $outplane_str."${zzzz}".1D'[1]' > "${owdir}/rm.temp.xrot.1D"
   # y-rot (out-of-plane)  
-  1dcat  $outplane_str."${zzzz}".1D'[2]' > ${owdir}/rm.temp.yrot.1D
+  1dcat  $outplane_str."${zzzz}".1D'[2]' > "${owdir}/rm.temp.yrot.1D"
   # z-shift (out-of-plane) 
-  1dcat  $outplane_str."${zzzz}".1D'[3]' > ${owdir}/rm.temp.zshift.1D
+  1dcat  $outplane_str."${zzzz}".1D'[3]' > "${owdir}/rm.temp.zshift.1D"
   # x-shift (inplane) 
-  1dcat  $inplane_str."${zzzz}".1D'[0]'  > ${owdir}/rm.temp.xshift.1D
+  1dcat  $inplane_str."${zzzz}".1D'[0]'  > "${owdir}/rm.temp.xshift.1D"
   # y-shift (inplane) 
-  1dcat  $inplane_str."${zzzz}".1D'[1]'  > ${owdir}/rm.temp.yshift.1D
+  1dcat  $inplane_str."${zzzz}".1D'[1]'  > "${owdir}/rm.temp.yshift.1D"
 
   # flipped for inplane x-/y-shift
-  rm -f ${owdir}/rm.temp.?shift.fliped.1D  
+  \rm -f "${owdir}"/rm.temp.?shift.fliped.1D  
   1dmatcalc "&read(${owdir}/rm.temp.xshift.1D) -1.0 * &write(${owdir}/rm.temp.xshift.fliped.1D)" 
   1dmatcalc "&read(${owdir}/rm.temp.yshift.1D) -1.0 * &write(${owdir}/rm.temp.yshift.fliped.1D)" 
   
-  1dcat ${owdir}/rm.temp.zrot.1D \
-        ${owdir}/rm.temp.xrot.1D \
-        ${owdir}/rm.temp.yrot.1D \
-        ${owdir}/rm.temp.zshift.1D \
-        ${owdir}/rm.temp.xshift.fliped.1D \
-        ${owdir}/rm.temp.yshift.fliped.1D \
-        > ${owdir}/motion_inoutofplane_zt."${zzzz}".1D
+  1dcat "${owdir}/rm.temp.zrot.1D" \
+        "${owdir}/rm.temp.xrot.1D" \
+        "${owdir}/rm.temp.yrot.1D" \
+        "${owdir}/rm.temp.zshift.1D" \
+        "${owdir}/rm.temp.xshift.fliped.1D" \
+        "${owdir}/rm.temp.yshift.fliped.1D" \
+        > "${owdir}"/motion_inoutofplane_zt."${zzzz}".1D
 
-  1dtranspose ${owdir}/motion_inoutofplane_zt."${zzzz}".1D > ${owdir}/rm.motion_inoutofplane_zt."${zzzz}".T.1D
+  1dtranspose "${owdir}"/motion_inoutofplane_zt."${zzzz}".1D \
+        > "${owdir}"/rm.motion_inoutofplane_zt."${zzzz}".T.1D
   @ z++
 end
 
 # concatenate
-cat ${owdir}/rm.motion_inoutofplane_zt.????.T.1D > ${owdir}/rm.slicemopa.T.1D
+cat "${owdir}"/rm.motion_inoutofplane_zt.????.T.1D \
+    > "${owdir}/rm.slicemopa.T.1D"
 
 # copy and paste for SMS
 set mb = 0
 while ( $mb < $SMSfactor ) 
-  cp $owdir/rm.slicemopa.T.1D $owdir/rm.slicemopa.T."${mb}".1D
+  \cp "${owdir}"/rm.slicemopa.T.1D "${owdir}"/rm.slicemopa.T."${mb}".1D
   @ mb++
 end
-rm -f $owdir/rm.slicemopa.T.1D 
+\rm -f "${owdir}"/rm.slicemopa.T.1D 
   
 if ( $SMSfactor >  1 ) then 
-  cat $owdir/rm.slicemopa.T.?.1D >> $owdir/rm.slicemopa.T.1D
+  cat "${owdir}"/rm.slicemopa.T.?.1D >> "${owdir}"/rm.slicemopa.T.1D
 else
-  cp $owdir/rm.slicemopa.T.0.1D $owdir/rm.slicemopa.T.1D
+  \cp "${owdir}"/rm.slicemopa.T.0.1D "${owdir}"/rm.slicemopa.T.1D
 endif
 
-1dtranspose $owdir/rm.slicemopa.T.1D $prefix -overwrite
+1dtranspose "${owdir}"/rm.slicemopa.T.1D "${prefix}" -overwrite
 
 # cleaning up
-rm -f $owdir/rm.*.1D
+\rm -f "${owdir}"/rm.*.1D
 
 # move out of wdir to the odir
 cd ..

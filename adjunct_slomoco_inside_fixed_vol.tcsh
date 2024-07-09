@@ -3,6 +3,9 @@
 set version   = "0.0";  set rev_dat   = "Dec 09, 2023"
 # + tcsh version of Wanyong Shin's 'run_slicemoco_inside_fixed_vol.sh'
 #
+set version   = "0.1";  set rev_dat   = "Jul 09, 2024"
+# + use nifti for intermed files, simpler scripting (stable to gzip BRIK)
+#
 # ----------------------------------------------------------------
 
 set this_prog_full = "adjunct_slomoco_inside_fixed_vol.tcsh"
@@ -278,12 +281,12 @@ while ( $z < $zdim )
   set zzzz   = `printf "%04d" $z`
   3dZcutup \
     -keep $z $z \
-    -prefix __temp_tseries_mean_"${zzzz}" \
+    -prefix __temp_tseries_mean_"${zzzz}".nii \
     __temp_tseries_mean+orig  >& /dev/null
     
   3dZcutup \
     -keep $z $z \
-    -prefix __temp_tseries_"${zzzz}" \
+    -prefix __temp_tseries_"${zzzz}".nii \
     epi_02+orig  >& /dev/null
   
   @ z++ 
@@ -310,20 +313,18 @@ while ( $z < $zmbdim )
     set kkkk   = `printf "%04d" $k`
     
     # first, temporarily move away the simulated tseries z-slice for this slice
-    \mv __temp_tseries_mean_"${kkkk}"+orig.BRIK"$brikpostfix" __tmpzBRIK_$mb
-    \mv __temp_tseries_mean_"${kkkk}"+orig.HEAD __tmpzHEAD_$mb
+    \mv __temp_tseries_mean_"${kkkk}".nii __tmpz_${mb}.nii
 
     # and move original tseries into simnoise
-    \mv __temp_tseries_"${kkkk}"+orig.BRIK"$brikpostfix" __temp_tseries_mean_"${kkkk}"+orig.BRIK"$brikpostfix"
-    \mv __temp_tseries_"${kkkk}"+orig.HEAD __temp_tseries_mean_"${kkkk}"+orig.HEAD
+    \mv __temp_tseries_"${kkkk}".nii __temp_tseries_mean_"${kkkk}".nii
     
     @ mb++
   end
   
   if ( $SMSfactor > 1 ) then
-    echo "doing slices $zsimults at once"
+    echo "++ doing slices $zsimults at once"
   else
-    echo "doing slice $zsimults"
+    echo "++ doing slice $zsimults"
   endif
   
   # pad into volume using the mean image for adjacent slices
@@ -331,7 +332,7 @@ while ( $z < $zmbdim )
   if ( ${ntempi} ) then
     \rm -f __temp_input*
   endif
-  3dZcat -prefix __temp_input __temp_tseries_mean_????+orig.HEAD >& /dev/null
+  3dZcat -prefix __temp_input __temp_tseries_mean_????.nii >& /dev/null
 
   set ntempo = `find . -maxdepth 1 -type f -name "__temp_output*" | wc -l`
   if ( ${ntempo} ) then
@@ -349,8 +350,7 @@ while ( $z < $zmbdim )
     set k = `echo "${mb} * ${zmbdim} + ${z}" | bc`
     set kkkk   = `printf "%04d" $k`
     # move the mean z-slice for this slice back into place
-    \mv __tmpzBRIK_$mb __temp_tseries_mean_"${kkkk}"+orig.BRIK"$brikpostfix"
-    \mv __tmpzHEAD_$mb __temp_tseries_mean_"${kkkk}"+orig.HEAD
+    \mv __tmpz_${mb}.nii __temp_tseries_mean_"${kkkk}".nii
     @ mb++
   end
   @ z++

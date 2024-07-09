@@ -270,7 +270,7 @@ while ( $t < $tdim )
   @ t++ 
 end
 3dTcat -prefix __temp_tseries_mean   __t_????+orig.HEAD >& /dev/null
-rm __t_????+orig.*
+\rm __t_????+orig.*
 
 # split into time-series of each slice
 set z = 0
@@ -310,12 +310,12 @@ while ( $z < $zmbdim )
     set kkkk   = `printf "%04d" $k`
     
     # first, temporarily move away the simulated tseries z-slice for this slice
-    mv __temp_tseries_mean_"${kkkk}"+orig.BRIK"$brikpostfix" __tmpzBRIK_$mb
-    mv __temp_tseries_mean_"${kkkk}"+orig.HEAD __tmpzHEAD_$mb
+    \mv __temp_tseries_mean_"${kkkk}"+orig.BRIK"$brikpostfix" __tmpzBRIK_$mb
+    \mv __temp_tseries_mean_"${kkkk}"+orig.HEAD __tmpzHEAD_$mb
 
     # and move original tseries into simnoise
-    mv __temp_tseries_"${kkkk}"+orig.BRIK"$brikpostfix" __temp_tseries_mean_"${kkkk}"+orig.BRIK"$brikpostfix"
-    mv __temp_tseries_"${kkkk}"+orig.HEAD __temp_tseries_mean_"${kkkk}"+orig.HEAD
+    \mv __temp_tseries_"${kkkk}"+orig.BRIK"$brikpostfix" __temp_tseries_mean_"${kkkk}"+orig.BRIK"$brikpostfix"
+    \mv __temp_tseries_"${kkkk}"+orig.HEAD __temp_tseries_mean_"${kkkk}"+orig.HEAD
     
     @ mb++
   end
@@ -327,10 +327,16 @@ while ( $z < $zmbdim )
   endif
   
   # pad into volume using the mean image for adjacent slices
-  rm -f __temp_input*
+  set ntempi = `find . -maxdepth 1 -type f -name "__temp_input*" | wc -l`
+  if ( ${ntempi} ) then
+    \rm -f __temp_input*
+  endif
   3dZcat -prefix __temp_input __temp_tseries_mean_????+orig.HEAD >& /dev/null
 
-  rm -f __temp_output*
+  set ntempo = `find . -maxdepth 1 -type f -name "__temp_output*" | wc -l`
+  if ( ${ntempo} ) then
+    \rm -f __temp_output*
+  endif
   3dvolreg -zpad 2 -maxite 60 -cubic \
            -prefix        __temp_output \
            -base          __temp_mean+orig \
@@ -343,26 +349,24 @@ while ( $z < $zmbdim )
     set k = `echo "${mb} * ${zmbdim} + ${z}" | bc`
     set kkkk   = `printf "%04d" $k`
     # move the mean z-slice for this slice back into place
-    mv __tmpzBRIK_$mb __temp_tseries_mean_"${kkkk}"+orig.BRIK"$brikpostfix"
-    mv __tmpzHEAD_$mb __temp_tseries_mean_"${kkkk}"+orig.HEAD
+    \mv __tmpzBRIK_$mb __temp_tseries_mean_"${kkkk}"+orig.BRIK"$brikpostfix"
+    \mv __tmpzHEAD_$mb __temp_tseries_mean_"${kkkk}"+orig.HEAD
     @ mb++
   end
   @ z++
 end
 
-rm -f __temp_* epi_02* tshiftfile.1D
+\rm -f __temp_* epi_02* tshiftfile.1D
 
 # move out of wdir to the odir
 cd ..
 set whereout = $PWD
 
 if ( $DO_CLEAN == 1 ) then
-    echo "+* Removing temporary axialization working dir: '$wdir'"
-
-    # ***** clean
-
+    echo "+* Removing temporary working dir: '${wdir}'"
+    \rm -rf "${wdir}"
 else
-    echo "++ NOT removing temporary axialization working dir: '$wdir'"
+    echo "++ NOT removing temporary working dir: '${wdir}'"
 endif
 
 echo ""

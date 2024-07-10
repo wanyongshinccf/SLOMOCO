@@ -3,6 +3,8 @@
 set version   = "0.0";  set rev_dat   = "Sep 20, 2023"
 # + tcsh version of Wanyong Shin's 'run_correction_vol_slicemocoxy_afni.sh'
 #
+set version   = "0.1";  set rev_dat   = "Jul 09, 2024"
+# + use nifti for intermed files, simpler scripting (stable to gzip BRIK)
 # ----------------------------------------------------------------
 
 set this_prog_full = "adjunct_slomoco_calc_slicemopa.tcsh"
@@ -244,8 +246,11 @@ set outplane_str = $outplane_dir/motion.wholevol_zt
 # note that 3dAllnieate 1dfile output is x-/y-/z-shift and z-/x-/y-rotation, ...
 # while 3dvolreg 1dfile ouput is z-/x-/y-rot and z-/x-/y-shift and shift direction is flipped
 # move to wdir to do work
-  
-\rm -rf "${owdir}/rm.slicemopa.1D"
+
+# remove the pre-existing slicemopa.1D
+if ( -f "${owdir}/rm.slicemopa.1D" ) then  
+  \rm -f "${owdir}/rm.slicemopa.1D"
+endif
 
 set z = 0
 while ( $z < $zmbdim )

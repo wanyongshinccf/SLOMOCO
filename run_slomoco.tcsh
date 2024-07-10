@@ -3,6 +3,8 @@
 set version   = "0.0";  set rev_dat   = "May 30, 2024"
 # + tcsh version of Wanyong Shin's SLOMOCO program
 #
+set version   = "0.1";  set rev_dat   = "Jul 09, 2024"
+# + use nifti for intermed files, simpler scripting (stable to gzip BRIK)
 # ----------------------------------------------------------------
 
 # -------------------- set environment vars -----------------------
@@ -292,7 +294,7 @@ else if ( "${vr_base}" == "MIN_ENORM" ) then
 
     3dvolreg                                    \
         -1Dfile "${owdir}"/___temp_volreg.1D    \
-        -prefix "${owdir}"/___temp_volreg+orig  \
+        -prefix "${owdir}"/___temp_volreg.nii   \
         -overwrite                              \
         "${epi}"
 
@@ -311,7 +313,7 @@ else if ( "${vr_base}" == "MIN_ENORM" ) then
                -expr 'abs(a)+b' \
                > "${owdir}"/min_enorm_disp_deriv.1D
     set vr_idx = `3dTstat -argmin -prefix - "${owdir}"/min_enorm_disp_deriv.1D\'`
-    rm "${owdir}"/___temp_volreg*
+    \rm -f "${owdir}"/___temp_volreg*
 else 
     # not be choice, but hope user entered an int
     set max_idx = `3dinfo -nvi "${epi}"`
@@ -330,7 +332,10 @@ endif
 echo $vr_idx volume will be the reference volume |& tee -a $histfile
 
 # save reference volume
-3dcalc -a "${epi}[$vr_idx]" -expr 'a' -prefix "${owdir}"/epi_base -overwrite 
+3dcalc -a "${epi}[$vr_idx]"            \
+       -expr 'a'                       \
+       -prefix "${owdir}"/epi_base \
+       -overwrite 
 
 # ---- check dsets that are optional, to verify (if present)
 # unsaturated EPI image might be useful for high SMS accelrated dataset, e.g. HCP
@@ -381,35 +386,35 @@ if ( "${epi_mask}" == "" ) then
     # remove skull (PT: could use 3dAutomask)
     3dSkullStrip                               \
         -input "${owdir}"/epi_base+orig        \
-        -prefix "${owdir}/___tmp_mask0.nii.gz" \
+        -prefix "${owdir}/___tmp_mask0.nii"    \
         -overwrite
 
     # binarize
     3dcalc                                     \
-        -a "${owdir}/___tmp_mask0.nii.gz"      \
+        -a "${owdir}/___tmp_mask0.nii"         \
         -expr 'step(a)'                        \
-        -prefix "${owdir}/___tmp_mask1.nii.gz" \
+        -prefix "${owdir}/___tmp_mask1.nii"    \
         -datum byte -nscale                    \
         -overwrite
 
     # inflate mask; name must match wlab name for user mask, above
     3dcalc \
-        -a "${owdir}/___tmp_mask1.nii.gz"         \
+        -a "${owdir}/___tmp_mask1.nii"            \
         -b a+i -c a-i -d a+j -e a-j -f a+k -g a-k \
         -expr 'amongst(1,a,b,c,d,e,f,g)'          \
-        -prefix "${owdir}/epi_base_mask"          \
+        -prefix "${owdir}/epi_base_mask"      \
         -overwrite
 
     # clean a bit
-    rm ${owdir}/___tmp*nii.gz
+    \rm -f ${owdir}/___tmp*nii
 else
   echo "** Note that reference volume is selected $vr_idx volume of input **" |& tee -a $histfile
   echo "** IF input mask is not generated from $vr_idx volume, " |& tee -a $histfile
   echo "** SLOMOCO might underperform. "  |& tee -a $histfile
-    3dcalc -a "${epi_mask}"                 \
-           -expr 'step(a)'                        \
+    3dcalc -a "${epi_mask}"                     \
+           -expr 'step(a)'                      \
            -prefix "${owdir}/epi_base_mask" \
-           -nscale                          \
+           -nscale                              \
            -overwrite
 endif
 
@@ -431,7 +436,7 @@ if ( "${physiofile}" != "" ) then
 
 else
     echo "++ Second order SLOMOCO will be conducted without physiofile " |& tee -a $histfile
-    rm -f ${owdir}/physioreg.1D
+    \rm -f ${owdir}/physioreg.1D
 endif
 
 
@@ -466,17 +471,17 @@ cd "${owdir}"
 set epi_mask = "epi_base_mask+orig"
 
 # linear detrending matrix
-3dDeconvolve -polort 1 -input epi_00+orig -x1D_stop -x1D epi_polort_xmat.1D
+3dDeconvolve -polort 1 -input epi_00.nii -x1D_stop -x1D epi_polort_xmat.1D
 
 # ----- step 1 voxelwise time-series PV regressor
 # volreg output is also generated.
 echo "++ Run: gen_vol_pvreg.tcsh"  |& tee -a ../$histfile
-gen_vol_pvreg.tcsh                 \
-    -dset_epi  epi_00+orig         \
-    -dset_mask "${epi_mask}"       \
-    -vr_idx    "${vr_idx}"         \
-    -prefix_pv epi_02_pvreg        \
-    -prefix_vr epi_01_volreg       \
+gen_vol_pvreg.tcsh                   \
+    -dset_epi  epi_00+orig            \
+    -dset_mask "${epi_mask}"         \
+    -vr_idx    "${vr_idx}"           \
+    -prefix_pv epi_02_pvreg      \
+    -prefix_vr epi_01_volreg     \
     |& tee     log_gen_vol_pvreg.txt
     
 if ( $status ) then
@@ -504,7 +509,7 @@ else
            -workdir     inplane                                                \
            -volreg_mat  epi_01_volreg.aff12.1D                                 \
            -tfile       tshiftfile.1D                                          \
-           -prefix      epi_03_slicemoco_xy                                    \
+           -prefix      epi_03_slicemoco_xy                                \
            -do_clean                                                           \
            |& tee       log_adjunct_slomoco_slicemoco_xy.txt
            
@@ -518,7 +523,7 @@ else
            -workdir     inplane                                                \
            -volreg_mat  epi_01_volreg.aff12.1D                                 \
            -tfile       tshiftfile.1D                                          \
-           -prefix      epi_03_slicemoco_xy                                    \
+           -prefix      epi_03_slicemoco_xy                                \
            -do_clean                                                           \
            |& tee       log_adjunct_slomoco_vol_slicemoco_xy.txt
      endif
@@ -539,7 +544,7 @@ else
     echo "++ Run: adjunct_slomoco_inside_fixed_vol.tcsh" |& tee -a ../$histfile
     adjunct_slomoco_inside_fixed_vol.tcsh  ${do_echo}                       \
         -dset_epi    epi_03_slicemoco_xy+orig                               \
-        -dset_mask   epi_base_mask+orig                                     \
+        -dset_mask   "${epi_mask}"                                          \
         -workdir     outofplane                                             \
         -tfile       tshiftfile.1D                                          \
         |& tee       log_adjunct_slomoco_inside_fixed_vol.txt
@@ -581,8 +586,9 @@ if ( $regflag == "MATLAB" ) then
     echo "++ Run: Nuisance regerssors are regress-out on SLOMOCO images" |& tee -a ../$histfile
     1dcat epi_polort_xmat.1D > rm_polort.1D
     1dcat epi_slireg.1D > rm_slireg.1D
+    
     matlab -nodesktop -nosplash -r "addpath ${MATLAB_SLOMOCO_DIR}; addpath ${MATLAB_AFNI_DIR}; gen_regout('epi_03_slicemoco_xy+orig','epi_base_mask+orig','physio','physioreg.1D','polort','rm_polort.1D','volreg','epi_01_volreg.1D','slireg','epi_slireg.1D','voxreg','epi_02_pvreg+orig','out','epi_03_slicemoco_xy.slomoco'); exit;" 
-    rm rm_*
+    \rm -f rm_*
 
 else 
     echo "afni version of vol/sli/voxelwise regression pipeline is working in progress" |& tee -a ../$histfile
@@ -600,12 +606,12 @@ else
   
     # 3dREMLfit does not run since slireg.demean.1D includes zero columns
     3dREMLfit                                \ 
-        -input      epi_02_slicemoco_xy+orig \
+        -input      epi_02_slicemoco_xy.nii  \
         -matim      volreg.all.1D            \
-        -mask       epi_base_mask+orig       \
+        -mask       epi_base_mask.nii        \
         -addbase_sm slire.demean.1D          \
-        -dsort      epi_01_pvreg+orig        \
-        -Rerrt      errts_slomoco+orig       \
+        -dsort      epi_01_pvreg.nii         \
+        -Rerrt      errts_slomoco.nii        \
         -overwrite
 
 endif   
@@ -633,7 +639,7 @@ set whereout = $PWD
 
 # copy the final result
 3dcalc                                     \
-   -a "${owdir}"/epi_03_slicemoco_xy.slomoco+orig   \
+   -a "${owdir}"/epi_03_slicemoco_xy+orig   \
    -expr 'a'                              \
    -prefix "${prefix}"                        \
    -overwrite
@@ -642,9 +648,9 @@ if ( $DO_CLEAN == 1 ) then
     echo "+* Removing the large size of temporary files in working dir: '$wdir' " |& tee -a $histfile
 
     # ***** clean
-    rm -rf    "${owdir}"/epi_00+orig.*         \
-          "${owdir}"/epi_motsim+orig.*      \
-          "${owdir}"/epi_motsim_mask4d+orig.*   
+    \rm -rf    "${owdir}"/epi_00.nii    \
+          "${owdir}"/epi_motsim.*      \
+          "${owdir}"/epi_motsim_mask4d.*   
 
 else
     echo "++ NOT removing temporary axialization working dir: '$wdir' " |& tee -a $histfile

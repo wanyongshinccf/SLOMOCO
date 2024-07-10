@@ -644,8 +644,8 @@ EOF
 
         # clean
         
-        \rm __temp_9999+orig.* __temp_slc_pvreg?+orig.* 
-        \rm __temp_slc+orig.*  __temp_slc_base+orig.*   __temp_slc_weight+orig.*   
+        \rm -f __temp_9999+orig.* __temp_slc_pvreg?+orig.* 
+        \rm -f __temp_slc+orig.*  __temp_slc_base+orig.*   __temp_slc_weight+orig.*   
 
     end  # end of z loop
 
@@ -662,7 +662,7 @@ EOF
         >& /dev/null
 
     # clean
-    \rm  __temp_slc_mocoxy.z????+orig.*
+    \rm -f __temp_slc_mocoxy.z????+orig.*
 
     # ----- move volume image back to baseline
     3dAllineate \
@@ -673,7 +673,7 @@ EOF
         -input __temp_vol_mocoxy+orig.HEAD \
         >& /dev/null
 
-    \rm     __temp_vol_pv+orig.* __temp_vol_mocoxy+orig.*
+    \rm -f  __temp_vol_pv+orig.* __temp_vol_mocoxy+orig.*
 
 end  # end of t loop
 
@@ -804,7 +804,7 @@ if ( $DO_CLEAN == 1 ) then
     echo "+* Removing temporary image files in working dir: '$wdir'"
     echo "+* DO NOT DELETE motin 1D files in working dir "
     echo "+* 1D files will be required to generate slice motion nuisance regressor " 
-    rm "${owdir}"/epi*
+    \rm -f "${owdir}"/epi*
         # ***** clean
 
 else

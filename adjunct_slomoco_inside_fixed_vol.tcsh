@@ -162,10 +162,9 @@ else
     endif
 
     # copy to wdir
-    3dcalc \
-        -a "${epi}" \
-        -expr 'a'   \
-        -prefix "${owdir}/epi_02"
+    3dcalc -a "${epi}"                  \
+           -expr 'a'                    \
+           -prefix "${owdir}/epi_02.nii"
 endif
 
 # ----- mask is required input
@@ -189,10 +188,9 @@ else
     endif
 
     # copy to wdir
-    3dcalc \
-        -a "${epi_mask}" \
-        -expr 'a'   \
-        -prefix "${owdir}/epi_02_mask"
+    3dcalc -a "${epi_mask}"                   \
+           -expr 'step(a)'                    \
+           -prefix "${owdir}/epi_02_mask.nii"
 endif
  
 # ----- check tshift file was entered
@@ -223,10 +221,16 @@ EOF
 # move to wdir to do work
 cd "${owdir}"
 
+# remove any __temp_* file in the working directory
+set ntempi = `find . -maxdepth 1 -type f -name "__temp_*" | wc -l`
+if ( ${ntempi} ) then
+  \rm -f __temp_*
+endif
+  
 # ----- define variables
 
-set dims = `3dAttribute DATASET_DIMENSIONS epi_02+orig.HEAD`
-set tdim = `3dnvals epi_02+orig.HEAD`
+set dims = `3dAttribute DATASET_DIMENSIONS epi_02.nii`
+set tdim = `3dnvals epi_02.nii`
 set zdim = ${dims[3]}                           # tcsh uses 1-based counting
 
 
@@ -263,31 +267,34 @@ set zmbdim  = `echo "scale=0; ${zdim}/${SMSfactor}" | bc`
 
 # use the mean image over time as the target 
 # so all vols should have roughly the same partial voluming/blurring due to coreg
-3dTstat -mean  -prefix __temp_mean epi_02+orig  >& /dev/null
+3dTstat -mean                   \
+        -prefix __temp_mean.nii \
+        epi_02.nii  
 
 # concatenate mean volume to time-series
 set t = 0
 while ( $t < $tdim ) 
   set tttt   = `printf "%04d" $t`
-  3dcalc -a __temp_mean+orig -expr 'a' -prefix __t_"${tttt}"+orig >& /dev/null
+  3dcalc -a __temp_mean.nii \
+         -expr 'a'           \
+         -prefix __t_"${tttt}".nii >& /dev/null
   @ t++ 
 end
-3dTcat -prefix __temp_tseries_mean   __t_????+orig.HEAD >& /dev/null
-\rm __t_????+orig.*
+3dTcat -prefix __temp_tseries_mean.nii \
+       __t_????.nii 
+\rm -f __t_????.nii
 
 # split into time-series of each slice
 set z = 0
 while ( $z < $zdim ) 
   set zzzz   = `printf "%04d" $z`
-  3dZcutup \
-    -keep $z $z \
-    -prefix __temp_tseries_mean_"${zzzz}".nii \
-    __temp_tseries_mean+orig  >& /dev/null
+  3dZcutup -keep $z $z                               \
+           -prefix __temp_tseries_mean_"${zzzz}".nii \
+           __temp_tseries_mean.nii  >& /dev/null
     
-  3dZcutup \
-    -keep $z $z \
-    -prefix __temp_tseries_"${zzzz}".nii \
-    epi_02+orig  >& /dev/null
+  3dZcutup -keep $z $z                          \
+           -prefix __temp_tseries_"${zzzz}".nii \
+           epi_02.nii  >& /dev/null
   
   @ z++ 
 end
@@ -324,18 +331,19 @@ while ( $z < $zmbdim )
   if ( ${ntempi} ) then
     \rm -f __temp_input*
   endif
-  3dZcat -prefix __temp_input __temp_tseries_mean_????.nii >& /dev/null
+  3dZcat -prefix __temp_input.nii \
+         __temp_tseries_mean_????.nii >& /dev/null
 
-  set ntempo = `find . -maxdepth 1 -type f -name "__temp_output*" | wc -l`
-  if ( ${ntempo} ) then
-    \rm -f __temp_output*
-  endif
-  3dvolreg -zpad 2 -maxite 60 -cubic \
-           -prefix        __temp_output \
-           -base          __temp_mean+orig \
-           -1Dmatrix_save $bname.aff12.1D \
-           -1Dfile        $bname.1D \
-           __temp_input+orig
+  # out-of-plane moco
+  3dvolreg -zpad 2                          \
+           -maxite 60                       \
+           -cubic                           \
+           -prefix        __temp_output.nii \
+           -base          __temp_mean.nii   \
+           -1Dmatrix_save $bname.aff12.1D   \
+           -1Dfile        $bname.1D         \
+           __temp_input.nii                 \
+           -overwrite
   
   set mb = 0
   while ($mb < $SMSfactor )

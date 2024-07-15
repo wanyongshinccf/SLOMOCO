@@ -162,7 +162,7 @@ end
 # mask 
 3dcalc -a ___temp_mask4d.nii         \
        -expr 'step(a)'               \
-       -prefix epi_motsim_mask4d.nii \
+       -prefix epi_motsim_mask4d     \
        -nscale                       \
        -overwrite
 

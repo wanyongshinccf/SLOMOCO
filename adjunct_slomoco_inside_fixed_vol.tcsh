@@ -3,13 +3,16 @@
 set version   = "0.0";  set rev_dat   = "Dec 09, 2023"
 # + tcsh version of Wanyong Shin's 'run_slicemoco_inside_fixed_vol.sh'
 #
+set version   = "0.1";  set rev_dat   = "Jul 09, 2024"
+# + use nifti for intermed files, simpler scripting (stable to gzip BRIK)
+#
 # ----------------------------------------------------------------
 
 set this_prog_full = "adjunct_slomoco_inside_fixed_vol.tcsh"
 set this_prog = "adj_inside_fixed"
 #set tpname    = "${this_prog:gas///}"
 set here      = $PWD
-
+  
 # ----------------------- set defaults --------------------------
 
 set prefix  = ""
@@ -159,10 +162,9 @@ else
     endif
 
     # copy to wdir
-    3dcalc \
-        -a "${epi}" \
-        -expr 'a'   \
-        -prefix "${owdir}/epi_02"
+    3dcalc -a "${epi}"                  \
+           -expr 'a'                    \
+           -prefix "${owdir}/epi_02.nii"
 endif
 
 # ----- mask is required input
@@ -186,10 +188,9 @@ else
     endif
 
     # copy to wdir
-    3dcalc \
-        -a "${epi_mask}" \
-        -expr 'a'   \
-        -prefix "${owdir}/epi_02_mask"
+    3dcalc -a "${epi_mask}"                   \
+           -expr 'step(a)'                    \
+           -prefix "${owdir}/epi_02_mask.nii"
 endif
  
 # ----- check tshift file was entered
@@ -220,10 +221,16 @@ EOF
 # move to wdir to do work
 cd "${owdir}"
 
+# remove any __temp_* file in the working directory
+set ntempi = `find . -maxdepth 1 -type f -name "__temp_*" | wc -l`
+if ( ${ntempi} ) then
+  \rm -f __temp_*
+endif
+  
 # ----- define variables
 
-set dims = `3dAttribute DATASET_DIMENSIONS epi_02+orig.HEAD`
-set tdim = `3dnvals epi_02+orig.HEAD`
+set dims = `3dAttribute DATASET_DIMENSIONS epi_02.nii`
+set tdim = `3dnvals epi_02.nii`
 set zdim = ${dims[3]}                           # tcsh uses 1-based counting
 
 
@@ -260,43 +267,38 @@ set zmbdim  = `echo "scale=0; ${zdim}/${SMSfactor}" | bc`
 
 # use the mean image over time as the target 
 # so all vols should have roughly the same partial voluming/blurring due to coreg
-3dTstat -mean  -prefix __temp_mean epi_02+orig  >& /dev/null
+3dTstat -mean                   \
+        -prefix __temp_mean.nii \
+        epi_02.nii  
 
 # concatenate mean volume to time-series
 set t = 0
 while ( $t < $tdim ) 
   set tttt   = `printf "%04d" $t`
-  3dcalc -a __temp_mean+orig -expr 'a' -prefix __t_"${tttt}"+orig >& /dev/null
+  3dcalc -a __temp_mean.nii \
+         -expr 'a'           \
+         -prefix __t_"${tttt}".nii >& /dev/null
   @ t++ 
 end
-3dTcat -prefix __temp_tseries_mean   __t_????+orig.HEAD >& /dev/null
-rm __t_????+orig.*
+3dTcat -prefix __temp_tseries_mean.nii \
+       __t_????.nii 
+\rm -f __t_????.nii
 
 # split into time-series of each slice
 set z = 0
 while ( $z < $zdim ) 
   set zzzz   = `printf "%04d" $z`
-  3dZcutup \
-    -keep $z $z \
-    -prefix __temp_tseries_mean_"${zzzz}" \
-    __temp_tseries_mean+orig  >& /dev/null
+  3dZcutup -keep $z $z                               \
+           -prefix __temp_tseries_mean_"${zzzz}".nii \
+           __temp_tseries_mean.nii  >& /dev/null
     
-  3dZcutup \
-    -keep $z $z \
-    -prefix __temp_tseries_"${zzzz}" \
-    epi_02+orig  >& /dev/null
+  3dZcutup -keep $z $z                          \
+           -prefix __temp_tseries_"${zzzz}".nii \
+           epi_02.nii  >& /dev/null
   
   @ z++ 
 end
 
-# To save the computation time, compression process will be skipped if any
-set myAFNI_AUTOGZIP = `afni -q -no_detach -VAFNI_AUTOGZIP= ` 
-set myAFNI_COMPRESSOR = `afni -q -no_detach -VAFNI_COMPRESSOR= `
-if ( $myAFNI_AUTOGZIP == "YES" ||  $myAFNI_COMPRESSOR == "GZIP"  ) then
-  set brikpostfix = ".gz"
-else
-  set brikpostfix = ""
-endif
 
 set z = 0
 while ( $z < $zmbdim ) 
@@ -310,59 +312,62 @@ while ( $z < $zmbdim )
     set kkkk   = `printf "%04d" $k`
     
     # first, temporarily move away the simulated tseries z-slice for this slice
-    mv __temp_tseries_mean_"${kkkk}"+orig.BRIK"$brikpostfix" __tmpzBRIK_$mb
-    mv __temp_tseries_mean_"${kkkk}"+orig.HEAD __tmpzHEAD_$mb
+    \mv __temp_tseries_mean_"${kkkk}".nii __tmpz_${mb}.nii
 
     # and move original tseries into simnoise
-    mv __temp_tseries_"${kkkk}"+orig.BRIK"$brikpostfix" __temp_tseries_mean_"${kkkk}"+orig.BRIK"$brikpostfix"
-    mv __temp_tseries_"${kkkk}"+orig.HEAD __temp_tseries_mean_"${kkkk}"+orig.HEAD
+    \mv __temp_tseries_"${kkkk}".nii __temp_tseries_mean_"${kkkk}".nii
     
     @ mb++
   end
   
   if ( $SMSfactor > 1 ) then
-    echo "doing slices $zsimults at once"
+    echo "++ doing slices $zsimults at once"
   else
-    echo "doing slice $zsimults"
+    echo "++ doing slice $zsimults"
   endif
   
   # pad into volume using the mean image for adjacent slices
-  rm -f __temp_input*
-  3dZcat -prefix __temp_input __temp_tseries_mean_????+orig.HEAD >& /dev/null
+  set ntempi = `find . -maxdepth 1 -type f -name "__temp_input*" | wc -l`
+  if ( ${ntempi} ) then
+    \rm -f __temp_input*
+  endif
+  3dZcat -prefix __temp_input.nii \
+         __temp_tseries_mean_????.nii >& /dev/null
 
-  rm -f __temp_output*
-  3dvolreg -zpad 2 -maxite 60 -cubic \
-           -prefix        __temp_output \
-           -base          __temp_mean+orig \
-           -1Dmatrix_save $bname.aff12.1D \
-           -1Dfile        $bname.1D \
-           __temp_input+orig
+  # out-of-plane moco
+  3dvolreg -zpad 2                          \
+           -maxite 60                       \
+           -cubic                           \
+           -prefix        __temp_output.nii \
+           -base          __temp_mean.nii   \
+           -1Dmatrix_save $bname.aff12.1D   \
+           -1Dfile        $bname.1D         \
+           __temp_input.nii                 \
+           -overwrite
   
   set mb = 0
   while ($mb < $SMSfactor )
     set k = `echo "${mb} * ${zmbdim} + ${z}" | bc`
     set kkkk   = `printf "%04d" $k`
     # move the mean z-slice for this slice back into place
-    mv __tmpzBRIK_$mb __temp_tseries_mean_"${kkkk}"+orig.BRIK"$brikpostfix"
-    mv __tmpzHEAD_$mb __temp_tseries_mean_"${kkkk}"+orig.HEAD
+    \mv __tmpz_${mb}.nii __temp_tseries_mean_"${kkkk}".nii
     @ mb++
   end
   @ z++
 end
 
-rm -f __temp_* epi_02* tshiftfile.1D
+\rm -f __temp_* epi_02* tshiftfile.1D
 
 # move out of wdir to the odir
 cd ..
 set whereout = $PWD
 
 if ( $DO_CLEAN == 1 ) then
-    echo "+* Removing temporary axialization working dir: '$wdir'"
-
-    # ***** clean
-
+    #echo "+* Removing temporary working dir: '${wdir}'"
+    #\rm -rf "${wdir}"
+    echo "** NB: will NOT clean this temporary working dir: '${wdir}'"
 else
-    echo "++ NOT removing temporary axialization working dir: '$wdir'"
+    echo "++ NOT removing temporary working dir: '${wdir}'"
 endif
 
 echo ""

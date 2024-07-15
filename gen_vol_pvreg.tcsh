@@ -111,9 +111,9 @@ end
 cat_matvec "${prefix_vr}".aff12.1D -I > "${prefix_vr}"_INV.aff12.1D
 
 # generating motsim
-3dTstat	-mean 					\
-     	-prefix epi_base_mean 	\
-     	-overwrite 				\
+3dTstat	-mean                     \
+     	-prefix epi_base_mean.nii \
+     	-overwrite                \
      	"${prefix_vr}"+orig 
 
 # concatenate images
@@ -122,75 +122,75 @@ set tdim = `3dnvals ${epi}`
 set t = 0
 while ( $t < $tdim ) 
   set tttt   = `printf "%04d" $t`
-  3dcalc -a epi_base_mean+orig 				\
+  3dcalc -a epi_base_mean.nii 				\
         -expr 'a'              				\
-        -prefix ___temp_static.${tttt}+orig >& /dev/null
+        -prefix ___temp_static.${tttt}.nii >& /dev/null
   3dcalc -a ${epi_mask}						\
         -expr 'a'              				\
-        -prefix ___temp_mask.${tttt}+orig >& /dev/null
+        -prefix ___temp_mask.${tttt}.nii >& /dev/null
   @ t++ 
 end
 
 # concatenate mask and static image
-3dTcat -prefix ___temp_mask+orig   ___temp_mask.????+orig.HEAD   
-3dTcat -prefix ___temp_static+orig ___temp_static.????+orig.HEAD  
+3dTcat -prefix ___temp_mask.nii   ___temp_mask.????.nii   
+3dTcat -prefix ___temp_static.nii ___temp_static.????.nii  
 
 # clean up
-rm ___temp_static.* ___temp_mask.* 
+\rm -f ___temp_static.????.nii ___temp_mask.????.nii 
 
 # inject inverse volume motion on static images
 3dAllineate                                   \
-  -prefix ___temp_mask4d+orig                 \
+  -prefix ___temp_mask4d.nii                 \
   -1Dmatrix_apply "${prefix_vr}"_INV.aff12.1D \
-  -source ___temp_mask+orig                   \
+  -source ___temp_mask.nii                   \
   -final NN                                   \
   -overwrite
 3dAllineate                                   \
-  -prefix epi_motsim+orig                     \
+  -prefix epi_motsim                          \
   -1Dmatrix_apply "${prefix_vr}"_INV.aff12.1D \
-  -source ___temp_static+orig                 \
+  -source ___temp_static.nii                  \
   -final cubic                                \
   -float                                      \
   -overwrite 
 3dAllineate                                   \
-  -prefix ___temp_vol_pvreg+orig              \
+  -prefix ___temp_vol_pvreg.nii               \
   -1Dmatrix_apply "${prefix_vr}".aff12.1D     \
   -source epi_motsim+orig                     \
   -final cubic                                \
   -overwrite
 
 # mask 
-3dcalc -a ___temp_mask4d+orig         \
-       -expr 'step(a)'                \
-       -prefix epi_motsim_mask4d+orig \
-       -nscale                        \
+3dcalc -a ___temp_mask4d.nii         \
+       -expr 'step(a)'               \
+       -prefix epi_motsim_mask4d     \
+       -nscale                       \
        -overwrite
 
 # normalize vol pv regressor  
-3dTstat -mean  -prefix ___temp_vol_pvreg_mean ___temp_vol_pvreg+orig 
-3dTstat -stdev -prefix ___temp_vol_pvreg_std  ___temp_vol_pvreg+orig  
-3dcalc -a ___temp_vol_pvreg_mean+orig          \
-       -b ___temp_vol_pvreg_std+orig           \
-       -c ___temp_mask+orig                \
-       -d ___temp_vol_pvreg+orig               \
+3dTstat -mean  -prefix ___temp_vol_pvreg_mean.nii ___temp_vol_pvreg.nii 
+3dTstat -stdev -prefix ___temp_vol_pvreg_std.nii  ___temp_vol_pvreg.nii  
+3dcalc -a ___temp_vol_pvreg_mean.nii   \
+       -b ___temp_vol_pvreg_std.nii    \
+       -c ___temp_mask.nii             \
+       -d ___temp_vol_pvreg.nii        \
        -expr 'step(b)*step(c)*(d-a)/b' \
-       -prefix "${prefix_pv}"                  \
+       -prefix "${prefix_pv}"          \
        -overwrite
-rm  ___temp* 
+\rm -f ___temp* 
 
 # copy header
 3drefit -saveatr -atrcopy ${epi} TAXIS_NUMS   "${prefix_vr}"+orig 
 # 3drefit -saveatr -atrcopy ${epi} TAXIS_FLOATS "${prefix_vr}"+orig 
 
 # add info
-3dNotes -h "Time series volume motion partial volume regressor"   "${prefix_vr}"+orig.HEAD
+3dNotes -h "Time series volume motion partial volume regressor"   "${prefix_vr}"+orig
 
 # Removing unnecessary files
 if ( $DO_CLEAN == 1 ) then
     echo "+* Removing temporary image files "
     echo "+* DO NOT DELETE motin 1D files in working dir "
     echo "+* 1D files will be required to generate slice motion nuisance regressor " 
-    rm epi_base_mean* epi_motsim+orig*
+    \rm -f epi_base_mean.* epi_motsim.*
         # ***** clean
 
 else

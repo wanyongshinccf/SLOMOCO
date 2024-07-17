@@ -329,7 +329,7 @@ else
     # just use that number
     set vr_idx = "${vr_base}"
 endif
-echo $vr_idx volume will be the reference volume |& tee -a $histfile
+echo "   $vr_idx volume will be the reference volume" |& tee -a $histfile
 
 # save reference volume
 3dcalc -a "${epi}[$vr_idx]"            \

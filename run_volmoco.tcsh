@@ -223,7 +223,7 @@ endif
 # just use that number
 set vr_idx = "${vr_base}"
 
-echo $vr_idx volume will be the reference volume
+echo "   $vr_idx volume will be the reference volume"
 
 # ----- Mask setting
 if ( "${epi_mask}" == "" ) then

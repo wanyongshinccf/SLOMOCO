@@ -471,13 +471,13 @@ cd "${owdir}"
 set epi_mask = "epi_base_mask+orig"
 
 # linear detrending matrix
-3dDeconvolve -polort 1 -input epi_00.nii -x1D_stop -x1D epi_polort_xmat.1D
+3dDeconvolve -polort 1 -input epi_00+orig -x1D_stop -x1D epi_polort_xmat.1D
 
 # ----- step 1 voxelwise time-series PV regressor
 # volreg output is also generated.
 echo "++ Run: gen_vol_pvreg.tcsh"  |& tee -a ../$histfile
 gen_vol_pvreg.tcsh                   \
-    -dset_epi  epi_00+orig            \
+    -dset_epi  epi_00+orig           \
     -dset_mask "${epi_mask}"         \
     -vr_idx    "${vr_idx}"           \
     -prefix_pv epi_02_pvreg      \
@@ -648,7 +648,7 @@ if ( $DO_CLEAN == 1 ) then
     echo "+* Removing the large size of temporary files in working dir: '$wdir' " |& tee -a $histfile
 
     # ***** clean
-    \rm -rf    "${owdir}"/epi_00.nii    \
+    \rm -rf    "${owdir}"/epi_00+orig.*    \
           "${owdir}"/epi_motsim.*      \
           "${owdir}"/epi_motsim_mask4d.*   
 

@@ -272,7 +272,7 @@ else if ( ${moco_meth} == "W" ) then
     set moco_prog = 3dWarpDrive
 endif
 
-echo " ${moco_prog} runs for inplane motion correction "
+echo "   ${moco_prog} runs for inplane motion correction"
 
 # ----- check tshift file was entered
 

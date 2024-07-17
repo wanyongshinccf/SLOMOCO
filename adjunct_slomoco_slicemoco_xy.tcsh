@@ -239,7 +239,7 @@ else if ( ${moco_meth} == "W" ) then
     set moco_prog = 3dWarpDrive
 endif
 
-echo " ${moco_prog} runs for inplane motion correction "
+echo "   ${moco_prog} runs for inplane motion correction"
 
 # ----- check tshift file was entered
 
@@ -490,7 +490,8 @@ foreach t ( `seq 0 1 ${tcount}` )
         if ( `echo "${nvox_nz} >= ${nvox_min}" | bc` ) then
             if ( "${moco_meth}" == "W" ) then
                 # [PT] what cost should be used here? specify explicitly
-                $AFNI_SLOMOCO_DIR/3dWarpDrive \
+               # $AFNI_SLOMOCO_DIR/3dWarpDrive \
+               3dWarpDrive \
                     -overwrite \
                     -affine_general -cubic -final cubic -maxite 300 -thresh 0.005 \
                     -prefix        __temp_9999.nii \
@@ -499,8 +500,8 @@ foreach t ( `seq 0 1 ${tcount}` )
                     -weight        __temp_slc_weight.nii \
                     -1Dfile        ${bname}.1D \
                     -1Dmatrix_save ${bname}.aff12.1D \
-                    ${parfixline} \
-                    >& /dev/null
+                    ${parfixline} #\
+                    #>& /dev/null
 
                 if ( $status ) then
                     echo "** ERROR: failed in $moco_meth alignment"
@@ -516,8 +517,8 @@ foreach t ( `seq 0 1 ${tcount}` )
                     -weight        __temp_slc_weight.nii \
                     -1Dfile        ${bname}.1D \
                     -1Dmatrix_save ${bname}.aff12.1D \
-                    ${parfixline} \
-                    >& /dev/null
+                    ${parfixline} #\
+                    #>& /dev/null
                     
 
                 if ( $status ) then

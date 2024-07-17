@@ -582,7 +582,7 @@ foreach t ( `seq 0 1 ${tcount}` )
                     >& /dev/null
 
                 if ( $status ) then
-                    echo "** ERROR: failed in $moco_metho alignment"
+                    echo "** ERROR: failed in $moco_meth alignment"
                     goto BAD_EXIT
                 endif
             endif

@@ -1,13 +1,16 @@
 #!/bin/tcsh
 
-set version   = "0.0";  set rev_dat   = "May 30, 2024"
+#set version   = "0.0";  set rev_dat   = "May 30, 2024"
 # + tcsh version of Wanyong Shin's SLOMOCO program
 #
-set version   = "0.1";  set rev_dat   = "Jul 09, 2024"
+#set version   = "0.1";  set rev_dat   = "Jul 09, 2024"
 # + use nifti for intermed files, simpler scripting (stable to gzip BRIK)
 #
-set version   = "0.2";  set rev_dat   = "Jul 18, 2024"
+#set version   = "0.2";  set rev_dat   = "Jul 18, 2024"
 # + formatting/indenting/spacing, and more status-check exits
+#
+set version   = "0.3";  set rev_dat   = "Jul 18, 2024"
+# + remove Darwin/macOS check; switch to using possible local 3dWarpDrive 
 #
 # ----------------------------------------------------------------
 
@@ -161,33 +164,35 @@ echo "" >> $histfile
 date >> $histfile
 echo "" >> $histfile
 
-
-# check OS system. In case of Mac, 3dAllineate is used after Volmoco
-if ( "$OSTYPE" == "darwin" ) then
-    set volregfirst = 1
-    set moco_meth = "A"   
-    echo "++ SLOMOCO is running on Mac OX" |& tee -a $histfile
-    echo "++ 3dvolreg is applied and SLOMOCO is running on volume motion corrected images" |& tee -a $histfile
-    echo "++ 3dAllineate is used for slicewise motion correction " |& tee -a $histfile
+##### [PT: Jul 18, 2024] with fixed 3dWarpDrive for 2D slices, this
+##### macOS/Darwin check should all be unnecessary now, so commenting
+##### out (for later removal)
+### check OS system. In case of Mac, 3dAllineate is used after Volmoco
+##if ( "$OSTYPE" == "darwin" ) then
+##    set volregfirst = 1
+##    set moco_meth = "A"   
+##    echo "++ SLOMOCO is running on Mac OX" |& tee -a $histfile
+##    echo "++ 3dvolreg is applied and SLOMOCO is running on volume motion corrected images" |& tee -a $histfile
+##    echo "++ 3dAllineate is used for slicewise motion correction " |& tee -a $histfile
+##else
+##    echo "++ SLOMOCO is running on non-Mac OX" |& tee -a $histfile
+if  ( $volregfirst == "1" ) then
+    echo "++ You select running SLOMOCO on volume motion corrected images" |& tee -a $histfile
+    echo "++ SLOMOCO is recommended to be used on non-volume motion corrected images" |& tee -a $histfile
+    echo "++ You should know what you are doing. I warn you." |& tee -a $histfile
 else
-    echo "++ SLOMOCO is running on non-Mac OX" |& tee -a $histfile
-    if  ( $volregfirst == "1" ) then
-        echo "++ You select running SLOMOCO on volume motion corrected images" |& tee -a $histfile
-        echo "++ SLOMOCO is recomended to be used on non-volume motion corrected images" |& tee -a $histfile
-        echo "++ You should know what you are doing. I warn you. " |& tee -a $histfile
-    else
-        echo "++ MotSim data is used for the reference image of SLOMOCO" |& tee -a $histfile 
-        echo "++ SLOMOCO is running on non-volume motion corrected images"  |& tee -a $histfile
-    endif
+    echo "++ MotSim data is used for the reference image of SLOMOCO" |& tee -a $histfile 
+    echo "++ SLOMOCO is running on non-volume motion corrected images"  |& tee -a $histfile
+endif
     
-    if  ( $moco_meth == "A"  ) then 
-        echo "++ 3dAllineate is used for slicewise motion correction " |& tee -a $histfile
-        echo "++ Our emperical result shows 3dWarpdrive performs better than 3dAllineate " |& tee -a $histfile
-        echo "++ You should know what you are doing. I warn you. " |& tee -a $histfile
-    else
-        echo "++ 3dWarpDrive included in the package is used for slicewise motion correction " |& tee -a $histfile
-    endif
-endif     
+if  ( $moco_meth == "A"  ) then 
+    echo "++ 3dAllineate is used for slicewise motion correction" |& tee -a $histfile
+    echo "++ Our empirical result shows 3dWarpDrive performs better than 3dAllineate here" |& tee -a $histfile
+    echo "++ You should know what you are doing. I warn you." |& tee -a $histfile
+##else
+##    echo "++ 3dWarpDrive included in the package is used for slicewise motion correction" |& tee -a $histfile
+endif
+##endif     
 
 
 # ----- find AFNI 
@@ -592,7 +597,7 @@ if ( -d combined_slicemopa ) then
     echo "++   delete outofplane directory and re-run it. " |& tee -a ../$histfile
 else
     echo "++ Run: adjunct_slomoco_calc_slicemopa.tcsh" |& tee -a ../$histfile
-    adjunct_slomoco_calc_slicemopa.tcsh                                     \
+    adjunct_slomoco_calc_slicemopa.tcsh ${do_echo}                          \
         -dset_epi    epi_03_slicemoco_xy+orig                               \
         -indir       inplane                                                \
         -outdir      outofplane                                             \

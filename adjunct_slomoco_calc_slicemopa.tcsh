@@ -268,17 +268,22 @@ while ( $z < $zmbdim )
   # y-shift (inplane) 
   1dcat  $inplane_str."${zzzz}".1D'[1]'  > "${owdir}/rm.temp.yshift.1D"
 
-  # flipped for inplane x-/y-shift
-  \rm -f "${owdir}"/rm.temp.?shift.fliped.1D  
-  1dmatcalc "&read(${owdir}/rm.temp.xshift.1D) -1.0 * &write(${owdir}/rm.temp.xshift.fliped.1D)" 
-  1dmatcalc "&read(${owdir}/rm.temp.yshift.1D) -1.0 * &write(${owdir}/rm.temp.yshift.fliped.1D)" 
+  # flipped for inplane x-/y-shift (check that any exist before removing)
+  cd "${owdir}"
+  set ntempi = `find . -maxdepth 1 -type f -name "rm.temp.?shift.flipped.1D" | wc -l`
+  cd -
+  if ( ${ntempi} ) then
+    \rm -f "${owdir}"/rm.temp.?shift.flipped.1D  
+  endif
+  1dmatcalc "&read(${owdir}/rm.temp.xshift.1D) -1.0 * &write(${owdir}/rm.temp.xshift.flipped.1D)" 
+  1dmatcalc "&read(${owdir}/rm.temp.yshift.1D) -1.0 * &write(${owdir}/rm.temp.yshift.flipped.1D)" 
   
   1dcat "${owdir}/rm.temp.zrot.1D" \
         "${owdir}/rm.temp.xrot.1D" \
         "${owdir}/rm.temp.yrot.1D" \
         "${owdir}/rm.temp.zshift.1D" \
-        "${owdir}/rm.temp.xshift.fliped.1D" \
-        "${owdir}/rm.temp.yshift.fliped.1D" \
+        "${owdir}/rm.temp.xshift.flipped.1D" \
+        "${owdir}/rm.temp.yshift.flipped.1D" \
         > "${owdir}"/motion_inoutofplane_zt."${zzzz}".1D
 
   1dtranspose "${owdir}"/motion_inoutofplane_zt."${zzzz}".1D \

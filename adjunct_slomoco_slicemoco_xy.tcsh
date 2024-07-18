@@ -1,10 +1,15 @@
 #!/bin/tcsh
 
-set version   = "0.0";  set rev_dat   = "May 30, 2024"
+#set version   = "0.0";  set rev_dat   = "May 30, 2024"
 # + tcsh version of Wanyong Shin's 'run_correction_slicemocoxy_afni.sh'
 #
-set version   = "0.1";  set rev_dat   = "Jul 09, 2024"
+#set version   = "0.1";  set rev_dat   = "Jul 09, 2024"
 # + use nifti for intermed files, simpler scripting (stable to gzip BRIK)
+#
+set version   = "0.2";  set rev_dat   = "Jul 18, 2024"
+# + start using local system 3dWarpDrive, which should be fixed for 2D
+#   applications now
+#
 # ----------------------------------------------------------------
 
 set this_prog_full = "adjunct_slomoco_slicemoco_xy.tcsh"
@@ -490,7 +495,7 @@ foreach t ( `seq 0 1 ${tcount}` )
         if ( `echo "${nvox_nz} >= ${nvox_min}" | bc` ) then
             if ( "${moco_meth}" == "W" ) then
                 # [PT] what cost should be used here? specify explicitly
-               $AFNI_SLOMOCO_DIR/3dWarpDrive \
+                3dWarpDrive \
                     -overwrite \
                     -affine_general -cubic -final cubic -maxite 300 -thresh 0.005 \
                     -prefix        __temp_9999.nii \

@@ -1,7 +1,11 @@
 #!/bin/tcsh
 
-set version   = "0.0";  set rev_dat   = "Sep 20, 2023"
+#set version   = "0.0";  set rev_dat   = "Sep 20, 2023"
 # + tcsh version of Wanyong Shin's 'run_correction_vol_slicemocoxy_afni.sh'
+#
+set version   = "0.2";  set rev_dat   = "Jul 18, 2024"
+# + start using local system 3dWarpDrive, which should be fixed for 2D
+#   applications now
 #
 # ----------------------------------------------------------------
 
@@ -552,7 +556,7 @@ foreach t ( `seq 0 1 ${tcount}` )
         if ( `echo "${nvox_nz} >= ${nvox_min}" | bc` ) then
             if ( "${moco_meth}" == "W" ) then
                 # [PT] what cost should be used here? specify explicitly
-                $AFNI_SLOMOCO_DIR/3dWarpDrive \
+                3dWarpDrive \
                     -overwrite \
                     -affine_general -cubic -final cubic -maxite 300 -thresh 0.005 \
                     -prefix        __temp_9999 \

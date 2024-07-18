@@ -249,46 +249,46 @@ set outplane_str = $outplane_dir/motion.wholevol_zt
 
 # remove the pre-existing slicemopa.1D
 if ( -f "${owdir}/rm.slicemopa.1D" ) then  
-  \rm -f "${owdir}/rm.slicemopa.1D"
+    \rm -f "${owdir}/rm.slicemopa.1D"
 endif
 
 set z = 0
 while ( $z < $zmbdim )
-  set zzzz = `printf "%04d" $z`
-  # z-rot (inplane) 
-  1dcat  $inplane_str."${zzzz}".1D'[3]'  > "${owdir}/rm.temp.zrot.1D"
-  # x-rot (out-of-plane)  
-  1dcat  $outplane_str."${zzzz}".1D'[1]' > "${owdir}/rm.temp.xrot.1D"
-  # y-rot (out-of-plane)  
-  1dcat  $outplane_str."${zzzz}".1D'[2]' > "${owdir}/rm.temp.yrot.1D"
-  # z-shift (out-of-plane) 
-  1dcat  $outplane_str."${zzzz}".1D'[3]' > "${owdir}/rm.temp.zshift.1D"
-  # x-shift (inplane) 
-  1dcat  $inplane_str."${zzzz}".1D'[0]'  > "${owdir}/rm.temp.xshift.1D"
-  # y-shift (inplane) 
-  1dcat  $inplane_str."${zzzz}".1D'[1]'  > "${owdir}/rm.temp.yshift.1D"
+    set zzzz = `printf "%04d" $z`
+    # z-rot (inplane) 
+    1dcat  $inplane_str."${zzzz}".1D'[3]'  > "${owdir}/rm.temp.zrot.1D"
+    # x-rot (out-of-plane)  
+    1dcat  $outplane_str."${zzzz}".1D'[1]' > "${owdir}/rm.temp.xrot.1D"
+    # y-rot (out-of-plane)  
+    1dcat  $outplane_str."${zzzz}".1D'[2]' > "${owdir}/rm.temp.yrot.1D"
+    # z-shift (out-of-plane) 
+    1dcat  $outplane_str."${zzzz}".1D'[3]' > "${owdir}/rm.temp.zshift.1D"
+    # x-shift (inplane) 
+    1dcat  $inplane_str."${zzzz}".1D'[0]'  > "${owdir}/rm.temp.xshift.1D"
+    # y-shift (inplane) 
+    1dcat  $inplane_str."${zzzz}".1D'[1]'  > "${owdir}/rm.temp.yshift.1D"
 
-  # flipped for inplane x-/y-shift (check that any exist before removing)
-  cd "${owdir}"
-  set ntempi = `find . -maxdepth 1 -type f -name "rm.temp.?shift.flipped.1D" | wc -l`
-  cd -
-  if ( ${ntempi} ) then
-    \rm -f "${owdir}"/rm.temp.?shift.flipped.1D  
-  endif
-  1dmatcalc "&read(${owdir}/rm.temp.xshift.1D) -1.0 * &write(${owdir}/rm.temp.xshift.flipped.1D)" 
-  1dmatcalc "&read(${owdir}/rm.temp.yshift.1D) -1.0 * &write(${owdir}/rm.temp.yshift.flipped.1D)" 
+    # flipped for inplane x-/y-shift (check that any exist before removing)
+    cd "${owdir}"
+    set ntempi = `find . -maxdepth 1 -type f -name "rm.temp.?shift.flipped.1D" | wc -l`
+    cd -
+    if ( ${ntempi} ) then
+        \rm -f "${owdir}"/rm.temp.?shift.flipped.1D  
+    endif
+    1dmatcalc "&read(${owdir}/rm.temp.xshift.1D) -1.0 * &write(${owdir}/rm.temp.xshift.flipped.1D)" 
+    1dmatcalc "&read(${owdir}/rm.temp.yshift.1D) -1.0 * &write(${owdir}/rm.temp.yshift.flipped.1D)" 
   
-  1dcat "${owdir}/rm.temp.zrot.1D" \
-        "${owdir}/rm.temp.xrot.1D" \
-        "${owdir}/rm.temp.yrot.1D" \
-        "${owdir}/rm.temp.zshift.1D" \
-        "${owdir}/rm.temp.xshift.flipped.1D" \
-        "${owdir}/rm.temp.yshift.flipped.1D" \
-        > "${owdir}"/motion_inoutofplane_zt."${zzzz}".1D
+    1dcat "${owdir}/rm.temp.zrot.1D" \
+          "${owdir}/rm.temp.xrot.1D" \
+          "${owdir}/rm.temp.yrot.1D" \
+          "${owdir}/rm.temp.zshift.1D" \
+          "${owdir}/rm.temp.xshift.flipped.1D" \
+          "${owdir}/rm.temp.yshift.flipped.1D" \
+          > "${owdir}"/motion_inoutofplane_zt."${zzzz}".1D
 
-  1dtranspose "${owdir}"/motion_inoutofplane_zt."${zzzz}".1D \
-        > "${owdir}"/rm.motion_inoutofplane_zt."${zzzz}".T.1D
-  @ z++
+    1dtranspose "${owdir}"/motion_inoutofplane_zt."${zzzz}".1D \
+          > "${owdir}"/rm.motion_inoutofplane_zt."${zzzz}".T.1D
+    @ z++
 end
 
 # concatenate
@@ -304,9 +304,9 @@ end
 \rm -f "${owdir}"/rm.slicemopa.T.1D 
   
 if ( $SMSfactor >  1 ) then 
-  cat "${owdir}"/rm.slicemopa.T.?.1D >> "${owdir}"/rm.slicemopa.T.1D
+    cat "${owdir}"/rm.slicemopa.T.?.1D >> "${owdir}"/rm.slicemopa.T.1D
 else
-  \cp "${owdir}"/rm.slicemopa.T.0.1D "${owdir}"/rm.slicemopa.T.1D
+    \cp "${owdir}"/rm.slicemopa.T.0.1D "${owdir}"/rm.slicemopa.T.1D
 endif
 
 1dtranspose "${owdir}"/rm.slicemopa.T.1D "${prefix}" -overwrite

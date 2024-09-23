@@ -555,17 +555,28 @@ foreach t ( `seq 0 1 ${tcount}` )
 
         if ( `echo "${nvox_nz} >= ${nvox_min}" | bc` ) then
             if ( "${moco_meth}" == "W" ) then
+                # deal with modern/old program version
+                if ( ${AFNI_IS_OLD} ) then
+                    set my_warp_prog = ${AFNI_SLOMOCO_DIR}/3dWarpDrive
+                else
+                    set my_warp_prog = 3dWarpDrive
+                endif
+
                 # [PT] what cost should be used here? specify explicitly
-                3dWarpDrive \
-                    -overwrite \
-                    -affine_general -cubic -final cubic -maxite 300 -thresh 0.005 \
-                    -prefix        __temp_9999 \
-                    -base          __temp_slc_base+orig.HEAD  \
-                    -input         __temp_slc+orig.HEAD \
-                    -weight        __temp_slc_weight+orig.HEAD \
-                    -1Dfile        ${bname}.1D \
-                    -1Dmatrix_save ${bname}.aff12.1D \
-                    ${parfixline} \
+                ${my_warp_prog}                                              \
+                    -overwrite                                               \
+                    -affine_general                                          \
+                    -cubic                                                   \
+                    -final           cubic                                   \
+                    -maxite          300                                     \
+                    -thresh          0.005                                   \
+                    -prefix          __temp_9999                             \
+                    -base            __temp_slc_base+orig.HEAD               \
+                    -input           __temp_slc+orig.HEAD                    \
+                    -weight          __temp_slc_weight+orig.HEAD             \
+                    -1Dfile          ${bname}.1D                             \
+                    -1Dmatrix_save   ${bname}.aff12.1D                       \
+                    ${parfixline}                                            \
                     >& /dev/null
 
                 if ( $status ) then
@@ -573,16 +584,21 @@ foreach t ( `seq 0 1 ${tcount}` )
                     goto BAD_EXIT
                 endif
             else if ( "${moco_meth}" == "A" ) then
-                3dAllineate \
-                    -overwrite \
-                    -interp cubic -final cubic -cost ls -conv 0.005 -onepass \
-                    -prefix        __temp_9999 \
-                    -base          __temp_slc_base+orig.HEAD  \
-                    -input         __temp_slc+orig.HEAD \
-                    -weight        __temp_slc_weight+orig.HEAD \
-                    -1Dfile        ${bname}.1D \
-                    -1Dmatrix_save ${bname}.aff12.1D \
-                    ${parfixline} \
+
+                3dAllineate                                                  \
+                    -overwrite                                               \
+                    -interp         cubic                                    \
+                    -final          cubic                                    \
+                    -cost           ls                                       \
+                    -conv           0.005                                    \
+                    -onepass                                                 \
+                    -prefix         __temp_9999                              \
+                    -base           __temp_slc_base+orig.HEAD                \
+                    -input          __temp_slc+orig.HEAD                     \
+                    -weight         __temp_slc_weight+orig.HEAD              \
+                    -1Dfile         ${bname}.1D                              \
+                    -1Dmatrix_save  ${bname}.aff12.1D                        \
+                    ${parfixline}                                            \
                     >& /dev/null
 
                 if ( $status ) then

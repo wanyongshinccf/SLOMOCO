@@ -12,14 +12,19 @@
 #set version   = "0.3";  set rev_dat   = "Jul 18, 2024"
 # + remove Darwin/macOS check; switch to using possible local 3dWarpDrive 
 #
-set version   = "0.4";  set rev_dat   = "Sep 23, 2024"
+#set version   = "0.4";  set rev_dat   = "Sep 23, 2024"
 # + check AFNI version (but not failing/stopping yet)
+#
+set version   = "0.5";  set rev_dat   = "Sep 23, 2024"
+# + add AFNI_IS_OLD env var, to act more strictly on old/modern AFNI ver
+#   check
 #
 # ----------------------------------------------------------------
 
 # -------------------- set environment vars -----------------------
 
 setenv AFNI_MESSAGE_COLORIZE     NO         # so all text is simple b/w
+setenv AFNI_IS_OLD               0          # pre-3dWarpDrive update?
 
 # this is the minimal version to use to be able to work with the
 # AFNI-distributed 3dWarpDrive; this is the first build after updating
@@ -50,6 +55,8 @@ set tfile      = ""       # tshiftfile (sec)
 set physiofile = ""       # physio1D file, from RETROICOR or PESTICA
 set regflag    = "MATLAB" # MATLAB or AFNI
 set qaflag     = "MATLAB" # MATLAB or AFNI
+
+set allow_old_afni = 0    # user *should* update code, but can use old
 
 set volregfirst = 0       # Slomoco on each aligned refvol.
 set DO_CLEAN    = 0       # default: keep working dir
@@ -143,7 +150,11 @@ while ( $ac <= $#argv )
 
     else if ( "$argv[$ac]" == "-volregfirst" ) then
         set volregfirst     = 1
-        
+
+    # manage having non-modern AFNI: user must EXPLICITLY set this
+    else if ( "$argv[$ac]" == "-allow_old_afni" ) then
+        set allow_old_afni  = 1
+
     else if ( "$argv[$ac]" == "-do_clean" ) then
         set DO_CLEAN     = 1
         
@@ -171,14 +182,23 @@ if ( "${vstart}" != "AFNI" ) then
     goto BAD_EXIT
 endif
 
-# check for 'modern' AFNI (compare via Python)
+# check for 'modern' AFNI (compare via Python); note a local env var
+# can be reset here
 set cstr = "'${vnum}' >= '${AFNI_MIN_VNUM}'"
 set cval = `python -c "print(int(${cstr:q}))"`
 if ( ${cval} ) then
     echo "++ AFNI version is good for modern SLOMOCO: ${cstr}"
-else
-    echo "+* WARN: AFNI version too old for modern SLOMOCO:"
-    echo "   Based on 'afni -vnum', this is False: ${cstr}"
+else if ( ${allow_old_afni} ) then
+    echo "+* WARN: AFNI version too old for modern SLOMOCO,"
+    echo "   based on 'afni -vnum', this is False: ${cstr}."
+    echo "   Updating AFNI is recommended, but user says push on 'as is'."
+    setenv AFNI_IS_OLD 1
+else if ( ${allow_old_afni} ) then
+    echo "** ERROR: AFNI version too old for modern SLOMOCO,"
+    echo "   based on 'afni -vnum', this is False: ${cstr}."
+    echo "   Either update your AFNI version (**strongly recommended**),"
+    echo "   or add opt '-allow_old_afni' to use older prog version here."
+    goto BAD_EXIT
 endif
 
 
@@ -187,10 +207,10 @@ endif
 
 # define SLOMOCO directory
 set fullcommand = "$0"
-setenv SLOMOCO_DIR `dirname "${fullcommand}"`
-setenv MATLAB_SLOMOCO_DIR $SLOMOCO_DIR/slomoco_matlab
-setenv AFNI_SLOMOCO_DIR $SLOMOCO_DIR/afni_linux
-setenv MATLAB_AFNI_DIR  $SLOMOCO_DIR/afni_matlab
+setenv SLOMOCO_DIR         `dirname "${fullcommand}"`
+setenv MATLAB_SLOMOCO_DIR  $SLOMOCO_DIR/slomoco_matlab
+setenv AFNI_SLOMOCO_DIR    $SLOMOCO_DIR/afni_linux
+setenv MATLAB_AFNI_DIR     $SLOMOCO_DIR/afni_matlab
 
 # initialize a log file
 echo "" >> $histfile

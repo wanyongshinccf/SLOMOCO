@@ -9,14 +9,22 @@
 #set version   = "0.2";  set rev_dat   = "Jul 18, 2024"
 # + formatting/indenting/spacing, and more status-check exits
 #
-set version   = "0.3";  set rev_dat   = "Jul 18, 2024"
+#set version   = "0.3";  set rev_dat   = "Jul 18, 2024"
 # + remove Darwin/macOS check; switch to using possible local 3dWarpDrive 
+#
+set version   = "0.4";  set rev_dat   = "Sep 23, 2024"
+# + check AFNI version (but not failing/stopping yet)
 #
 # ----------------------------------------------------------------
 
 # -------------------- set environment vars -----------------------
 
 setenv AFNI_MESSAGE_COLORIZE     NO         # so all text is simple b/w
+
+# this is the minimal version to use to be able to work with the
+# AFNI-distributed 3dWarpDrive; this is the first build after updating
+# the internal mask erosion to work work with 2D slices.
+set AFNI_MIN_VNUM = "AFNI_24.2.02"
 
 # ----------------------- set defaults --------------------------
 
@@ -148,6 +156,31 @@ while ( $ac <= $#argv )
     endif
     @ ac += 1
 end
+
+# =======================================================================
+# AFNI version check
+
+# make sure AFNI is not *very, very* old
+set vnum   = `afni -vnum`
+set vstart = `echo ${vnum} | tr '_' ' ' | awk '{print $1}'`
+if ( "${vstart}" != "AFNI" ) then
+    echo "** ERROR: AFNI version is too old to even check vnum"
+    echo "   Please update AFNI to use this program."
+    set aver = `afni -ver`
+    echo "   version info: ${aver}"
+    goto BAD_EXIT
+endif
+
+# check for 'modern' AFNI (compare via Python)
+set cstr = "'${vnum}' >= '${AFNI_MIN_VNUM}'"
+set cval = `python -c "print(int(${cstr:q}))"`
+if ( ${cval} ) then
+    echo "++ AFNI version is good for modern SLOMOCO: ${cstr}"
+else
+    echo "+* WARN: AFNI version too old for modern SLOMOCO:"
+    echo "   Based on 'afni -vnum', this is False: ${cstr}"
+endif
+
 
 # =======================================================================
 # ======================== ** Verify + setup ** =========================
@@ -763,6 +796,16 @@ works for linux.
 In this reason, if you run SLOMOCO on Mac OS, the script selects
 -volregfirst and runs with 3dAllineate from YOUR AFNI software
 automatically.
+
+NOTES
+
+AFNI dependency and versioning
+
+This version of SLOMOCO comes with some simultaneous updates in the
+AFNI codebase.  To make fullest use of the updates, users should have
+AFNI installed on their computer, with at least this version:
+   'afni -vnum' >= ${AFNI_MIN_VNUM}.
+
 
 EOF
 

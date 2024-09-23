@@ -15,9 +15,12 @@
 #set version   = "0.4";  set rev_dat   = "Sep 23, 2024"
 # + check AFNI version (but not failing/stopping yet)
 #
-set version   = "0.5";  set rev_dat   = "Sep 23, 2024"
+#set version   = "0.5";  set rev_dat   = "Sep 23, 2024"
 # + add AFNI_IS_OLD env var, to act more strictly on old/modern AFNI ver
 #   check
+#
+set version   = "0.51";  set rev_dat   = "Sep 23, 2024"
+# + add macOS-based check for case of old AFNI
 #
 # ----------------------------------------------------------------
 
@@ -201,6 +204,25 @@ else if ( ${allow_old_afni} ) then
     goto BAD_EXIT
 endif
 
+# the 'OSTYPE == darwin' check is now only necessary for a user with
+# old AFNI
+if ( ${AFNI_IS_OLD} ) then
+    if ( ${?OSTYPE} ) then
+        set ostr = "'${OSTYPE}' == 'darwin'"
+        set oval = `python -c "print(int(${ostr:q}))"`
+        if ( ${oval} ) then
+            # This user with old AFNI is using a mac: set settings
+            # accordingly
+            set volregfirst = 1
+            set moco_meth   = "A"   
+            echo "++ SLOMOCO (with old AFNI) is running on macOS" |& tee -a $histfile
+            echo "++ 3dvolreg is applied and SLOMOCO is running on volume motion corrected images" |& tee -a $histfile
+            echo "++ 3dAllineate is used for slicewise motion correction " |& tee -a $histfile
+        else
+            echo "++ SLOMOCO (with old AFNI) is running on non-Mac OS" |& tee -a $histfile
+        endif
+    endif
+endif
 
 # =======================================================================
 # ======================== ** Verify + setup ** =========================
@@ -217,31 +239,19 @@ echo "" >> $histfile
 date >> $histfile
 echo "" >> $histfile
 
-##### [PT: Jul 18, 2024] with fixed 3dWarpDrive for 2D slices, this
-##### macOS/Darwin check should all be unnecessary now, so commenting
-##### out (for later removal)
-### check OS system. In case of Mac, 3dAllineate is used after Volmoco
-##if ( "$OSTYPE" == "darwin" ) then
-##    set volregfirst = 1
-##    set moco_meth = "A"   
-##    echo "++ SLOMOCO is running on Mac OX" |& tee -a $histfile
-##    echo "++ 3dvolreg is applied and SLOMOCO is running on volume motion corrected images" |& tee -a $histfile
-##    echo "++ 3dAllineate is used for slicewise motion correction " |& tee -a $histfile
-##else
-##    echo "++ SLOMOCO is running on non-Mac OX" |& tee -a $histfile
 if  ( $volregfirst == "1" ) then
-    echo "++ You select running SLOMOCO on volume motion corrected images" |& tee -a $histfile
-    echo "++ SLOMOCO is recommended to be used on non-volume motion corrected images" |& tee -a $histfile
-    echo "++ You should know what you are doing. I warn you." |& tee -a $histfile
+    echo "+* WARNING: You select running SLOMOCO on volume motion corrected images" |& tee -a $histfile
+    echo "+* SLOMOCO is recommended to be used on non-volume motion corrected images" |& tee -a $histfile
+    echo "+* You should know what you are doing. I warn you." |& tee -a $histfile
 else
     echo "++ MotSim data is used for the reference image of SLOMOCO" |& tee -a $histfile 
     echo "++ SLOMOCO is running on non-volume motion corrected images"  |& tee -a $histfile
 endif
     
 if  ( $moco_meth == "A"  ) then 
-    echo "++ 3dAllineate is used for slicewise motion correction" |& tee -a $histfile
-    echo "++ Our empirical result shows 3dWarpDrive performs better than 3dAllineate here" |& tee -a $histfile
-    echo "++ You should know what you are doing. I warn you." |& tee -a $histfile
+    echo "+* WARNING: 3dAllineate is used for slicewise motion correction" |& tee -a $histfile
+    echo "+* Our empirical result shows 3dWarpDrive performs better than 3dAllineate here" |& tee -a $histfile
+    echo "+* You should know what you are doing. I warn you." |& tee -a $histfile
 ##else
 ##    echo "++ 3dWarpDrive included in the package is used for slicewise motion correction" |& tee -a $histfile
 endif

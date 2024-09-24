@@ -217,13 +217,13 @@ if ( ${AFNI_IS_OLD} ) then
             if ( "$moco_meth" = "W" ) then
         		echo "** ERROR: SLOMOCO (with old AFNI) is running with -moco_meth W on macOS" |& tee -a $histfile
         		echo "   Either update your AFNI version (**strongly recommended**),"
-        		echo "   or add opt '-moco_meth A' "
+        		echo "   or add opt '-moco_meth A' and '-volreg_first' "
         		goto BAD_EXIT
 			endif
 		else
 			echo "** ERROR: SLOMOCO (with old AFNI) is running with -moco_meth W on non-linux OS" |& tee -a $histfile
         	echo "   Either update your AFNI version (**strongly recommended**),"
-        	echo "   or add opt '-moco_meth A' "
+        	echo "   or add opt '-moco_meth A' and '-volreg_first' "
     		goto BAD_EXIT
     	endif
     endif
@@ -234,6 +234,7 @@ endif
 
 # define SLOMOCO directory
 set fullcommand = "$0"
+set fullcommandlines = "$argv"
 setenv SLOMOCO_DIR         `dirname "${fullcommand}"`
 setenv MATLAB_SLOMOCO_DIR  $SLOMOCO_DIR/slomoco_matlab
 setenv AFNI_SLOMOCO_DIR    $SLOMOCO_DIR/afni_linux
@@ -241,6 +242,7 @@ setenv MATLAB_AFNI_DIR     $SLOMOCO_DIR/afni_matlab
 
 # initialize a log file
 echo "" >> $histfile
+echo $fullcommand $fullcommandlines >> $histfile
 date >> $histfile
 echo "" >> $histfile
 
@@ -255,7 +257,7 @@ endif
     
 if  ( $moco_meth == "A"  ) then 
     echo "+* WARNING: 3dAllineate is used for slicewise motion correction" |& tee -a $histfile
-    echo "+* Our empirical result shows 3dWarpDrive performs better than 3dAllineate here" |& tee -a $histfile
+    echo "+* Our empirical result shows 3dWarpDrive performs better than 3dAllineate." |& tee -a $histfile
     echo "+* You should know what you are doing. I warn you." |& tee -a $histfile
 endif     
 
@@ -744,8 +746,7 @@ if ( $DO_CLEAN == 1 ) then
         |& tee -a $histfile
 
     \rm -rf  "${owdir}"/epi_00+orig.*        \
-             "${owdir}"/epi_motsim.*         \
-             "${owdir}"/epi_motsim_mask4d.*   
+             "${owdir}"/epi_motsim*          
 else
     echo "++ NOT removing temp files in slomoco working dir: '$wdir'" \
         |& tee -a $histfile
@@ -810,24 +811,26 @@ Slicewise motion correction could be done in two ways.
 
 In short, case 1 aligned source slice to the reference image vs case 2
 native source slice to the aligned reference image.  Emperically, we
-find the case 2 with 3dWarpdrive works marginally better than case 2
+find the case 2 with 3dWarpDrive works marginally better than case 2
 with 3dAllineate and case 1 with 3dWarpdrive or 3dAllineate.  Even the
 case 1 with 3dAllineate overfits in-/out-of-slice motion, resulting in
-the bad alignment.  ** For this reason: case 2 with 3dWarpdrive is our
-top choice. **
+the bad alignment.  ** For this reason: case 2 with 3dWarpDrive is our
+top choice. ** 
 
 To do, -volregfirst should NOT be selected (default), and -moco_meth =
 "W" (default).  Then the next prefered one would be case 1) with
 3dAllineate or 3dWarpdrive.
 
-However, the latest version of 3dWarpdrive stops supporting 2D slice
-alignment (with "zero---ish" error).  We find the specific version of
-3dWarpdrive (afni.afni.openmp.v18.3.16), included in this package only
-works for linux.
+However, the certain version of 3dWarpdrive stops supporting 2D slice
+alignment (with "zero---ish" error), and AFNI resolves this issue 
+after "AFNI_24.2.02". If you see a warning that your AFNI is too old,
+we strongly recommend updating your AFNI. If your OS is linux AND your
+AFNI is older than 24.2.02, 3dWarpdrive (afni.afni.openmp.v18.3.16), 
+included in this package will be used. 
 
-In this reason, if you run SLOMOCO on Mac OS, the script selects
--volregfirst and runs with 3dAllineate from YOUR AFNI software
-automatically.
+To run SLOMOCO with too old AFNI on Mac OS, add an option '-moco_meth A'  
+and '-volregfirst' (Why don't you update AFNI? See the note below)
+
 
 NOTES
 

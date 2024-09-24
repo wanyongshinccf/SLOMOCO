@@ -209,8 +209,10 @@ endif
 if ( ${AFNI_IS_OLD} ) then
     if ( ${?OSTYPE} ) then
         if ( "$OSTYPE" == "linux"* ) then
-            # LINUX, use the included 3dWarpDrive command
-            echo "+* WARN: 3dWarpDrive command in the package (afni.afni.openmp.v18.3.16) is running"
+            # LINUX, 
+            if ( "$moco_meth" = "W" ) then
+            	echo "+* WARN: 3dWarpDrive command in the package (afni.afni.openmp.v18.3.16) will be used"
+            endif
         else if ( "$OSTYPE" == "darwin"* ) then
             if ( "$moco_meth" = "W" ) then
         		echo "** ERROR: SLOMOCO (with old AFNI) is running with -moco_meth W on macOS" |& tee -a $histfile

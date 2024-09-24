@@ -196,7 +196,7 @@ else if ( ${allow_old_afni} ) then
     echo "   based on 'afni -vnum', this is False: ${cstr}."
     echo "   Updating AFNI is recommended, but user says push on 'as is'."
     setenv AFNI_IS_OLD 1
-else if ( ${allow_old_afni} ) then
+else 
     echo "** ERROR: AFNI version too old for modern SLOMOCO,"
     echo "   based on 'afni -vnum', this is False: ${cstr}."
     echo "   Either update your AFNI version (**strongly recommended**),"
@@ -208,19 +208,22 @@ endif
 # old AFNI
 if ( ${AFNI_IS_OLD} ) then
     if ( ${?OSTYPE} ) then
-        set ostr = "'${OSTYPE}' == 'darwin'"
-        set oval = `python -c "print(int(${ostr:q}))"`
-        if ( ${oval} ) then
-            # This user with old AFNI is using a mac: set settings
-            # accordingly
-            set volregfirst = 1
-            set moco_meth   = "A"   
-            echo "++ SLOMOCO (with old AFNI) is running on macOS" |& tee -a $histfile
-            echo "++ 3dvolreg is applied and SLOMOCO is running on volume motion corrected images" |& tee -a $histfile
-            echo "++ 3dAllineate is used for slicewise motion correction " |& tee -a $histfile
-        else
-            echo "++ SLOMOCO (with old AFNI) is running on non-Mac OS" |& tee -a $histfile
-        endif
+        if ( "$OSTYPE" == "linux"* ) then
+            # LINUX, use the included 3dWarpDrive command
+            echo "+* WARN: 3dWarpDrive command in the package (afni.afni.openmp.v18.3.16) is running"
+        else if ( "$OSTYPE" == "darwin"* ) then
+            if ( "$moco_meth" = "W" ) then
+        		echo "** ERROR: SLOMOCO (with old AFNI) is running with -moco_meth W on macOS" |& tee -a $histfile
+        		echo "   Either update your AFNI version (**strongly recommended**),"
+        		echo "   or add opt '-moco_meth A' "
+        		goto BAD_EXIT
+			endif
+		else
+			echo "** ERROR: SLOMOCO (with old AFNI) is running with -moco_meth W on non-linux OS" |& tee -a $histfile
+        	echo "   Either update your AFNI version (**strongly recommended**),"
+        	echo "   or add opt '-moco_meth A' "
+    		goto BAD_EXIT
+    	endif
     endif
 endif
 
@@ -252,10 +255,7 @@ if  ( $moco_meth == "A"  ) then
     echo "+* WARNING: 3dAllineate is used for slicewise motion correction" |& tee -a $histfile
     echo "+* Our empirical result shows 3dWarpDrive performs better than 3dAllineate here" |& tee -a $histfile
     echo "+* You should know what you are doing. I warn you." |& tee -a $histfile
-##else
-##    echo "++ 3dWarpDrive included in the package is used for slicewise motion correction" |& tee -a $histfile
-endif
-##endif     
+endif     
 
 
 # ----- find AFNI 
@@ -514,11 +514,11 @@ if ( "${physiofile}" != "" ) then
         goto BAD_EXIT
     else
         1dcat $physiofile  > ${owdir}/physioreg.1D 
-        echo "++ Second order SLOMOCO will be conducted with physiofile: ${physiofile}" \
+        echo "++ Physiologic nuisance regressor will be includled: ${physiofile} " \
             |& tee -a $histfile
     endif
 else
-    echo "++ Second order SLOMOCO will be conducted without physiofile " \
+    echo "++ Physiologic nuisnance regressor will NOT be includled. " \
         |& tee -a $histfile
     \rm -f ${owdir}/physioreg.1D
 endif

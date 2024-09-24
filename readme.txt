@@ -1,4 +1,4 @@
-SLOMOCO is a tcsh script to run slicewise motion correction on fMRI 2D EPI dataset
+## SLOMOCO is a tcsh script to run slicewise motion correction on fMRI 2D EPI dataset ##
 
 To run SLOMOCO, you need to add SLOMOCO path to your PATH in your shell environment.
 If you download a SLOMOCO package in your home directory, e.g. /home/wyshin/SLOMOCO
@@ -10,46 +10,39 @@ SLOMOCO requires AFNI
 Set afni path in your shell environment. 
 Open the terminal and type "afni" in your shell. It should work for SLOMOCO
 
+SLOMOCO requires python
+Set python path as "python" in your shell environment. 
+
 SLOMOCO requires matlab.
 Set matlab path in your shell environment. 
 Open the terminal and type "matlab" in your shell. It should work for SLOMOCO
 
-If you are running run_slomoco.tcsh in linux or Mac OS, the result is slightly different.
+If you are running run_slomoco.tcsh in linux or Mac OS, the result might be slightly different.
 DO NOT mix up SLOMOCO results from Linux or Mac OS in your study.
 
-We suggest to run PESTICA (or RETROICOR) before SLOMOCO and to add physiologic nuisance
+We suggest running PESTICA (or RETROICOR) before SLOMOCO and to add physiologic nuisance
 regressors to SLOMOCO motion nuisance regression model.
 e.g. run_pestica.tcsh 	-dset_epi epi+orig -tfile tshiftfile -prefix epi.pestica \
 						-workdir PESTICA5 -auto
      run_slomoco.tcsh 	-dset_epi epi+orig -tfile tshiftfile -prefix epi.slomoco \
      					-physio PESTICA5/RetroTS.PESTICA5.slibase.1D \
-     					-workdir SLOMOCO5
+     					-workdir SLOMOCO5 -do_clean
 
 In addition, run_volmoco.tcsh provides voxelwise partial volume (PV) motion nuisance 
 regress-out pipeline (After 3dvolreg, 6 rigid volume motion + PV regress-out)
 The detail is found in Citation 1)
 
-======= technical detail =======
-For Linux, slicewise motion correction is running;
-1) volume motion correction -> averaged -> referece volume
-2) reference volume for SLOMOCO is defined at each volume by reverse alignment of the reference volume 
-3) 3dWarpDrive (afni.afni.openmp.v18.3.16) included in this package is running.
-
-For Mac OS, slicewise motion correction is running;
-1) volume motion correction is applied
-2) volmoco images are slicewise motion corrected on the reference volume
-3) 3dAllineate (in your AFNI version) is running 
-
-Empirically, we find that 3dWarpdrive pipeline works slightly better. 
-However, the specific version of 3dWarpdrive works for 2d image alignment. 
-Other newer version 3dWarpDrive stop running with "zero---ish..." error.
-We cannot distribute the pre-complied 3dWarpdrive for Mac.
-=================================
+## SIMPACE data ##
+SLOMOCO was validated using the simulated prospective acquisition correction (SIMPACE) 
+dataset in which the volume-/slice-wise motion is injected during ex-vivo brain scan.
+SIMPACE data will be shared upon the request. If you are interested in SIMPACE data,
+please contact Wanyong Shin, shinw@ccf.org
 
 Citation
 1) Shin W., Taylor P., Lowe MJ., Estimation and Removal of Residual Motion Artifact in 
 Retrospectively Motion-Corrected fMRI Data: A Comparison of Intervolume and Intravolume 
-Motion Using Gold Standard Simulated Motion Data. 2024 Neuro Aperture (in revision), 2024
+Motion Using Gold Standard Simulated Motion Data. 2024 Neuro Aperture, 2024; 4
+https://doi.org/10.52294/001c.123369
 
 2) Beall EB, Lowe MJ. SimPACE: generating simulated motion corrupted BOLD data with 
 synthetic-navigated acquisition for the development and evaluation of SLOMOCO: a new, 

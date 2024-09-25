@@ -111,9 +111,9 @@ end
 cat_matvec "${prefix_vr}".aff12.1D -I > "${prefix_vr}"_INV.aff12.1D
 
 # generating motsim
-3dTstat	-mean                     \
-     	-prefix epi_base_mean.nii \
-     	-overwrite                \
+3dTstat	-mean                      \
+     	-prefix epi_base_mean+orig \
+     	-overwrite                 \
      	"${prefix_vr}"+orig 
 
 # concatenate images
@@ -122,7 +122,7 @@ set tdim = `3dnvals ${epi}`
 set t = 0
 while ( $t < $tdim ) 
   set tttt   = `printf "%04d" $t`
-  3dcalc -a epi_base_mean.nii 				\
+  3dcalc -a epi_base_mean+orig 				\
         -expr 'a'              				\
         -prefix ___temp_static.${tttt}.nii >& /dev/null
   3dcalc -a ${epi_mask}						\
@@ -190,7 +190,7 @@ if ( $DO_CLEAN == 1 ) then
     echo "+* Removing temporary image files "
     echo "+* DO NOT DELETE motin 1D files in working dir "
     echo "+* 1D files will be required to generate slice motion nuisance regressor " 
-    \rm -f epi_base_mean.* epi_motsim.*
+    \rm -f epi_base_mean* epi_motsim.*
         # ***** clean
 
 else

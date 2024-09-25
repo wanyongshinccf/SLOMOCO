@@ -126,14 +126,15 @@ end
 
 # define SLOMOCO directory
 set fullcommand = "$0"
+set fullcommandlines = "$argv"
 setenv SLOMOCO_DIR `dirname "${fullcommand}"`
 setenv MATLAB_SLOMOCO_DIR $SLOMOCO_DIR/slomoco_matlab
 setenv AFNI_SLOMOCO_DIR $SLOMOCO_DIR/afni_linux
 
-echo $fullcommand
-cat <<EOF >> ${histfile}
-$fullcommand -dset_epi $epi -prefix $prefix
-EOF
+echo "" >> $histfile
+echo $fullcommand $fullcommandlines >> $histfile
+date >> $histfile
+echo "" >> $histfile
 
 # ----- find AFNI 
 
@@ -225,11 +226,46 @@ set vr_idx = "${vr_base}"
 
 echo "   $vr_idx volume will be the reference volume"
 
+# save reference volume
+3dcalc -a "${epi}[$vr_idx]"            \
+       -expr 'a'                       \
+       -prefix "${owdir}"/epi_base     \
+       -overwrite 
+
 # ----- Mask setting
 if ( "${epi_mask}" == "" ) then
-	3dcalc -a "${epi}[$vr_idx]" -expr 'step(a-200)' -prefix "${owdir}"/epi_base_mask
+	echo "++ No mask provided, will make one" |& tee -a $histfile
+
+    # remove skull (PT: could use 3dAutomask)
+    3dSkullStrip                               \
+        -input "${owdir}"/epi_base+orig        \
+        -prefix "${owdir}/___tmp_mask0.nii"    \
+        -overwrite
+
+    # binarize
+    3dcalc                                     \
+        -a "${owdir}/___tmp_mask0.nii"         \
+        -expr 'step(a)'                        \
+        -prefix "${owdir}/___tmp_mask1.nii"    \
+        -datum byte -nscale                    \
+        -overwrite
+
+    # inflate mask; name must match wlab name for user mask, above
+    3dcalc \
+        -a "${owdir}/___tmp_mask1.nii"            \
+        -b a+i -c a-i -d a+j -e a-j -f a+k -g a-k \
+        -expr   'amongst(1,a,b,c,d,e,f,g)'        \
+        -prefix "${owdir}/epi_base_mask"          \
+        -overwrite
+
+    # clean a bit
+    \rm -f ${owdir}/___tmp*nii
 else
-	3dcalc -a $epi_mask -expr 'a' -prefix "${owdir}"/epi_base_mask -overwrite
+	3dcalc -a       "${epi_mask}"               \
+           -expr    'step(a)'                   \
+           -prefix  "${owdir}/epi_base_mask"    \
+           -nscale                              \
+           -overwrite
 endif
 
 if ( "${roi_mask}" == "" ) then
@@ -343,7 +379,6 @@ endif
 	-prefix errt.mopa6.std 			\
 	errt.mopa6.pvreg_nods+orig
 
-echo $roi_mask
 3dROIstats -quiet					\
 	-mask "${roi_mask}"				\
 	errt.det.std+orig > SDreduction.1D

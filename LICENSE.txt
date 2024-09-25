@@ -1,0 +1,24 @@
+Copyright
+
+=================================================================
+Imaging Institute, Cleveland Clinic
+
+This software is freely available to the public for research only
+, not for clinical usage.
+
+Large portions of the code (and current active development) is in
+the public domain including AFNI and Python.  
+In case of the re-distribution of the software and the priviate 
+profit usage, please contact the author.
+
+Wanyong Shin, Ph.D
+Associate Staff, Imaging Institute, Cleveland Clinic
+9500 Euclid Ave, U-15
+Cleveland, OH 44195
+Phone: (216)444-1153
+Fax: (216)636-2397
+email: shinw@ccf.org 
+
+Please cite the authors in any work or product based on this material.
+https://doi.org/10.52294/001c.123369
+https://doi.org/10.1016/j.neuroimage.2014.06.038

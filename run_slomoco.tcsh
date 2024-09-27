@@ -19,8 +19,11 @@
 # + add AFNI_IS_OLD env var, to act more strictly on old/modern AFNI ver
 #   check
 #
-set version   = "0.51";  set rev_dat   = "Sep 23, 2024"
+# set version   = "0.51";  set rev_dat   = "Sep 23, 2024"
 # + add macOS-based check for case of old AFNI
+#
+# set version   = "0.6";  set rev_dat   = "Sep 27, 2024"
+# + add AFNI version of regress-out 
 #
 # ----------------------------------------------------------------
 
@@ -56,8 +59,8 @@ set epi_mask   = ""       # (opt) mask dset name
 set jsonfile   = ""       # json file
 set tfile      = ""       # tshiftfile (sec)
 set physiofile = ""       # physio1D file, from RETROICOR or PESTICA
-set regflag    = "MATLAB" # MATLAB or AFNI
-set qaflag     = "MATLAB" # MATLAB or AFNI
+set regflag    = "AFNI"   # MATLAB or AFNI
+set qaflag     = "AFNI" # MATLAB or AFNI
 
 set allow_old_afni = 0    # user *should* update code, but can use old
 
@@ -690,32 +693,38 @@ if ( $regflag == "MATLAB" ) then
     \rm -f rm_*
 
 else 
-    echo "afni version of vol/sli/voxelwise regression pipeline is working in progress" |& tee -a ../$histfile
-                
-    1d_tool.py -infile epi_01_volreg.1D -demean -write volreg.demean.1D
-    1dcat epi_polort_xmat.1D volreg.demean.1D > volreg.all.1D
-        
-    1d_tool.py -infile epi_slireg.1D -demean -write slireg.demean.1D
-       
-    if ( -e "physioreg.1D" ) then
-        1d_tool.py -infile physioreg.1D -demean -write physioreg.demean.1D
-        # add physio slice regressor with slireg.demean.1D here
-        # [To P.T] How we can combine slireg.demean.1D with physioreg.1D file? 
+    echo "++ Run: adjunct_slomoco_regout_nuisance.tcsh" |& tee -a ../$histfile
+    if ( "${physiofile}" == "" ) then
+
+        adjunct_slomoco_regout_nuisance.tcsh ${do_echo} \
+            -dset_epi    epi_03_slicemoco_xy+orig       \
+            -dset_mask   epi_base_mask+orig             \
+            -dset_mean   epi_base_mean+orig             \
+            -volreg      epi_01_volreg.1D               \
+            -slireg      epi_slireg.1D                  \
+            -voxreg      epi_02_pvreg+orig              \
+            -prefix      epi_03_slicemoco_xy.slomoco    \
+            |& tee       log_adjunct_slomoco_regout_nuisance.txt
+    
+    else
+
+        adjunct_slomoco_regout_nuisance.tcsh ${do_echo} \
+            -dset_epi    epi_03_slicemoco_xy+orig       \
+            -dset_mask   epi_base_mask+orig             \
+            -dset_mean   epi_base_mean+orig             \
+            -volreg      epi_01_volreg.1D               \
+            -slireg      epi_slireg.1D                  \
+            -voxreg      epi_02_pvreg+orig              \
+            -physio      ${physiofile}                  \
+            -prefix      epi_03_slicemoco_xy.slomoco    \
+            |& tee       log_adjunct_slomoco_regout_nuisance.txt
+    
     endif
-  
-    # 3dREMLfit does not run since slireg.demean.1D includes zero columns
-    3dREMLfit                                \ 
-        -input      epi_02_slicemoco_xy.nii  \
-        -matim      volreg.all.1D            \
-        -mask       epi_base_mask.nii        \
-        -addbase_sm slire.demean.1D          \
-        -dsort      epi_01_pvreg.nii         \
-        -Rerrt      errts_slomoco.nii        \
-        -overwrite
 
     if ( $status ) then
         goto BAD_EXIT
     endif
+    
 endif   
 
 # -----  step 6 QA SLOMOCO
@@ -728,6 +737,13 @@ if ( $qaflag == "MATLAB" ) then
     endif
 else
     echo "afni version of qa display is working in progress" 
+    qa_slomoco.tcsh \
+        -dset_epi  epi_00+orig       \
+        -dset_mask ${epi_mask}  \
+        -tfile tshiftfile.1D    \
+        -volreg1D epi_01_volreg.1D  \
+        -slireg1D epi_slireg.1D     
+        
 endif  
 
 # move out of wdir to the odir

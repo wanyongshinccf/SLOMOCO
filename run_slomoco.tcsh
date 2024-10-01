@@ -60,7 +60,7 @@ set jsonfile   = ""       # json file
 set tfile      = ""       # tshiftfile (sec)
 set physiofile = ""       # physio1D file, from RETROICOR or PESTICA
 set regflag    = "AFNI"   # MATLAB or AFNI
-set qaflag     = "AFNI" # MATLAB or AFNI
+set qaflag     = "MATLAB" # MATLAB or AFNI
 
 set allow_old_afni = 0    # user *should* update code, but can use old
 
@@ -740,8 +740,9 @@ if ( $qaflag == "MATLAB" ) then
     if ( $status ) then
         goto BAD_EXIT
     endif
-else
-    echo "afni version of qa display is working in progress" 
+endif
+# additionally 
+    echo "TEST: afni version of qa display is working in progress" 
     qa_slomoco.tcsh \
         -dset_epi  epi_00+orig       \
         -dset_mask ${epi_mask}  \

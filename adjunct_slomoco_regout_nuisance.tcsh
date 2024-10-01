@@ -188,25 +188,20 @@ EOF
 #[W.S] Paul, please check the python script. Is it the right way to use? 
 #[W.S] How can I add "-overwrite" option in patch_zero.py? 
 # replace zero vectors with linear one
+\rm -f slireg_demean_zp.1D 
 python $SLOMOCO_DIR/patch_zeros.py  \
     -infile $slireg1D   \
     -write slireg_zp.1D  
+    	  
 
-# demean slireg.1D
-1d_tool.py                      \
-    -infile slireg_zp.1D        \
-    -demean                     \
-    -write slireg_zp.demean.1D  \
-    -overwrite
-    	  
-    	  
 # combine physio 1D with slireg    
 if ( $physiofile == "" ) then
     \rm -f slireg.1D
-    cp slireg_zp.demean.1D slireg.1D
+    cp slireg_zp.1D slireg.1D
 else
+    \rm -f sllireg.1D
     combine_physio_slimopa.py       \
-        -slireg slireg_zp.demean.1D \                    
+        -slireg slireg_zp.1D \                    
         -physio $physiofile         \
         -write slireg.1D  
 endif

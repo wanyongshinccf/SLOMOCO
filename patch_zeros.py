@@ -14,22 +14,34 @@ else:
     ifile = in_arr[in_arr.index('-infile') + 1]
     ofile = in_arr[in_arr.index('-write') + 1]
    
-
+# read 1D files [ tdim x (zdim * 6 mopa)]
 slireg = np.loadtxt(ifile)
+#slireg = np.loadtxt('epi_slireg.1D')
 
+# define tdim, vardim (=zdim x 6)
 dims = np.shape(slireg)
 tdim = dims[0]
+vardim = dims[1]
 
-dummy = np.linspace(0, tdim-1, tdim)
+# define linear line
+dummy = np.linspace(-1, 1, tdim, endpoint=True)
 
-slireg_zp = slireg
-temp = np.sum(abs(slireg),axis=0)
-idx_zeros = np.where( temp == 0)
-idx_zeros = idx_zeros[0]
-for iz in range(len(idx_zeros)):
-	zz = idx_zeros[iz]
-	print(f'zero col at  = {zz}')
-	slireg_zp[:,zz] = dummy
+
+# define the output variable
+slireg_zp = np.array()
+
+# set zeros for too zero-ish number and demean
+for iz in range(0, vardim):
+	vec = slireg[:,iz]
+	vec = vec - np.mean(vec)
+	sumvals = np.sum(np.abs(vec))/tdim
+	if ( sumvals < 0.0002 ) :
+		nz = int(iz/6)
+		mopa = iz - 6*nz 
+		print(f'too zero-ish at {nz} slice, {mopa} reg ')
+		slireg_zp[:,iz] = dummy
+	else :
+		slireg_zp[:,iz] = vec
 
 np.savetxt(ofile,slireg_zp)	
 print('finished: patch_zeros.py')

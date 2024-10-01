@@ -28,7 +28,7 @@ dummy = np.linspace(-1, 1, tdim, endpoint=True)
 
 
 # define the output variable
-slireg_zp = np.array()
+slireg_zp = slireg
 
 # set zeros for too zero-ish number and demean
 for iz in range(0, vardim):

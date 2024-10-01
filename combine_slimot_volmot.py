@@ -54,7 +54,7 @@ print("zdim = ", zdim)
 volslimot_added = volmot
 
 for rep in range (0,tdim , 1):
-	print(f'volume number = {rep}')
+	# print(f'volume number = {rep}')
 	volmot_rep = volmot[rep,:]
 	for num in acqodr :
 		#print(f'slice number is {num}')
@@ -74,7 +74,7 @@ volslimot_added = np.delete(volslimot_added,slice(0,tdim),0)
 volmot_ext = volmot
 
 for rep in range (0,tdim , 1):
-	print(f'volume number = {rep}')
+	#print(f'volume number = {rep}')
 	for num in range(0, zdim, 1) :
 		#print(f'slice number is {num}')
 		volmot_sli = volmot[rep,:]
@@ -86,7 +86,7 @@ volmot_ext = np.delete(volmot_ext,slice(0,tdim),0)
 # interpolate excluded slice time point
 exclude_slices_tp = np.array(0)
 for rep in range(0,tdim,1):
-	print(rep)
+	# print(rep)
 	for exs in range(len(excsli)):
 		#print("exclude_slices: ", excsli[exs])
 		x = np.where(acqodr == excsli[exs])
@@ -104,7 +104,7 @@ x_obs = np.setxor1d(x,exclude_slices_tp)
 
 volslimot = np.zeros((zdim*tdim,6))
 for mopa in range(0,6,1):
-	print("mopa = ", mopa)
+	# print("mopa = ", mopa)
 	y_obs = volslimot_added[:,mopa]
 	y = sp.pchip_interpolate(x_obs, y_obs, x)
 	volslimot[:,mopa] = y

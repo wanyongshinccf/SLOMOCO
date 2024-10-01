@@ -669,7 +669,7 @@ endif
 if ( -d combined_slicemopa ) then
     echo "++ Skip: adjunct_slomoco_calc_slicemopa.tcsh. combined_slicemopa directory exists. " |& tee -a ../$histfile
     echo "++ If you need to redo in and out-of-plane motion parameter calculation, " |& tee -a ../$histfile
-    echo "++   delete outofplane directory and re-run it. " |& tee -a ../$histfile
+    echo "++   delete combined_slicemopa directory and re-run it. " |& tee -a ../$histfile
 else
     echo "++ Run: adjunct_slomoco_calc_slicemopa.tcsh" |& tee -a ../$histfile
     adjunct_slomoco_calc_slicemopa.tcsh ${do_echo}                          \

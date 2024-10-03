@@ -586,6 +586,71 @@ if ( $status ) then
     goto BAD_EXIT
 endif
 
+# ----- step 1.5 for VOLMOCO pipeline
+# ----- step 2 second order section of run_volmoco.tcsh
+
+1d_tool.py -infile epi_01_volreg.1D -demean -write mopa6.demean.1D
+3dDeconvolve 							\
+	-input epi_01_volreg+orig 			\
+	-mask epi_base_mask+orig 			\
+  	-polort 1 							\
+  	-x1D det.1D 						\
+  	-x1D_stop 
+ 3dDeconvolve 															\
+ 	-input epi_01_volreg+orig 											\
+ 	-mask epi_base_mask+orig 											\
+  	-polort 1 															\
+  	-num_stimts 6 														\
+  	-stim_file 1 mopa6.demean.1D'[0]' -stim_label 1 mopa1 -stim_base 1 	\
+  	-stim_file 2 mopa6.demean.1D'[1]' -stim_label 2 mopa2 -stim_base 2 	\
+  	-stim_file 3 mopa6.demean.1D'[2]' -stim_label 3 mopa3 -stim_base 3 	\
+  	-stim_file 4 mopa6.demean.1D'[3]' -stim_label 4 mopa4 -stim_base 4 	\
+  	-stim_file 5 mopa6.demean.1D'[4]' -stim_label 5 mopa5 -stim_base 5 	\
+  	-stim_file 6 mopa6.demean.1D'[5]' -stim_label 6 mopa6 -stim_base 6 	\
+  	-x1D mopa6.1D 														\
+  	-x1D_stop 
+  
+# Linear detrending terms only 
+3dREMLfit                       \
+	-input 	epi_01_volreg+orig  \
+	-mask 	epi_base_mask+orig  \
+ 	-matrix det.1D              \
+  	-Oerrts errt.volmoco.det    \
+  	|& tee     log_gen_vol_pvreg.txt	
+  	  
+if ( $physiofile == "" ) then
+ 	# 6 Vol-mopa + PV + linear detrending terms 
+	3dREMLfit 						\
+		-input  epi_01_volreg+orig 	\
+		-mask   epi_base_mask+orig 	\
+  		-matrix mopa6.1D 			\
+  		-dsort  epi_02_pvreg+orig 	\
+  		-Oerrts errt.mopa6.pvreg	\
+  		|& tee     log_gen_vol_pvreg.txt
+
+else
+	# 6 Vol-mopa + PV + linear detrending terms + Physio file (1D)  
+	3dREMLfit 						\
+		-input epi_01_volreg+orig 	\
+		-mask epi_base_mask+orig 	\
+  		-matrix mopa6.1D 			\
+  		-dsort epi_02_pvreg+orig 	\
+  		-slibase_sm $physiofile		\
+  		-Oerrts errt.mopa6.pvreg	\
+  		|& tee     log_gen_vol_pvreg.txt
+
+endif
+ 
+# copy the final result, add EPI tissue contrast to the residual time-series.
+3dcalc                       \
+	-a errt.mopa6.pvreg+orig \
+	-b epi_base_mean+orig    \
+	-expr 'a+b'              \
+	-prefix epi_03_volmoco   \
+	-overwrite               \
+	|& tee     log_gen_vol_pvreg.txt
+
+\rm -f errt.mopa6.pvreg*
 
 # ----- step 2 slicewise moco in xy plane
 # script for inplane motion correction
@@ -741,16 +806,21 @@ if ( $qaflag == "MATLAB" ) then
         goto BAD_EXIT
     endif
 endif
-# additionally 
-    echo "TEST: afni version of qa display is working in progress" 
-    qa_slomoco.tcsh \
-        -dset_epi  epi_00+orig       \
-        -dset_mask ${epi_mask}  \
-        -tfile tshiftfile.1D    \
-        -volreg1D epi_01_volreg.1D  \
-        -slireg1D epi_slireg.1D     
-        
-endif  
+
+# the following is AFNI based on QA_SLOMOCO, which will replace the above eventually
+# else if ( $qaflag == "AFNI" ) then
+echo "TEST: afni version of qa display is working in progress" 
+qa_slomoco.tcsh \
+   -dset_epi  epi_00+orig       \
+   -dset_mask ${epi_mask}  \
+   -tfile tshiftfile.1D    \
+   -volreg1D epi_01_volreg.1D  \
+   -slireg1D epi_slireg.1D     
+
+   if ( $status ) then
+       goto BAD_EXIT
+   endif
+# endif          
 
 # move out of wdir to the odir
 cd ..

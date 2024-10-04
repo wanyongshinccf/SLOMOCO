@@ -29,7 +29,8 @@ imgc_vec = img_vec(find(mask_vec),:);
 avg_vec = ep2d_mean(:);
 avgc_vec = avg_vec(find(mask_vec));
 
-% normalize (%) based on WHOLE BRAIN contrast
+% demeaned by average signal, 
+% normalized by  WHOLE BRAIN contrast
 % See 
 avgc_vec_2d = repmat(avgc_vec,1,tdim);
 wb_mean = mean(avgc_vec);

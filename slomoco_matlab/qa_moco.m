@@ -3,28 +3,27 @@ function [volslimot_final slimot_final_jiang] =  qa_moco(volmoco_fn, slomoco_fn,
 % script generates FD(Power), FD(Jenkinson), iFD(P), iFD(J),
 % iFD(P/J)_outofplane, DVARS, and QS ifgures
  
-% volmoco_fn='epi_03_volmoco+orig';
-% slomoco_fn='epi_03_slicemoco_xy.slomoco+orig';
-% mask_fn='epi_base_mask+orig';
-% vol_fn='epi_01_volreg.1D';
-% sli_fn='slimot_py_fit.txt';
+volmoco_fn='epi_03_volmoco+orig';
+slomoco_fn='epi_03_slicemoco_xy.slomoco+orig';
+mask_fn='epi_base_mask+orig';
+vol_fn='epi_01_volreg.1D';
+sli_fn='slimot_py_fit.txt';
 
 % calculate FD(Power), FD(Jenkinson), iFD(P/J), iFD_out-of-plane (P/J)
 [FDJ FDP iFDJ iFDP ioFDJ ioFDP] = calcFD_adv(vol_fn,sli_fn);
 
 % calculage DVARS
 % note that DVARS is calculated AFTER motion correction
-[dv_volmoco wb1]= calcDVARS(volmoco_fn,mask_fn);
-[dv_slomoco wb2]= calcDVARS(slomoco_fn,mask_fn);
-wb1
-wb2
+dv_volmoco= calcSSTD(volmoco_fn,mask_fn);
+dv_slomoco= calcSSTD(slomoco_fn,mask_fn);
+
 % save figure 
 tdim = length(dv_volmoco);
 
 figure
 subplot(4,1,1);
 [ax,h1,h2]=plotyy(2:tdim,dv_volmoco(2:end),2:tdim,dv_slomoco(2:end));
-title('DVARS after motion correction (blue/red = VOLMOCO/SLOMOCO)')
+title('SSTD after motion correction (blue/red = VOLMOCO/SLOMOCO)')
 set(h1,'color','b')
 set(h2,'color','r')
 ylabel(ax(1),'VOLMOCO') % left y-axis 

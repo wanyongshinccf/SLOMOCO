@@ -1,4 +1,4 @@
-function dv = calcDVARS(ep2d_filename, mask_filename, ep2d_mean_filename)
+function [dv  wb_mean] = calcDVARS(ep2d_filename, mask_filename)
 % DVARS in SLOMOCO 
 
 % ep2d_filename='epi_03_slicemoco_xy.slomoco+orig';
@@ -12,18 +12,12 @@ ydim = size(ep2d,2);
 zdim = size(ep2d,3);
 tdim = size(ep2d,4);
 
-% read mean EPI image AFTER motion correction
-% note that it is baseline even before moco case
-if exist('ep2d_mean_file','var')
-  ep2d_mean = BrikLoad(ep2d_mean_filename);
-else
-  ep2d_mean = mean(ep2d,4);
-end
-
 % read mask
 [err, mask, Info, ErrMessage]  = BrikLoad(mask_filename);
 mask(find(mask))=1;
 
+% calculate mean
+ep2d_mean = mean(ep2d,4);
 
 % convert to 2D matrix
 mask_vec = mask(:);
@@ -38,7 +32,8 @@ avgc_vec = avg_vec(find(mask_vec));
 % normalize (%) based on WHOLE BRAIN contrast
 % See 
 avgc_vec_2d = repmat(avgc_vec,1,tdim);
-imgc_vec_norm = 100*(imgc_vec-avgc_vec_2d)./mean(avg_vec);
+wb_mean = mean(avgc_vec);
+imgc_vec_norm = 100*(imgc_vec-avgc_vec_2d)./wb_mean;
 
 % calculage whole brain si
 

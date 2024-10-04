@@ -193,6 +193,6 @@ python $SLOMOCO_DIR/combine_slimot_volmot.py \
 # -vol epi_01_volreg.1D \
 # -volsli volslimot_py.txt
 
-matlab -nodesktop -nosplash -r "addpath ${MATLAB_SLOMOCO_DIR}; addpath ${MATLAB_AFNI_DIR};qa_moco('epi_03_volmoco+orig','epi_03_slicemoco_xy+orig','epi_base_mean+orig','epi_base_mask+orig','epi_01_volreg.1D','slimot_py_fit.txt'); exit;" 
+matlab -nodesktop -nosplash -r "addpath ${MATLAB_SLOMOCO_DIR}; addpath ${MATLAB_AFNI_DIR};qa_moco('epi_03_volmoco+orig','epi_03_slicemoco_xy+orig','epi_base_mask+orig','epi_01_volreg.1D','slimot_py_fit.txt'); exit;" 
 
 

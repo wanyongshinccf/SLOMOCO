@@ -616,6 +616,7 @@ endif
 	-mask 	epi_base_mask+orig  \
  	-matrix det.1D              \
   	-Oerrts errt.volmoco.det    \
+  	-overwrite                  \
   	|& tee     log_gen_vol_pvreg.txt	
   	  
 if ( $physiofile == "" ) then
@@ -626,7 +627,8 @@ if ( $physiofile == "" ) then
   		-matrix mopa6.1D 			\
   		-dsort  epi_02_pvreg+orig 	\
   		-Oerrts errt.mopa6.pvreg	\
-  		|& tee     log_gen_vol_pvreg.txt
+  		-overwrite                  \
+  	    |& tee     log_gen_vol_pvreg.txt
 
 else
 	# 6 Vol-mopa + PV + linear detrending terms + Physio file (1D)  
@@ -637,7 +639,8 @@ else
   		-dsort epi_02_pvreg+orig 	\
   		-slibase_sm $physiofile		\
   		-Oerrts errt.mopa6.pvreg	\
-  		|& tee     log_gen_vol_pvreg.txt
+  		-overwrite                  \
+  	    |& tee     log_gen_vol_pvreg.txt
 
 endif
  

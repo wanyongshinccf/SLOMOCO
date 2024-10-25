@@ -55,9 +55,9 @@ set epi        = ""       # base 3D+time EPI dset to use to perform corrections
 set epi_mask   = ""       # (opt) mask dset name
 set jsonfile   = ""       # json file
 set tfile      = ""       # tshiftfile (sec)
-set physiofile = ""       # physio1D file, from RETROICOR or PESTICA
-set regflag    = "MATLAB" # MATLAB or AFNI
-set qaflag     = "MATLAB" # MATLAB or AFNI
+set physiofile = "dummy"  # physio1D file, from RETROICOR or PESTICA
+set regflag    = "AFNI"   # MATLAB or AFNI
+set qaflag     = "AFNI"   # MATLAB or AFNI
 
 set allow_old_afni = 0    # user *should* update code, but can use old
 
@@ -512,7 +512,7 @@ set epi_mask = "${owdir}/epi_base_mask+orig"
 
 # ----- check about physio/pestica regressors, cp to wdir if present
 
-if ( "${physiofile}" != "" ) then
+if ( "${physiofile}" != "dummy" ) then
     if ( ! -e "${physiofile}" ) then 
         echo "** ERROR: cannot find ${physiofile} " |& tee -a $histfile
         goto BAD_EXIT
@@ -561,23 +561,32 @@ cd "${owdir}"
 set epi_mask = "epi_base_mask+orig"
 
 # linear detrending matrix
-3dDeconvolve -polort 1 -input epi_00+orig -x1D_stop -x1D epi_polort_xmat.1D
+3dDeconvolve -polort 1 \
+    -input epi_00+orig \
+    -x1D_stop -x1D \
+    epi_polort_xmat.1D \
+    -overwrite
 
 # ----- step 1 voxelwise time-series PV regressor
 # volreg output is also generated.
-echo "++ Run: gen_vol_pvreg.tcsh"  |& tee -a ../$histfile
-gen_vol_pvreg.tcsh                   \
-    -dset_epi  epi_00+orig           \
-    -dset_mask "${epi_mask}"         \
-    -vr_idx    "${vr_idx}"           \
-    -prefix_pv epi_02_pvreg          \
-    -prefix_vr epi_01_volreg         \
-    |& tee     log_gen_vol_pvreg.txt
-    
-if ( $status ) then
-    goto BAD_EXIT
-endif
+if ( -f epi_02_pvreg+orig.HEAD ) then
+    echo "++ Skip: gen_vol_pvreg.tcsh. epi_02_pvreg+orig.HEAD exists. " |& tee -a ../$histfile
+    echo "++ If you need to regenerate PV regressor, " |& tee -a ../$histfile
+    echo "++   delete epi_02_pvreg+orig.HEAD/BRIK and re-run it. " |& tee -a ../$histfile
+else
+    echo "++ Run: gen_vol_pvreg.tcsh"  |& tee -a ../$histfile
+    gen_vol_pvreg.tcsh       ${do_echo}  \
+        -dset_epi  epi_00+orig           \
+        -dset_mask "${epi_mask}"         \
+        -vr_idx    "${vr_idx}"           \
+        -prefix_pv epi_02_pvreg          \
+        -prefix_vr epi_01_volreg         \
+        |& tee     log_gen_vol_pvreg.txt
 
+    if ( $status ) then
+        goto BAD_EXIT
+    endif
+endif
 
 # ----- step 2 slicewise moco in xy plane
 # script for inplane motion correction
@@ -690,44 +699,100 @@ if ( $regflag == "MATLAB" ) then
     \rm -f rm_*
 
 else 
-    echo "afni version of vol/sli/voxelwise regression pipeline is working in progress" |& tee -a ../$histfile
-                
-    1d_tool.py -infile epi_01_volreg.1D -demean -write volreg.demean.1D
-    1dcat epi_polort_xmat.1D volreg.demean.1D > volreg.all.1D
-        
-    1d_tool.py -infile epi_slireg.1D -demean -write slireg.demean.1D
-       
-    if ( -e "physioreg.1D" ) then
-        1d_tool.py -infile physioreg.1D -demean -write physioreg.demean.1D
-        # add physio slice regressor with slireg.demean.1D here
-        # [To P.T] How we can combine slireg.demean.1D with physioreg.1D file? 
-    endif
-  
-    # 3dREMLfit does not run since slireg.demean.1D includes zero columns
-    3dREMLfit                                \ 
-        -input      epi_02_slicemoco_xy.nii  \
-        -matim      volreg.all.1D            \
-        -mask       epi_base_mask.nii        \
-        -addbase_sm slire.demean.1D          \
-        -dsort      epi_01_pvreg.nii         \
-        -Rerrt      errts_slomoco.nii        \
-        -overwrite
-
+    echo "++ Run: adjunct_slomoco_regout_nuisance.tcsh" |& tee -a ../$histfile
+    adjunct_slomoco_regout_nuisance.tcsh ${do_echo} \
+        -dset_epi    epi_03_slicemoco_xy+orig       \
+        -dset_mask   epi_base_mask+orig             \
+        -dset_mean   epi_base_mean+orig             \
+        -volreg      epi_01_volreg.1D               \
+        -slireg      epi_slireg.1D                  \
+        -voxreg      epi_02_pvreg+orig              \
+        -prefix      epi_03_slicemoco_xy.slomoco    \
+        -physio      ${physiofile}                  \
+        |& tee       log_adjunct_slomoco_regout_nuisance.txt
+    
     if ( $status ) then
         goto BAD_EXIT
     endif
 endif   
 
 # -----  step 6 QA SLOMOCO
+echo "++ Run: QA SLOMOCO, generating estimated in-/out-of-plane motion and motion indices " |& tee -a ../$histfile
 if ( $qaflag == "MATLAB" ) then
-    echo "++ Run: QA SLOMOCO, generating estimated in-/out-of-plane motion and motion indices " |& tee -a ../$histfile
     matlab -nodesktop -nosplash -r "addpath ${MATLAB_SLOMOCO_DIR}; addpath ${MATLAB_AFNI_DIR}; qa_slomoco('epi_03_slicemoco_xy+orig','epi_base_mask+orig','epi_01_volreg.1D','epi_slireg.1D'); exit;" 
 
     if ( $status ) then
         goto BAD_EXIT
     endif
 else
-    echo "afni version of qa display is working in progress" 
+    echo "afni version of QA is working in progress" 
+
+    # volmoco + 6 mopa + PV
+    # demean motion parameters
+    1d_tool.py -infile epi_01_volreg.1D -demean -write mopa6.demean.1D
+
+    3dDeconvolve 															\
+ 	    -input epi_01_volreg+orig 											\
+ 	    -mask epi_base_mask+orig 											\
+  	    -polort 1 															\
+  	    -num_stimts 6 														\
+  	    -stim_file 1 mopa6.demean.1D'[0]' -stim_label 1 mopa1 -stim_base 1 	\
+  	    -stim_file 2 mopa6.demean.1D'[1]' -stim_label 2 mopa2 -stim_base 2 	\
+  	    -stim_file 3 mopa6.demean.1D'[2]' -stim_label 3 mopa3 -stim_base 3 	\
+  	    -stim_file 4 mopa6.demean.1D'[3]' -stim_label 4 mopa4 -stim_base 4 	\
+  	    -stim_file 5 mopa6.demean.1D'[4]' -stim_label 5 mopa5 -stim_base 5 	\
+  	    -stim_file 6 mopa6.demean.1D'[5]' -stim_label 6 mopa6 -stim_base 6 	\
+  	    -x1D mopa6.1D 														\
+  	    -x1D_stop 
+    	  
+    if ( $physiofile == "dummy" ) then
+ 	    # 6 Vol-mopa + PV + linear detrending terms 
+	    3dREMLfit 						\
+		    -input epi_01_volreg+orig 	\
+		    -mask epi_base_mask+orig 	\
+  		    -matrix mopa6.1D 			\
+  		    -dsort epi_02_pvreg+orig 	\
+  		    -dsort_nods					\
+  		    -Oerrts errt.mopa6.pvreg	\
+            -overwrite                  \
+            |& tee     log_volmoco_pvreg.txt
+
+    else
+	    # 6 Vol-mopa + PV + linear detrending terms + Physio file (1D)  
+	    3dREMLfit 						\
+		    -input epi_01_volreg+orig 	\
+		    -mask epi_base_mask+orig 	\
+  		    -matrix mopa6.1D 			\
+  		    -dsort epi_02_pvreg+orig 	\
+  		    -slibase_sm $physiofile		\
+  		    -dsort_nods					\
+  		    -Oerrts errt.mopa6.pvreg	\
+            -overwrite                  \
+  		    |& tee     log_volmoco_pvreg.txt
+
+    endif
+ 
+    3dcalc \
+	    -a errt.mopa6.pvreg+orig \
+	    -b epi_base_mean+orig    \
+	    -expr 'a+b'              \
+	    -prefix epi_03_volmoco   \
+	    -overwrite 				# output only
+
+    qa_slomoco.tcsh                                     \
+        -dset_volmoco  epi_03_volmoco+orig              \
+        -dset_slomoco  epi_03_slicemoco_xy.slomoco+orig \
+        -dset_mask ${epi_mask}                          \
+        -tfile     tshiftfile.1D                        \
+        -volreg1D  epi_01_volreg.1D                     \
+        -slireg1D  epi_slireg.1D                        \
+        |& tee     log_qa_slomoco.txt
+
+   if ( $status ) then
+       goto BAD_EXIT
+   endif
+    
+
 endif  
 
 # move out of wdir to the odir

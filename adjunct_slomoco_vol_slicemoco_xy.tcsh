@@ -399,14 +399,10 @@ echo "++ Setting nvox_min to (units: mm**2): $nvox_min"
 
 set total_start_time = `date +%s.%3N`
 
-<<<<<<< HEAD
+
 # for qa_slomoco.tcsh
 \rm -f slice_excluded.txt
 \touch slice_excluded.txt
-=======
-# for qa_slomoco.tcsh 
-\rm -f slice_excluded.txt
->>>>>>> 439ded9c276416a2803e7542a375131a3dcbc96c
 
 # loop over each subbrick: 0-based count
 foreach t ( `seq 0 1 ${tcount}` )

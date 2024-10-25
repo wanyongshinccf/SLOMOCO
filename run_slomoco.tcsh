@@ -592,12 +592,11 @@ else
         -prefix_vr epi_01_volreg         \
         |& tee     log_gen_vol_pvreg.txt
 
-<<<<<<< HEAD
     if ( $status ) then
         goto BAD_EXIT
     endif
 endif
-=======
+
 # ----- step 1.5 for VOLMOCO pipeline
 # ----- step 2 second order section of run_volmoco.tcsh
 
@@ -631,7 +630,7 @@ endif
   	-overwrite                  \
   	|& tee     log_gen_vol_pvreg.txt	
   	  
-if ( $physiofile == "" ) then
+if ( $physiofile == "dummy" ) then
  	# 6 Vol-mopa + PV + linear detrending terms 
 	3dREMLfit 						\
 		-input  epi_01_volreg+orig 	\
@@ -666,7 +665,6 @@ endif
 	|& tee     log_gen_vol_pvreg.txt
 
 \rm -f errt.mopa6.pvreg*
->>>>>>> 439ded9c276416a2803e7542a375131a3dcbc96c
 
 # ----- step 2 slicewise moco in xy plane
 # script for inplane motion correction
@@ -780,20 +778,8 @@ if ( $regflag == "MATLAB" ) then
 
 else 
     echo "++ Run: adjunct_slomoco_regout_nuisance.tcsh" |& tee -a ../$histfile
-<<<<<<< HEAD
-    adjunct_slomoco_regout_nuisance.tcsh ${do_echo} \
-        -dset_epi    epi_03_slicemoco_xy+orig       \
-        -dset_mask   epi_base_mask+orig             \
-        -dset_mean   epi_base_mean+orig             \
-        -volreg      epi_01_volreg.1D               \
-        -slireg      epi_slireg.1D                  \
-        -voxreg      epi_02_pvreg+orig              \
-        -prefix      epi_03_slicemoco_xy.slomoco    \
-        -physio      ${physiofile}                  \
-        |& tee       log_adjunct_slomoco_regout_nuisance.txt
-    
-=======
-    if ( "${physiofile}" == "" ) then
+
+    if ( "${physiofile}" == "dummy" ) then
 
         adjunct_slomoco_regout_nuisance.tcsh ${do_echo} \
             -dset_epi    epi_03_slicemoco_xy+orig       \
@@ -820,7 +806,6 @@ else
     
     endif
 
->>>>>>> 439ded9c276416a2803e7542a375131a3dcbc96c
     if ( $status ) then
         goto BAD_EXIT
     endif
@@ -835,7 +820,6 @@ if ( $qaflag == "MATLAB" ) then
     if ( $status ) then
         goto BAD_EXIT
     endif
-<<<<<<< HEAD
 else
     echo "afni version of QA is working in progress" 
 
@@ -899,30 +883,14 @@ else
         -volreg1D  epi_01_volreg.1D                     \
         -slireg1D  epi_slireg.1D                        \
         |& tee     log_qa_slomoco.txt
-=======
-endif
-
-# the following is AFNI based on QA_SLOMOCO, which will replace the above eventually
-# else if ( $qaflag == "AFNI" ) then
-echo "TEST: afni version of qa display is working in progress" 
-qa_slomoco.tcsh \
-   -dset_epi  epi_00+orig       \
-   -dset_mask ${epi_mask}  \
-   -tfile tshiftfile.1D    \
-   -volreg1D epi_01_volreg.1D  \
-   -slireg1D epi_slireg.1D     
->>>>>>> 439ded9c276416a2803e7542a375131a3dcbc96c
 
    if ( $status ) then
        goto BAD_EXIT
    endif
-<<<<<<< HEAD
-    
 
 endif  
-=======
-# endif          
->>>>>>> 439ded9c276416a2803e7542a375131a3dcbc96c
+      
+
 
 # move out of wdir to the odir
 cd ..

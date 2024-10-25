@@ -399,6 +399,10 @@ echo "++ Setting nvox_min to (units: mm**2): $nvox_min"
 
 set total_start_time = `date +%s.%3N`
 
+# for qa_slomoco.tcsh
+\rm -f slice_excluded.txt
+\touch slice_excluded.txt
+
 # loop over each subbrick: 0-based count
 foreach t ( `seq 0 1 ${tcount}` )
     set ttt = `printf "%04d" $t`
@@ -540,15 +544,19 @@ foreach t ( `seq 0 1 ${tcount}` )
 	    echo "++ Proc first slice of vol: ${t}"
         endif
 
-	if ( "$t" == "0" ) then
-           echo "++ Num slices to simultaneously analyze: ${zsimults}"        
-           if ( `echo "${nvox_nz} < ${nvox_min}" | bc` ) then
+        if ( "$t" == "0" ) then
+            echo "++ Num slices to simultaneously analyze: ${zsimults}"        
+            if ( `echo "${nvox_nz} < ${nvox_min}" | bc` ) then
                 echo "+* WARN: too few nonzero voxels      : ${nvox_nz} at ${zsimults} slice(s)"
                 echo "   Wanted to have at least this many : ${nvox_min}"
                 echo "   Null ${moco_prog} matrix will be generated"
                 echo "   You can modify nvox_min if necessary"
                 echo "   (def area: ${nspace_min} mm**2)"
-	   endif
+
+                # save the slice number to exclude
+                echo "${z}" >> slice_excluded.txt
+                
+            endif
         endif
 
         # ----- alignment

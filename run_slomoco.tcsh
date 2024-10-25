@@ -58,15 +58,10 @@ set epi        = ""       # base 3D+time EPI dset to use to perform corrections
 set epi_mask   = ""       # (opt) mask dset name
 set jsonfile   = ""       # json file
 set tfile      = ""       # tshiftfile (sec)
-<<<<<<< HEAD
+
 set physiofile = "dummy"  # physio1D file, from RETROICOR or PESTICA
 set regflag    = "AFNI"   # MATLAB or AFNI
 set qaflag     = "AFNI"   # MATLAB or AFNI
-=======
-set physiofile = ""       # physio1D file, from RETROICOR or PESTICA
-set regflag    = "AFNI"   # MATLAB or AFNI
-set qaflag     = "MATLAB" # MATLAB or AFNI
->>>>>>> 439ded9c276416a2803e7542a375131a3dcbc96c
 
 set allow_old_afni = 0    # user *should* update code, but can use old
 

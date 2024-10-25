@@ -52,9 +52,9 @@ for d = 1:tdim
             
             for xo=[lowx hix]
                 
-                xn=(cz*cy-sz*sx*sy)*xo + (sz*cy+cz*sx*sy)*yo - (cx*sy)*zo - x;
-                yn=        (-sz*cx)*xo +          (cz*cx)*yo +    (sx)*zo - y;
-                zn=(cz*sy+sz*sx*cy)*xo + (sz*sy-cz*sx*cy)*yo + (cx*cy)*zo - z;
+                xn=(cz*cy-sz*sx*sy)*xo + (sz*cy+cz*sx*sy)*yo - (cx*sy)*zo + x; % minus to plus
+                yn=        (-sz*cx)*xo +          (cz*cx)*yo +    (sx)*zo + y;
+                zn=(cz*sy+sz*sx*cy)*xo + (sz*sy-cz*sx*cy)*yo + (cx*cy)*zo + z;
 
                 displ=displ+sqrt((xn-xo)*(xn-xo) +(yn-yo)*(yn-yo)+ (zn-zo)*(zn-zo));
                 displz=displz+sqrt((zn-zo)*(zn-zo));

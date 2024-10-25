@@ -24,7 +24,6 @@ set epi      = ""   # base 3D+time EPI dataset to use to perform corrections
 
 set DO_CLEAN = 0                       # default: keep working dir
 
-set histfile = hist_${this_prog}.txt
 
 # ------------------- process options, a la rr ----------------------
 

@@ -399,9 +399,14 @@ echo "++ Setting nvox_min to (units: mm**2): $nvox_min"
 
 set total_start_time = `date +%s.%3N`
 
+<<<<<<< HEAD
 # for qa_slomoco.tcsh
 \rm -f slice_excluded.txt
 \touch slice_excluded.txt
+=======
+# for qa_slomoco.tcsh 
+\rm -f slice_excluded.txt
+>>>>>>> 439ded9c276416a2803e7542a375131a3dcbc96c
 
 # loop over each subbrick: 0-based count
 foreach t ( `seq 0 1 ${tcount}` )
@@ -536,15 +541,18 @@ foreach t ( `seq 0 1 ${tcount}` )
         # -----  get number of nonzero voxels (test below)
         set nvox_nz = `3dBrickStat -non-zero -count \
                             __temp_slc_weight+orig.HEAD`
-
+        
         # ----- disp some info in first loop
        
-        
         if ( "$z" == "0" ) then
-	    echo "++ Proc first slice of vol: ${t}"
+	        echo "++ Proc first slice of vol: ${t}"
         endif
 
+<<<<<<< HEAD
         if ( "$t" == "0" ) then
+=======
+	    if ( "$t" == "0" ) then
+>>>>>>> 439ded9c276416a2803e7542a375131a3dcbc96c
             echo "++ Num slices to simultaneously analyze: ${zsimults}"        
             if ( `echo "${nvox_nz} < ${nvox_min}" | bc` ) then
                 echo "+* WARN: too few nonzero voxels      : ${nvox_nz} at ${zsimults} slice(s)"
@@ -552,11 +560,19 @@ foreach t ( `seq 0 1 ${tcount}` )
                 echo "   Null ${moco_prog} matrix will be generated"
                 echo "   You can modify nvox_min if necessary"
                 echo "   (def area: ${nspace_min} mm**2)"
+<<<<<<< HEAD
 
                 # save the slice number to exclude
                 echo "${z}" >> slice_excluded.txt
                 
             endif
+=======
+                
+                # save the slice number to exclude
+                echo "${z}" >> slice_excluded.txt
+                
+	        endif
+>>>>>>> 439ded9c276416a2803e7542a375131a3dcbc96c
         endif
 
         # ----- alignment

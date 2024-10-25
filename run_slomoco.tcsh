@@ -19,8 +19,11 @@
 # + add AFNI_IS_OLD env var, to act more strictly on old/modern AFNI ver
 #   check
 #
-set version   = "0.51";  set rev_dat   = "Sep 23, 2024"
+# set version   = "0.51";  set rev_dat   = "Sep 23, 2024"
 # + add macOS-based check for case of old AFNI
+#
+# set version   = "0.6";  set rev_dat   = "Sep 27, 2024"
+# + add AFNI version of regress-out 
 #
 # ----------------------------------------------------------------
 
@@ -55,9 +58,15 @@ set epi        = ""       # base 3D+time EPI dset to use to perform corrections
 set epi_mask   = ""       # (opt) mask dset name
 set jsonfile   = ""       # json file
 set tfile      = ""       # tshiftfile (sec)
+<<<<<<< HEAD
 set physiofile = "dummy"  # physio1D file, from RETROICOR or PESTICA
 set regflag    = "AFNI"   # MATLAB or AFNI
 set qaflag     = "AFNI"   # MATLAB or AFNI
+=======
+set physiofile = ""       # physio1D file, from RETROICOR or PESTICA
+set regflag    = "AFNI"   # MATLAB or AFNI
+set qaflag     = "MATLAB" # MATLAB or AFNI
+>>>>>>> 439ded9c276416a2803e7542a375131a3dcbc96c
 
 set allow_old_afni = 0    # user *should* update code, but can use old
 
@@ -208,23 +217,28 @@ endif
 # old AFNI
 if ( ${AFNI_IS_OLD} ) then
     if ( ${?OSTYPE} ) then
-        if ( "$OSTYPE" == "linux"* ) then
-            # LINUX, 
-            if ( "$moco_meth" = "W" ) then
+        set os = $OSTYPE
+        if (( "${os}" == "linux" ) || ( "${os}" == "linux-gnu" )) then
+            # LINUX 
+	    if ( "${moco_meth}" == "W" ) then
             	echo "+* WARN: 3dWarpDrive command in the package (afni.afni.openmp.v18.3.16) will be used"
             endif
-        else if ( "$OSTYPE" == "darwin"* ) then
-            if ( "$moco_meth" = "W" ) then
-        		echo "** ERROR: SLOMOCO (with old AFNI) is running with -moco_meth W on macOS" |& tee -a $histfile
-        		echo "   Either update your AFNI version (**strongly recommended**),"
-        		echo "   or add opt '-moco_meth A' and '-volreg_first' "
-        		goto BAD_EXIT
-			endif
+        else 
+	    if ( ${os} == "darwin"  ) then
+                if ( "$moco_meth" == "W" ) then
+                    echo "** ERROR: SLOMOCO (with old AFNI) is running with -moco_meth W on macOS" |& tee -a $histfile
+                    echo "   Either update your AFNI version (**strongly recommended**),"
+                    echo "   or add opt '-moco_meth A' and '-volreg_first' "
+                    goto BAD_EXIT
 		else
-			echo "** ERROR: SLOMOCO (with old AFNI) is running with -moco_meth W on non-linux OS" |& tee -a $histfile
-        	echo "   Either update your AFNI version (**strongly recommended**),"
-        	echo "   or add opt '-moco_meth A' and '-volreg_first' "
-    		goto BAD_EXIT
+		    echo "** Warning: SLOMOCO (with old AFNI) is running with -moco_meth A on macOS" |& tee -a $histfile
+        	    if ( "$volregfirst" == "0" ) then
+		        echo "   Update your AFNI version (**strongly recommended**)"
+                        echo "   or '-volreg_first' "
+                        goto BAD_EXIT
+                    endif 
+		endif
+	    endif
     	endif
     endif
 endif
@@ -583,10 +597,81 @@ else
         -prefix_vr epi_01_volreg         \
         |& tee     log_gen_vol_pvreg.txt
 
+<<<<<<< HEAD
     if ( $status ) then
         goto BAD_EXIT
     endif
 endif
+=======
+# ----- step 1.5 for VOLMOCO pipeline
+# ----- step 2 second order section of run_volmoco.tcsh
+
+1d_tool.py -infile epi_01_volreg.1D -demean -write mopa6.demean.1D
+3dDeconvolve 							\
+	-input epi_01_volreg+orig 			\
+	-mask epi_base_mask+orig 			\
+  	-polort 1 							\
+  	-x1D det.1D 						\
+  	-x1D_stop 
+ 3dDeconvolve 															\
+ 	-input epi_01_volreg+orig 											\
+ 	-mask epi_base_mask+orig 											\
+  	-polort 1 															\
+  	-num_stimts 6 														\
+  	-stim_file 1 mopa6.demean.1D'[0]' -stim_label 1 mopa1 -stim_base 1 	\
+  	-stim_file 2 mopa6.demean.1D'[1]' -stim_label 2 mopa2 -stim_base 2 	\
+  	-stim_file 3 mopa6.demean.1D'[2]' -stim_label 3 mopa3 -stim_base 3 	\
+  	-stim_file 4 mopa6.demean.1D'[3]' -stim_label 4 mopa4 -stim_base 4 	\
+  	-stim_file 5 mopa6.demean.1D'[4]' -stim_label 5 mopa5 -stim_base 5 	\
+  	-stim_file 6 mopa6.demean.1D'[5]' -stim_label 6 mopa6 -stim_base 6 	\
+  	-x1D mopa6.1D 														\
+  	-x1D_stop 
+  
+# Linear detrending terms only 
+3dREMLfit                       \
+	-input 	epi_01_volreg+orig  \
+	-mask 	epi_base_mask+orig  \
+ 	-matrix det.1D              \
+  	-Oerrts errt.volmoco.det    \
+  	-overwrite                  \
+  	|& tee     log_gen_vol_pvreg.txt	
+  	  
+if ( $physiofile == "" ) then
+ 	# 6 Vol-mopa + PV + linear detrending terms 
+	3dREMLfit 						\
+		-input  epi_01_volreg+orig 	\
+		-mask   epi_base_mask+orig 	\
+  		-matrix mopa6.1D 			\
+  		-dsort  epi_02_pvreg+orig 	\
+  		-Oerrts errt.mopa6.pvreg	\
+  		-overwrite                  \
+  	    |& tee     log_gen_vol_pvreg.txt
+
+else
+	# 6 Vol-mopa + PV + linear detrending terms + Physio file (1D)  
+	3dREMLfit 						\
+		-input epi_01_volreg+orig 	\
+		-mask epi_base_mask+orig 	\
+  		-matrix mopa6.1D 			\
+  		-dsort epi_02_pvreg+orig 	\
+  		-slibase_sm $physiofile		\
+  		-Oerrts errt.mopa6.pvreg	\
+  		-overwrite                  \
+  	    |& tee     log_gen_vol_pvreg.txt
+
+endif
+ 
+# copy the final result, add EPI tissue contrast to the residual time-series.
+3dcalc                       \
+	-a errt.mopa6.pvreg+orig \
+	-b epi_base_mean+orig    \
+	-expr 'a+b'              \
+	-prefix epi_03_volmoco   \
+	-overwrite               \
+	|& tee     log_gen_vol_pvreg.txt
+
+\rm -f errt.mopa6.pvreg*
+>>>>>>> 439ded9c276416a2803e7542a375131a3dcbc96c
 
 # ----- step 2 slicewise moco in xy plane
 # script for inplane motion correction
@@ -670,7 +755,7 @@ endif
 if ( -d combined_slicemopa ) then
     echo "++ Skip: adjunct_slomoco_calc_slicemopa.tcsh. combined_slicemopa directory exists. " |& tee -a ../$histfile
     echo "++ If you need to redo in and out-of-plane motion parameter calculation, " |& tee -a ../$histfile
-    echo "++   delete outofplane directory and re-run it. " |& tee -a ../$histfile
+    echo "++   delete combined_slicemopa directory and re-run it. " |& tee -a ../$histfile
 else
     echo "++ Run: adjunct_slomoco_calc_slicemopa.tcsh" |& tee -a ../$histfile
     adjunct_slomoco_calc_slicemopa.tcsh ${do_echo}                          \
@@ -700,6 +785,7 @@ if ( $regflag == "MATLAB" ) then
 
 else 
     echo "++ Run: adjunct_slomoco_regout_nuisance.tcsh" |& tee -a ../$histfile
+<<<<<<< HEAD
     adjunct_slomoco_regout_nuisance.tcsh ${do_echo} \
         -dset_epi    epi_03_slicemoco_xy+orig       \
         -dset_mask   epi_base_mask+orig             \
@@ -711,9 +797,39 @@ else
         -physio      ${physiofile}                  \
         |& tee       log_adjunct_slomoco_regout_nuisance.txt
     
+=======
+    if ( "${physiofile}" == "" ) then
+
+        adjunct_slomoco_regout_nuisance.tcsh ${do_echo} \
+            -dset_epi    epi_03_slicemoco_xy+orig       \
+            -dset_mask   epi_base_mask+orig             \
+            -dset_mean   epi_base_mean+orig             \
+            -volreg      epi_01_volreg.1D               \
+            -slireg      epi_slireg.1D                  \
+            -voxreg      epi_02_pvreg+orig              \
+            -prefix      epi_03_slicemoco_xy.slomoco    \
+            |& tee       log_adjunct_slomoco_regout_nuisance.txt
+    
+    else
+
+        adjunct_slomoco_regout_nuisance.tcsh ${do_echo} \
+            -dset_epi    epi_03_slicemoco_xy+orig       \
+            -dset_mask   epi_base_mask+orig             \
+            -dset_mean   epi_base_mean+orig             \
+            -volreg      epi_01_volreg.1D               \
+            -slireg      epi_slireg.1D                  \
+            -voxreg      epi_02_pvreg+orig              \
+            -physio      ${physiofile}                  \
+            -prefix      epi_03_slicemoco_xy.slomoco    \
+            |& tee       log_adjunct_slomoco_regout_nuisance.txt
+    
+    endif
+
+>>>>>>> 439ded9c276416a2803e7542a375131a3dcbc96c
     if ( $status ) then
         goto BAD_EXIT
     endif
+    
 endif   
 
 # -----  step 6 QA SLOMOCO
@@ -724,6 +840,7 @@ if ( $qaflag == "MATLAB" ) then
     if ( $status ) then
         goto BAD_EXIT
     endif
+<<<<<<< HEAD
 else
     echo "afni version of QA is working in progress" 
 
@@ -787,13 +904,30 @@ else
         -volreg1D  epi_01_volreg.1D                     \
         -slireg1D  epi_slireg.1D                        \
         |& tee     log_qa_slomoco.txt
+=======
+endif
+
+# the following is AFNI based on QA_SLOMOCO, which will replace the above eventually
+# else if ( $qaflag == "AFNI" ) then
+echo "TEST: afni version of qa display is working in progress" 
+qa_slomoco.tcsh \
+   -dset_epi  epi_00+orig       \
+   -dset_mask ${epi_mask}  \
+   -tfile tshiftfile.1D    \
+   -volreg1D epi_01_volreg.1D  \
+   -slireg1D epi_slireg.1D     
+>>>>>>> 439ded9c276416a2803e7542a375131a3dcbc96c
 
    if ( $status ) then
        goto BAD_EXIT
    endif
+<<<<<<< HEAD
     
 
 endif  
+=======
+# endif          
+>>>>>>> 439ded9c276416a2803e7542a375131a3dcbc96c
 
 # move out of wdir to the odir
 cd ..

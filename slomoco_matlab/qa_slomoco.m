@@ -293,9 +293,9 @@ legend('x-trans','y-trans','z-rot');
 title('in-plane params');
 saveas(gcf,'qa_slomoco_motionvectors.jpg');
 
-% DVARS and FD caclulation
-DV = calcDVARS(ep2d_filename,mask_filename,slice_timing);
-FD = calcFD(vol_filename);
-fp=fopen('FD.txt','w'); fprintf(fp,'%g\n',FD); fclose(fp);
-fp=fopen('DVARS.txt','w'); fprintf(fp,'%g\n',DV); fclose(fp);
+% % DVARS and FD caclulation
+% DV = calcDVARS(ep2d_filename,mask_filename,slice_timing);
+% FD = calcFD(vol_filename);
+% fp=fopen('FD.txt','w'); fprintf(fp,'%g\n',FD); fclose(fp);
+% fp=fopen('DVARS.txt','w'); fprintf(fp,'%g\n',DV); fclose(fp);
  

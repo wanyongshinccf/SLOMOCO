@@ -22,7 +22,8 @@ set wdir    = ""
 
 # --------------------- inputs --------------------
 
-set epi      = ""   # base 3D+time EPI dataset to use to perform corrections
+set epi_volmoco      = ""   # base 3D+time EPI dataset to use to perform corrections
+set epi_slomoco      = ""   # base 3D+time EPI dataset to use to perform corrections
 set epi_mask = ""   # mask 3D+time images
 set jsonfile   = ""       # json file
 set tfile      = ""       # tshiftfile (sec)
@@ -50,10 +51,15 @@ while ( $ac <= $#argv )
 
     # --------- required
 
-    else if ( "$argv[$ac]" == "-dset_epi" ) then
+    else if ( "$argv[$ac]" == "-dset_volmoco" ) then
         if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
         @ ac += 1
-        set epi = "$argv[$ac]"
+        set epi_volmoco = "$argv[$ac]"
+
+    else if ( "$argv[$ac]" == "-dset_slomoco" ) then
+        if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
+        @ ac += 1
+        set epi_slomoco = "$argv[$ac]"
 
     else if ( "$argv[$ac]" == "-dset_mask" ) then
         if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
@@ -118,19 +124,38 @@ if ( "${tfile}" == "" ) then
 endif
 
 # ----- find required dsets, and any properties
-if ( "${epi}" == "" ) then
-    echo "** ERROR: need to provide EPI dataset with '-dset_epi ..'" 
+if ( "${epi_volmoco}" == "" ) then
+    echo "** ERROR: need to provide EPI dataset with '-dset_volmoco ..'" 
     goto BAD_EXIT
 else
     # verify dset is OK to read
-    3dinfo "${epi}"  >& /dev/null
+    3dinfo "${epi_volmoco}"  >& /dev/null
     if ( ${status} ) then
-        echo "** ERROR: cannot read/open dset: ${epi}" 
+        echo "** ERROR: cannot read/open dset: ${epi_volmoco}" 
         goto BAD_EXIT
     endif
 
     # must have +orig space for input EPI
-    set av_space = `3dinfo -av_space "${epi}" `
+    set av_space = `3dinfo -av_space "${epi_volmoco}" `
+    if ( "${av_space}" != "+orig" ) then
+        echo "** ERROR: input EPI must have +orig av_space, not: ${av_space}" 
+        goto BAD_EXIT
+    endif
+endif
+
+if ( "${epi_slomoco}" == "" ) then
+    echo "** ERROR: need to provide EPI dataset with '-dset_slomoco ..'" 
+    goto BAD_EXIT
+else
+    # verify dset is OK to read
+    3dinfo "${epi_slomoco}"  >& /dev/null
+    if ( ${status} ) then
+        echo "** ERROR: cannot read/open dset: ${epi_slomoco}" 
+        goto BAD_EXIT
+    endif
+
+    # must have +orig space for input EPI
+    set av_space = `3dinfo -av_space "${epi_slomoco}" `
     if ( "${av_space}" != "+orig" ) then
         echo "** ERROR: input EPI must have +orig av_space, not: ${av_space}" 
         goto BAD_EXIT
@@ -144,12 +169,12 @@ endif
 
 # ----- define variables
 
-set dims = `3dAttribute DATASET_DIMENSIONS ${epi}`
+set dims = `3dAttribute DATASET_DIMENSIONS ${epi_slomoco}`
 # origentation sagital?
 set zdim = ${dims[3]}                          
 
-set tdim = `3dnvals ${epi}`
-set Taxis = `3dAttribute TAXIS_FLOATS ${epi}`
+set tdim = `3dnvals ${epi_slomoco}`
+set Taxis = `3dAttribute TAXIS_FLOATS ${epi_slomoco}`
 set TR = ${Taxis[2]}   
 
 # read slice acquisition timing from tshift file and caculate SMS factor
@@ -183,16 +208,52 @@ setenv AFNI_1D_TIME YES
 # combine slimot to volmot
 # output is volslimot_py.txt & volslimot_py_fit.txt
 python $SLOMOCO_DIR/combine_slimot_volmot.py \
-    -vol $volreg1D \
-    -sli $slireg1D \
-    -acq sliacqorder.1D \
+    -vol $volreg1D                           \
+    -sli $slireg1D                           \
+    -acq sliacqorder.1D                      \
     -exc inplane/slice_excluded.txt
 
-# calculate TDz, DAVAR and FD here
-# python $SLOMOCO_DIR/cal_FD.py \
-# -vol epi_01_volreg.1D \
-# -volsli volslimot_py.txt
+# calculate SSD
+3dTstat -mean \
+    -prefix rm.mean+orig \
+    -overwrite \
+    ${epi_volmoco}
+3dcalc -a  ${epi_volmoco} \
+       -b rm.mean+orig \
+       -expr '(100*(a-b)/b)^2' \
+       -prefix rm.norm2+orig \
+       -overwrite
+3dROIstats -mask ${epi_mask} \
+    -quiet rm.norm2+orig > rm.norm2.1D
+1deval -a rm.norm2.1D -expr 'sqrt(a)' > SSD.volmoco.1D
 
-matlab -nodesktop -nosplash -r "addpath ${MATLAB_SLOMOCO_DIR}; addpath ${MATLAB_AFNI_DIR};qa_moco('epi_03_volmoco+orig','epi_03_slicemoco_xy+orig','epi_base_mask+orig','epi_01_volreg.1D','slimot_py_fit.txt'); exit;" 
+3dTstat -mean \
+    -prefix rm.mean+orig \
+    -overwrite \
+    ${epi_slomoco}
+3dcalc -a  ${epi_slomoco} \
+       -b rm.mean+orig \
+       -expr '(100*(a-b)/b)^2' \
+       -prefix rm.norm2+orig \
+       -overwrite
+3dROIstats -mask ${epi_mask} -quiet rm.norm2+orig > rm.norm2.1D
+1deval -a rm.norm2.1D -expr 'sqrt(a)' > SSD.slomoco.1D
+\rm -f rm.*
+
+# calculate FD, output will be FDJ.txt, FDP.txt with a length of total volume - 1
+python $SLOMOCO_DIR/calc_FD.py \
+     -vol epi_01_volreg.1D 
+
+python $SLOMOCO_DIR/calc_iFD.py \
+     -sli  slimot_py_fit.txt \
+     -zdim ${zdim}
+
+# python $SLOMOCO_DIR/disp_FD.py \
+#     -fdj FDJ_py.txt \
+#     -fdp FDP_py.txt \
+#     -ifdj
+
+# display will be deleted later 
+matlab -nodesktop -nosplash -r "addpath ${MATLAB_SLOMOCO_DIR}; addpath ${MATLAB_AFNI_DIR};qa_moco('${epi_volmoco}','${epi_slomoco}','${epi_mask}','$volreg1D','slimot_py_fit.txt'); exit;" 
 
 

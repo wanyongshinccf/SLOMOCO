@@ -548,11 +548,8 @@ foreach t ( `seq 0 1 ${tcount}` )
 	        echo "++ Proc first slice of vol: ${t}"
         endif
 
-<<<<<<< HEAD
         if ( "$t" == "0" ) then
-=======
-	    if ( "$t" == "0" ) then
->>>>>>> 439ded9c276416a2803e7542a375131a3dcbc96c
+
             echo "++ Num slices to simultaneously analyze: ${zsimults}"        
             if ( `echo "${nvox_nz} < ${nvox_min}" | bc` ) then
                 echo "+* WARN: too few nonzero voxels      : ${nvox_nz} at ${zsimults} slice(s)"
@@ -560,19 +557,11 @@ foreach t ( `seq 0 1 ${tcount}` )
                 echo "   Null ${moco_prog} matrix will be generated"
                 echo "   You can modify nvox_min if necessary"
                 echo "   (def area: ${nspace_min} mm**2)"
-<<<<<<< HEAD
-
-                # save the slice number to exclude
-                echo "${z}" >> slice_excluded.txt
-                
-            endif
-=======
                 
                 # save the slice number to exclude
                 echo "${z}" >> slice_excluded.txt
                 
 	        endif
->>>>>>> 439ded9c276416a2803e7542a375131a3dcbc96c
         endif
 
         # ----- alignment

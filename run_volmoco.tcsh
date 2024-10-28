@@ -22,23 +22,16 @@ set wdir      = ""
 
 # --------------------- volmoco-specific inputs --------------------
 
-# all allowed slice acquisition keywords
-set vr_base    = "0" # select either "MIN_OUTLIER" or "MIN_ENORM", or integer
-set vr_idx     = -1            # will get set by vr_base in opt proc
+set epi        = ""   # base 3D+time EPI dataset to use to perform corrections
+set epi_mask   = ""   # mask 3D+time images
+set vr_idx     = 0
+set prefix_vr  = ""
+set prefix_pv  = "vol_pvreg"
+set prefix_out = ""
+set physiofile = ""
+set DO_CLEAN = 0                       # default: keep working dir
 
-set epi      = ""   # base 3D+time EPI dataset to use to perform corrections
-set epi_mask = ""   # (opt) mask dset name
-set roi_mask = ""   # (opt) tissue mask to report SD reduction after nuisance regress-out
-
-set physiofile = "" # physio1D file, from RETROICOR or PESTICA
-set regflag = "AFNI" # MATLAB or AFNI
-
-set DO_CLEAN     = 0        # default: keep working dir
-set DO_COMPACT   = 0		# default keep all the files
-
-set histfile = log_volmoco.txt
-
-set do_echo  = ""
+set histfile = hist_${this_prog}.txt
 
 # ------------------- process options, a la rr ----------------------
 
@@ -65,52 +58,41 @@ while ( $ac <= $#argv )
         @ ac += 1
         set epi = "$argv[$ac]"
 
-    else if ( "$argv[$ac]" == "-prefix" ) then
+    else if ( "$argv[$ac]" == "-prefix_vr" ) then
         if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
         @ ac += 1
-        set prefix = "$argv[$ac]"
-        set opref  = `basename "$argv[$ac]"`
-        set odir   = `dirname  "$argv[$ac]"`
+        set prefix_vr = "$argv[$ac]"
 
-    # --------- optional 
+    else if ( "$argv[$ac]" == "-prefix_out" ) then
+        if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
+        @ ac += 1
+        set prefix_out = "$argv[$ac]"
+
     else if ( "$argv[$ac]" == "-dset_mask" ) then
         if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
         @ ac += 1
         set epi_mask = "$argv[$ac]"
+       
+    # --------- optional    
 
-    else if ( "$argv[$ac]" == "-dset_mask" ) then
+    else if ( "$argv[$ac]" == "-vr_idx" ) then
         if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
         @ ac += 1
-        set roi_mask = "$argv[$ac]"
+        set vr_idx = "$argv[$ac]"
+
+    else if ( "$argv[$ac]" == "-prefix_pv" ) then
+        if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
+        @ ac += 1
+        set prefix_pv = "$argv[$ac]"
 
     else if ( "$argv[$ac]" == "-physio" ) then
         if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
         @ ac += 1
         set physiofile = "$argv[$ac]"
-
-    else if ( "$argv[$ac]" == "-workdir" ) then
-        if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
-        @ ac += 1
-        set wdir = "$argv[$ac]"
-
-        set tf = `python -c "print('/' in '${wdir}')"`
-        if ( "${tf}" == "True" ) then
-            echo "** ERROR: '-workdir ..' is a name only, no '/' allowed"
-            goto BAD_EXIT
-        endif
-
-    # can be int, or MIN_OUTLIER keyword
-    else if ( "$argv[$ac]" == "-volreg_base" ) then
-        if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
-        @ ac += 1
-        set vr_base = "$argv[$ac]"
-
+    
     else if ( "$argv[$ac]" == "-do_clean" ) then
         set DO_CLEAN     = 1
-        
-    else if ( "$argv[$ac]" == "-compact" ) then
-        set DO_COMPACT   = 1
-        
+            
     else
         echo ""
         echo "** ERROR: unexpected option #$ac = '$argv[$ac]'"
@@ -121,20 +103,6 @@ while ( $ac <= $#argv )
     @ ac += 1
 end
 
-# =======================================================================
-# ======================== ** Verify + setup ** =========================
-
-# define SLOMOCO directory
-set fullcommand = "$0"
-set fullcommandlines = "$argv"
-setenv SLOMOCO_DIR `dirname "${fullcommand}"`
-setenv MATLAB_SLOMOCO_DIR $SLOMOCO_DIR/slomoco_matlab
-setenv AFNI_SLOMOCO_DIR $SLOMOCO_DIR/afni_linux
-
-echo "" >> $histfile
-echo $fullcommand $fullcommandlines >> $histfile
-date >> $histfile
-echo "" >> $histfile
 
 # ----- find AFNI 
 
@@ -149,38 +117,6 @@ else
     set adir = $aa:h
 endif
 
-# ----- output prefix/odir/wdir
-
-echo "++ Work on output naming"
-
-if ( "${prefix}" == "" ) then
-    echo "** ERROR: need to provide output name with '-prefix ..'"
-    goto BAD_EXIT
-endif
-
-# check output directory, use input one if nothing given
-if ( ! -e "${odir}" ) then
-    echo "++ Making new output directory: $odir"
-    \mkdir -p "${odir}"
-endif
-
-# make workdir name, if nec
-if ( "${wdir}" == "" ) then
-    set tmp_code = `3dnewid -fun11`  # should be essentially unique hash
-    set wdir     = __workdir_${this_prog}_${tmp_code}
-endif
-
-# simplify path to wdir
-set owdir = "${odir}/${wdir}"
-
-# make the working directory
-if ( ! -e "${owdir}" ) then
-    echo "++ Making working directory: ${owdir}"
-    \mkdir -p "${owdir}"
-else
-    echo "+* WARNING:  Somehow found a premade working directory:"
-    echo "      ${owdir}"
-endif
 
 # ----- find required dsets, and any properties
 
@@ -201,110 +137,42 @@ else
         echo "** ERROR: input EPI must have +orig av_space, not: ${av_space}"
         goto BAD_EXIT
     endif
-
-    # copy to wdir
-    3dcalc \
-        -a "${epi}"               \
-        -expr 'a'                 \
-        -prefix "${owdir}/epi_00" \
-        -overwrite
 endif
 
-# ----- The reference volume number for 3dvolreg & PV sanity check
-set max_idx = `3dinfo -nvi "${epi}"`
-    
-if ( `echo "${vr_base} > ${max_idx}" | bc` || \
-     `echo "${vr_base} < 0" | bc` ) then
-    echo "** ERROR: allowed volreg_base range is : [0, ${max_idx}]"
-    echo "   but the user's value is outside this: ${vr_base}"
-    echo "   Consider using (default, and keyword opt): MIN_OUTLIER"
+if ( "${prefix_vr}" == "" ) then
+    echo "** ERROR: need to provide output name with '-prefix_vr ..'"
     goto BAD_EXIT
 endif
 
-# just use that number
-set vr_idx = "${vr_base}"
+if ( "${prefix_out}" == "" ) then
+    echo "** ERROR: need to provide output name with '-prefix_out ..'"
+    goto BAD_EXIT
+endif
 
-echo "   $vr_idx volume will be the reference volume"
-
-# save reference volume
-3dcalc -a "${epi}[$vr_idx]"            \
-       -expr 'a'                       \
-       -prefix "${owdir}"/epi_base     \
-       -overwrite 
-
-# ----- Mask setting
 if ( "${epi_mask}" == "" ) then
-	echo "++ No mask provided, will make one" |& tee -a $histfile
-
-    # remove skull (PT: could use 3dAutomask)
-    3dSkullStrip                               \
-        -input "${owdir}"/epi_base+orig        \
-        -prefix "${owdir}/___tmp_mask0.nii"    \
-        -overwrite
-
-    # binarize
-    3dcalc                                     \
-        -a "${owdir}/___tmp_mask0.nii"         \
-        -expr 'step(a)'                        \
-        -prefix "${owdir}/___tmp_mask1.nii"    \
-        -datum byte -nscale                    \
-        -overwrite
-
-    # inflate mask; name must match wlab name for user mask, above
-    3dcalc \
-        -a "${owdir}/___tmp_mask1.nii"            \
-        -b a+i -c a-i -d a+j -e a-j -f a+k -g a-k \
-        -expr   'amongst(1,a,b,c,d,e,f,g)'        \
-        -prefix "${owdir}/epi_base_mask"          \
-        -overwrite
-
-    # clean a bit
-    \rm -f ${owdir}/___tmp*nii
-else
-	3dcalc -a       "${epi_mask}"               \
-           -expr    'step(a)'                   \
-           -prefix  "${owdir}/epi_base_mask"    \
-           -nscale                              \
-           -overwrite
-endif
-
-if ( "${roi_mask}" == "" ) then
-	set roi_mask = "epi_base_mask+orig" 
-else
-	set roi_mask = ../"${roi_mask}" 
-endif
-
-# ----- physio file sanity check
-
-cat <<EOF >> ${histfile}
-++ epi_base+orig is the reference volume (basline), $vr_idx th volume of input
-EOF
-
-# check CLEAN and compact options
-if ( $DO_CLEAN == 1 && $DO_COMPACT == 1 ) then
-  	DO_COMPACT == 0  
-	echo "++ both -do_clean and -do_compact cannot be selected. do_clean is only activated."
+    echo "** ERROR: need to provide output name with '-epi_mask ..'"
+    goto BAD_EXIT
 endif
 
 
 # =======================================================================
 # =========================== ** Main work ** ===========================
 
-# move to wdir to do work
-cd "${owdir}"
+cat <<EOF
 
-# update mask file name
-set epi_mask = "epi_base_mask+orig"
+++ Start main ${this_prog} work
+
+EOF
+
 
 # ----- step 1 voxelwise time-series PV regressor
 # volreg output is also generated.
-gen_vol_pvreg.tcsh                 \
-	-dset_epi  epi_00+orig        \
-    -dset_mask "${epi_mask}"      \
-    -vr_idx    "${vr_idx}"         \
-    -prefix_pv epi_02_pvreg        \
-    -prefix_vr epi_01_volreg       \
-    |& tee     log_gen_vol_pvreg.txt
+gen_vol_pvreg.tcsh              \
+	-dset_epi  "${epi}"         \
+    -dset_mask "${epi_mask}"    \
+    -vr_idx    "${vr_idx}"      \
+    -prefix_pv "${prefix_pv}"   \
+    -prefix_vr "${prefix_vr}"       
     
 if ( $status ) then
     goto BAD_EXIT
@@ -313,129 +181,65 @@ endif
 
 # ----- step 2 second order 
 
-1d_tool.py -infile epi_01_volreg.1D -demean -write mopa6.demean.1D
-3dDeconvolve 							\
-	-input epi_01_volreg+orig 			\
-	-mask epi_base_mask+orig 			\
-  	-polort 1 							\
-  	-x1D det.1D 						\
-  	-x1D_stop 
- 3dDeconvolve 															\
- 	-input epi_01_volreg+orig 											\
- 	-mask epi_base_mask+orig 											\
-  	-polort 1 															\
-  	-num_stimts 6 														\
-  	-stim_file 1 mopa6.demean.1D'[0]' -stim_label 1 mopa1 -stim_base 1 	\
-  	-stim_file 2 mopa6.demean.1D'[1]' -stim_label 2 mopa2 -stim_base 2 	\
-  	-stim_file 3 mopa6.demean.1D'[2]' -stim_label 3 mopa3 -stim_base 3 	\
-  	-stim_file 4 mopa6.demean.1D'[3]' -stim_label 4 mopa4 -stim_base 4 	\
-  	-stim_file 5 mopa6.demean.1D'[4]' -stim_label 5 mopa5 -stim_base 5 	\
-  	-stim_file 6 mopa6.demean.1D'[5]' -stim_label 6 mopa6 -stim_base 6 	\
-  	-x1D mopa6.1D 														\
-  	-x1D_stop 
-  
-# Linear detrending terms only 
-3dREMLfit 						\
-	-input 	epi_01_volreg+orig 	\
-	-mask 	epi_base_mask+orig 	\
- 	-matrix det.1D 				\
-  	-Oerrts errt.det			\
-  	|& tee     log_gen_vol_pvreg.txt	
-  	  
+# volmoco + 6 mopa + PV
+# demean motion parameters
+1d_tool.py -infile "${prefix_vr}".1D -demean -write mopa6.demean.1D -overwrite
+
+3dDeconvolve                                                            \
+    -input  "${epi}"                                                    \
+    -mask   "${epi_mask}"                                               \
+    -polort 1                                                           \
+    -num_stimts 6                                                       \
+    -stim_file 1 mopa6.demean.1D'[0]' -stim_label 1 mopa1 -stim_base 1 	\
+    -stim_file 2 mopa6.demean.1D'[1]' -stim_label 2 mopa2 -stim_base 2 	\
+    -stim_file 3 mopa6.demean.1D'[2]' -stim_label 3 mopa3 -stim_base 3 	\
+    -stim_file 4 mopa6.demean.1D'[3]' -stim_label 4 mopa4 -stim_base 4 	\
+    -stim_file 5 mopa6.demean.1D'[4]' -stim_label 5 mopa5 -stim_base 5 	\
+    -stim_file 6 mopa6.demean.1D'[5]' -stim_label 6 mopa6 -stim_base 6 	\
+    -x1D mopa6.demean.det.1D                                            \
+    -x1D_stop -overwrite
+    	  
+
 if ( $physiofile == "" ) then
  	# 6 Vol-mopa + PV + linear detrending terms 
-	3dREMLfit 						\
-		-input epi_01_volreg+orig 	\
-		-mask epi_base_mask+orig 	\
-  		-matrix mopa6.1D 			\
-  		-dsort epi_02_pvreg+orig 	\
-  		-dsort_nods					\
-  		-Oerrts errt.mopa6.pvreg	\
-  		|& tee     log_gen_vol_pvreg.txt
+    3dREMLfit                       \
+        -input  "${prefix_vr}"+orig	\
+        -mask   "${epi_mask}"       \
+        -matrix mopa6.demean.det.1D \
+        -dsort  "${prefix_pv}"+orig \
+        -Oerrts errt.mopa6.pvreg    \
+        -overwrite                  
 
 else
-	# 6 Vol-mopa + PV + linear detrending terms + Physio file (1D)  
-	3dREMLfit 						\
-		-input epi_01_volreg+orig 	\
-		-mask epi_base_mask+orig 	\
-  		-matrix mopa6.1D 			\
-  		-dsort epi_02_pvreg+orig 	\
-  		-slibase_sm $physiofile		\
-  		-dsort_nods					\
-  		-Oerrts errt.mopa6.pvreg	\
-  		|& tee     log_gen_vol_pvreg.txt
+	echo " 8 regressors for RETROICOR or 5 regressors for PESTICA" |& tee -a ../$histfile
+
+	3dMREMLfit                      \
+        -input  "${prefix_vr}"+orig	\
+        -mask   "${epi_mask}"       \
+        -matrix mopa6.demean.det.1D \
+        -dsort  "${prefix_pv}"+orig \
+        -Oerrts errt.mopa6.pvreg    \
+        -slibase_sm $physiofile		\
+        -overwrite                  
 
 endif
  
+# adding back the tissue contrast
+3dcalc                              \
+    -a      errt.mopa6.pvreg+orig   \
+    -b      epi_base_mean+orig      \
+    -expr   'a+b'                   \
+    -prefix ${prefix_out}           \
+    -overwrite
 
-# present SD reduction (optional)
-3dTstat -stdev 						\
-	-prefix errt.det.std	\
-	errt.det+orig
-3dTstat -stdev 						\
-	-prefix errt.mopa6.pvreg.std	\
-	errt.mopa6.pvreg+orig
-3dTstat -stdev 						\
-	-prefix errt.mopa6.std 			\
-	errt.mopa6.pvreg_nods+orig
-
-3dROIstats -quiet					\
-	-mask "${roi_mask}"				\
-	errt.det.std+orig > SDreduction.1D
-
-3dROIstats -quiet					\
-	-mask "${roi_mask}"				\
-	errt.mopa6.std+orig	>> SDreduction.1D
-
-3dROIstats -quiet					\
-	-mask "${roi_mask}"				\
-	errt.mopa6.pvreg.std+orig	>> SDreduction.1D
-
-echo +++++++++++++++++++++	
-if ( $physiofile == "" ) then
-	echo "++ average SD in a mask (baseline, 6 Vol-mopa, 6 vol-mopa + PV )"	
-else
-	echo "++ average SD in a mask (baseline, 6 Vol-mopa + physio, 6 vol-mopa + physio + PV )"	
-endif
-cat SDreduction.1D
-echo +++++++++++++++++++++
-
-# delete large size of temporary files
-rm 	errt.det+orig.* 				\
-	errt.det.std+orig* 				\
-	errt.mopa6.pvreg_nods+orig.* 	\
-	errt.mopa6.pvreg.std+orig.* 	\
-	errt.mopa6.std+orig.*								
-	
-
-# move out of wdir to the odir
-cd ..
-set whereout = $PWD
-
-# copy the final result, add EPI tissue contrast to the residual time-series.
-3dcalc									\
-	-a "${owdir}"/errt.mopa6.pvreg+orig \
-	-b "${owdir}"/epi_base_mean+orig 	\
-	-expr 'a+b' 						\
-	-prefix "${prefix}" 				\
-	-overwrite 				# output only
+\rm -f errt.*
 
 if ( $DO_CLEAN == 1 ) then
     echo "\n+* Removing temporary axialization working dir: '$wdir'\n"
 
     # ***** clean
-    rm -rf "${owdir}"
+    # rm -rf 
 
-else
-    echo "\n++ NOT removing temporary axialization working dir: '$wdir'\n"
-    if ( $DO_COMPACT == 1 ) then
-      	echo "\n++ Removing temporary files under working dir: '$wdir'\n"
-    	rm -rf 	"${owdir}"/epi_00+orig.* 		\
-    			"${owdir}"/epi_motsim** 		\
-    			"${owdir}"/epi_base_mean+orig.* 		
-      
-    endif
-    
 endif
 
 echo ""

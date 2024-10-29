@@ -44,11 +44,13 @@ R2 = 80
 
 # calculate FD (Power)
 FDP = np.abs(ddx) + np.abs(ddy) + np.abs(ddz) + R1*raddeg*(np.abs(drx)+np.abs(dry)+np.abs(drz));
+oFDP = np.abs(ddz) + R1*raddeg*(np.abs(drx)+np.abs(dry));
 
 # calculate FD (Jankinson)
 d2r = 0.01745329
 FDJ = np.zeros((tdim-1,1))
-for iz in range(0, tdim-1): 
+oFDJ = np.zeros((tdim-1,1))
+for iz in range(0, tdim-1):
      iddx = ddx[iz]
      iddy = ddy[iz]
      iddz = ddz[iz]
@@ -66,8 +68,26 @@ for iz in range(0, tdim-1):
      
      # combine all
      FDJ[iz,0] = np.sqrt(R2 * R2 / 5.0 * M + sumdxyz )
+     
+     iddx = 0
+     iddy = 0
+     idrz = 0
+     
+     # rotation matrix calclation
+     xrotmat = np.array([[1, 0, 0], [0, cal.cos(idrx*d2r), -1*cal.sin(idrx*d2r)],	[0, cal.sin(idrx*d2r), cal.cos(idrx*d2r)]])
+     yrotmat = np.array([[cal.cos(idry*d2r), 0, cal.sin(idry*d2r)], [0, 1, 0], [-1*cal.sin(idry*d2r), 0, cal.cos(idry*d2r)]])
+     zrotmat = np.array([[cal.cos(idrz*d2r), -1*cal.sin(idrz*d2r), 0], [cal.sin(idrz*d2r), cal.cos(idrz*d2r), 0], [0, 0, 1]])
+     xyzrotmat = np.dot(zrotmat,np.dot(yrotmat, xrotmat))
+     M = np.trace(np.dot(np.transpose(xyzrotmat-np.eye(3)),xyzrotmat-np.eye(3)))
+     sumdxyz = iddx*iddx + iddy*iddy + iddz*iddz
+     
+     # combine all
+     oFDJ[iz,0] = np.sqrt(R2 * R2 / 5.0 * M + sumdxyz )
+
 
 
 # write the result
 np.savetxt('FDJ_py.txt',FDJ)	
 np.savetxt('FDP_py.txt',FDP)
+np.savetxt('oFDJ_py.txt',oFDJ)	
+np.savetxt('oFDP_py.txt',oFDP)

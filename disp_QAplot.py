@@ -70,7 +70,6 @@ zmbdim = int(dims[0]/(tdim))
 volext = volsli - sli
 
 # t table
-# Create a vector with 5 evenly spaced values from 0 to 1 (including 1)
 ttable_vol = np.linspace(1,tdim,tdim)
 ttable_vol_fd = fd = np.linspace(2,tdim,tdim-1)
 ttable_sli = np.ones(zmbdim)
@@ -78,8 +77,6 @@ for t in range (2,tdim+1):
     tb = t*np.ones(zmbdim)
     ttable_sli = np.concatenate((ttable_sli,tb),axis=None)
 
-np.shape(SSDvol)
-np.shape(SSDsli)
 
 # Make an example plot with two subplots...
 plt.figure()

@@ -801,7 +801,7 @@ endif
 
 # move out of wdir to the odir
 cd ..
-set whereout = $PWD
+set whereout = `pwd`
 
 # copy the final result
 3dcalc                                              \

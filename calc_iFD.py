@@ -53,9 +53,11 @@ ioFDP = np.mean(temp, axis=1)
 # calculate iFD and izFD (Jenkinson)
 iFDJ  = np.zeros((int(tdim),1))
 izFDJ = np.zeros((int(tdim),1))
+ioFDJ = np.zeros((int(tdim),1))
 for t in range (0, int(tdim)):
     ifdj = 0
     izfdj = 0
+    iofdj = 0
     for iz in range(0, int(zmbdim)): 
         # read volumetric params first (assume AFNI 3dvolreg)
         # 3dvolreg motion parametner
@@ -76,8 +78,24 @@ for t in range (0, int(tdim)):
         M = np.dot(np.transpose(xyzrotmat-np.eye(3)),xyzrotmat-np.eye(3))
         ifdj  = ifdj  + np.sqrt(R2 * R2 / 5.0 * (M[0,0] + M[1,1] + M[2,2]) + dx*dx + dy*dy + dz*dz)
         izfdj = izfdj + np.sqrt(R2 * R2 / 5.0 * M[2,2] + dz*dz)
+
+        dx=0
+        dy=0
+        rz=0
+        # rotation matrix calclation
+        xrotmat = np.array([[1, 0, 0], [0, cal.cos(rx), -1*cal.sin(rx)], [0, cal.sin(rx), cal.cos(rx)]])
+        yrotmat = np.array([[cal.cos(ry), 0, cal.sin(ry)], [0, 1, 0], [-1*cal.sin(ry), 0, cal.cos(ry)]])
+        zrotmat = np.array([[cal.cos(rz), -1*cal.sin(rz), 0], [cal.sin(rz), cal.cos(rz), 0], [0, 0, 1]])
+        xyzrotmat = np.dot(zrotmat,np.dot(yrotmat, xrotmat))
+        M = np.dot(np.transpose(xyzrotmat-np.eye(3)),xyzrotmat-np.eye(3))
+        iofdj  = iofdj  + np.sqrt(R2 * R2 / 5.0 * (M[0,0] + M[1,1] + M[2,2]) + dx*dx + dy*dy + dz*dz)
+
+
+
+
     iFDJ[t,0] =  ifdj/zmbdim
     izFDJ[t,0] = izfdj/zmbdim
+    ioFDJ[t,0] = iofdj/zmbdim
 
 
 
@@ -86,3 +104,4 @@ np.savetxt('iFDJ_py.txt',iFDJ)
 np.savetxt('iFDP_py.txt',iFDP)
 np.savetxt('ioFDP_py.txt',ioFDP)	
 np.savetxt('izFDJ_py.txt',izFDJ)
+np.savetxt('ioFDJ_py.txt',ioFDJ)

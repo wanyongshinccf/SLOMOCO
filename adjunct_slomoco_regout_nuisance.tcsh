@@ -240,9 +240,9 @@ endif
 if ( $DO_CLEAN == 1 ) then
     echo "+* Removing temporary 1D files "
     \rm -f Decon.REML_cmd   \
-           slireg_zp.1D     \
-           mopa6.demean.1D  \
-           slireg.demean.1D
+        errts.slomoco+orig.* \
+        mopa6.demean.1D     \
+        slireg.demean.1D
         # ***** clean
 
 else

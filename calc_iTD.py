@@ -38,6 +38,7 @@ highy =  84
 d2r  = 0.01745329
 iTD  = np.zeros((int(tdim),1))
 iTDz = np.zeros((int(tdim),1))
+ioTD = np.zeros((int(tdim),1))
 npix = 6
 
 # calculate intra-volume total volume displacement
@@ -46,6 +47,7 @@ npix = 6
 for t in range (0, int(tdim)):
     itd = 0
     itdz = 0
+    iotd = 0
     for iz in range (0, int(zmbdim)):
         # read volumetric params first (assume AFNI 3dvolreg)
         # 3dvolreg motion parametner
@@ -58,11 +60,19 @@ for t in range (0, int(tdim)):
         rx = d2r* slireg[iz+t*int(zmbdim),1]
         ry = d2r* slireg[iz+t*int(zmbdim),2]
         rz = d2r* slireg[iz+t*int(zmbdim),0]
+        dx0 = 0
+        dy0 = 0
+        rz0 = 0
+
         # rotation matrix calclation
         xrotmat = np.array([[1, 0, 0], [0, cal.cos(rx), -1*cal.sin(rx)], [0, cal.sin(rx), cal.cos(rx)]])
         yrotmat = np.array([[cal.cos(ry), 0, cal.sin(ry)], [0, 1, 0], [-1*cal.sin(ry), 0, cal.cos(ry)]])
         zrotmat = np.array([[cal.cos(rz), -1*cal.sin(rz), 0], [cal.sin(rz), cal.cos(rz), 0], [0, 0, 1]])
         xyzrotmat = np.dot(zrotmat,np.dot(yrotmat, xrotmat))
+        
+        zrotmat0 = np.array([[cal.cos(rz0), -1*cal.sin(rz0), 0], [cal.sin(rz0), cal.cos(rz0), 0], [0, 0, 1]])
+        xyzrotmat0 = np.dot(zrotmat0,np.dot(yrotmat, xrotmat))
+
         for z in (lowz, highz): 
             for x in (lowx, highx):
                 for y in (lowy, highy):
@@ -71,12 +81,20 @@ for t in range (0, int(tdim)):
                     distz = abs(disp[2])
                     itd   = itd  + dist
                     itdz  = itdz + distz
+
+                    disp  = np.dot(xyzrotmat0, np.array([x,y,z])) + np.array([dx0,dy0,dz]) - np.array([x,y,z])
+                    dist  = cal.sqrt(disp[0]*disp[0] + disp[1]*disp[1] + disp[2]*disp[2])
+                    iotd   = iotd  + dist
+
     itd  = itd / (npix*zmbdim)
     itdz = itdz / (npix*zmbdim) 
+    iotd = iotd / (npix*zmbdim) 
     iTD[t,0] = itd
     iTDz[t,0] = itdz
+    ioTD[t,0] = iotd
 
 
 # write the result
 np.savetxt('iTD_py.txt',iTD)	
 np.savetxt('iTDz_py.txt',iTDz)
+np.savetxt('ioTD_py.txt',ioTD)

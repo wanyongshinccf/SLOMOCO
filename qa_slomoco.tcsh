@@ -257,6 +257,7 @@ python $SLOMOCO_DIR/combine_slimot_volmot.py \
 python $SLOMOCO_DIR/calc_FD.py \
     -vol epi_01_volreg.1D 
 
+# Test purpse. It does not work well. commented out
 python $SLOMOCO_DIR/calc_iFD.py \
     -sli  slimot_py_fit.txt    \
     -tdim ${tdim}

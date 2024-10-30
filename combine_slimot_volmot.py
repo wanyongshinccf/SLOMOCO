@@ -45,9 +45,8 @@ dims = np.shape(slimot)
 zdim = int(dims[1]/6)
 
 # set zero in case of small voxel number
-
-print("tdim = ", tdim)
-print("zdim = ", zdim)
+# print("tdim = ", tdim)
+# print("zdim = ", zdim)
 # print("acqorder:\n", acqorder)
 
 # add slimot to volmot
@@ -83,32 +82,29 @@ for rep in range (0,tdim , 1):
 volmot_ext = np.delete(volmot_ext,slice(0,tdim),0)
 
 
-# interpolate excluded slice time point
-exclude_slices_tp = np.array(0)
-for rep in range(0,tdim,1):
-	# print(rep)
-	for exs in range(len(excsli)):
-		#print("exclude_slices: ", excsli[exs])
-		x = np.where(acqodr == excsli[exs])
-		xx = x[0]
-		slice_tp = xx[0]
-		exclude_slices_tp = np.append(exclude_slices_tp, slice_tp+zdim*rep)	
-
-exclude_slices_tp = np.delete(exclude_slices_tp,0,axis=0)
-#print(exclude_slices_tp)
-
-
 # interpolate in excluded slices
-x = np.linspace(0, zdim*tdim-1, zdim*tdim)
-x_obs = np.setxor1d(x,exclude_slices_tp)
-
-volslimot = np.zeros((zdim*tdim,6))
-for mopa in range(0,6,1):
-	# print("mopa = ", mopa)
-	y_obs = volslimot_added[:,mopa]
-	y = sp.pchip_interpolate(x_obs, y_obs, x)
-	volslimot[:,mopa] = y
-
+if  ( np.size(excsli) > 0 ) :
+    exclude_slices_tp = np.array(0)
+    for rep in range(0,tdim,1):
+	    # print(rep)
+        for exs in range(len(excsli)):
+            #print("exclude_slices: ", excsli[exs])
+            x = np.where(acqodr == excsli[exs])
+            xx = x[0]
+            slice_tp = xx[0]
+            exclude_slices_tp = np.append(exclude_slices_tp, slice_tp+zdim*rep)	
+            
+    exclude_slices_tp = np.delete(exclude_slices_tp,0,axis=0)
+    
+    x = np.linspace(0, zdim*tdim-1, zdim*tdim)
+    x_obs = np.setxor1d(x,exclude_slices_tp)
+    volslimot = np.zeros((zdim*tdim,6))
+    for mopa in range(0,6,1):
+	    # print("mopa = ", mopa)
+        y_obs = volslimot_added[:,mopa]
+        y = sp.pchip_interpolate(x_obs, y_obs, x)
+        volslimot[:,mopa] = y
+    
 
 #plt.plot(x_obs, y_obs, "o", label="observation")
 #plt.plot(x, y, label="pchip interpolation")

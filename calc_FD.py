@@ -49,7 +49,8 @@ oFDP = np.abs(ddz) + R1*raddeg*(np.abs(drx)+np.abs(dry));
 # calculate FD (Jankinson)
 d2r = 0.01745329
 FDJ = np.zeros((tdim-1,1))
-oFDJ = np.zeros((tdim-1,1))
+#oFDJ = np.zeros((tdim-1,1))
+#zFDJ = np.zeros((tdim-1,1))
 for iz in range(0, tdim-1):
      iddx = ddx[iz]
      iddy = ddy[iz]
@@ -63,11 +64,12 @@ for iz in range(0, tdim-1):
      yrotmat = np.array([[cal.cos(idry*d2r), 0, cal.sin(idry*d2r)], [0, 1, 0], [-1*cal.sin(idry*d2r), 0, cal.cos(idry*d2r)]])
      zrotmat = np.array([[cal.cos(idrz*d2r), -1*cal.sin(idrz*d2r), 0], [cal.sin(idrz*d2r), cal.cos(idrz*d2r), 0], [0, 0, 1]])
      xyzrotmat = np.dot(zrotmat,np.dot(yrotmat, xrotmat))
-     M = np.trace(np.dot(np.transpose(xyzrotmat-np.eye(3)),xyzrotmat-np.eye(3)))
+     M = np.dot(np.transpose(xyzrotmat-np.eye(3)),xyzrotmat-np.eye(3))
      sumdxyz = iddx*iddx + iddy*iddy + iddz*iddz
      
      # combine all
-     FDJ[iz,0] = np.sqrt(R2 * R2 / 5.0 * M + sumdxyz )
+     FDJ[iz,0] = np.sqrt(R2 * R2 / 5.0 * (M[0,0] + M[1,1] + M[2,2]) + sumdxyz )
+     #zFDJ[iz,0] = np.sqrt(R2 * R2 / 5.0 * M[2,2] + np.abs(iddz) )
      
      iddx = 0
      iddy = 0
@@ -82,12 +84,13 @@ for iz in range(0, tdim-1):
      sumdxyz = iddx*iddx + iddy*iddy + iddz*iddz
      
      # combine all
-     oFDJ[iz,0] = np.sqrt(R2 * R2 / 5.0 * M + sumdxyz )
+     #oFDJ[iz,0] = np.sqrt(R2 * R2 / 5.0 * M + iddz*iddz )
 
 
 
 # write the result
 np.savetxt('FDJ_py.txt',FDJ)	
 np.savetxt('FDP_py.txt',FDP)
-np.savetxt('oFDJ_py.txt',oFDJ)	
-np.savetxt('oFDP_py.txt',oFDP)
+#np.savetxt('oFDJ_py.txt',oFDJ)	
+#np.savetxt('oFDP_py.txt',oFDP)
+#np.savetxt('zFDJ_py.txt',zFDJ)

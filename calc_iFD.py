@@ -91,8 +91,6 @@ for t in range (0, int(tdim)):
         iofdj  = iofdj  + np.sqrt(R2 * R2 / 5.0 * (M[0,0] + M[1,1] + M[2,2]) + dx*dx + dy*dy + dz*dz)
 
 
-
-
     iFDJ[t,0] =  ifdj/zmbdim
     izFDJ[t,0] = izfdj/zmbdim
     ioFDJ[t,0] = iofdj/zmbdim

@@ -266,15 +266,7 @@ python $SLOMOCO_DIR/calc_iTD.py \
     -sli  slimot_py_fit.txt    \
     -tdim ${tdim}
 
-python $SLOMOCO_DIR/disp_QAplot.py  \
-    -ssdvol SSD.volmoco.1D          \
-    -ssdsli SSD.slomoco.1D          \
-    -volsli volslimot_py_fit.txt    \
-    -sli    slimot_py_fit.txt       \
-    -FDJ    FDJ_py.txt              \
-    -FDP    FDP_py.txt              \
-    -iTD    iTD_py.txt              \
-    -iTDz   iTDz_py.txt
+python $SLOMOCO_DIR/disp_QAplot.py -ssdvol SSD.volmoco.1D -ssdsli SSD.slomoco.1D -volsli volslimot_py_fit.txt  -sli slimot_py_fit.txt -iFDJ iFDJ_py.txt  -iFDP iFDP_py.txt -iTD iTD_py.txt -ioFDJ ioFDP_py.txt -ioFDP  ioFDP_py.txt -ioTD   ioTD_py.txt
 
 # display will be deleted later 
 # matlab -nodesktop -nosplash -r "addpath ${MATLAB_SLOMOCO_DIR}; addpath ${MATLAB_AFNI_DIR};qa_moco('${epi_volmoco}','${epi_slomoco}','${epi_mask}','$volreg1D','slimot_py_fit.txt'); exit;" 

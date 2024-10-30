@@ -104,7 +104,9 @@ if  ( np.size(excsli) > 0 ) :
         y_obs = volslimot_added[:,mopa]
         y = sp.pchip_interpolate(x_obs, y_obs, x)
         volslimot[:,mopa] = y
-    
+else :
+    volslimot = volslimot_added    
+
 
 #plt.plot(x_obs, y_obs, "o", label="observation")
 #plt.plot(x, y, label="pchip interpolation")

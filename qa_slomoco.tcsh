@@ -22,11 +22,11 @@ set wdir    = ""
 
 # --------------------- inputs --------------------
 
-set epi_volmoco      = ""   # base 3D+time EPI dataset to use to perform corrections
-set epi_slomoco      = ""   # base 3D+time EPI dataset to use to perform corrections
-set epi_mask = ""   # mask 3D+time images
-set jsonfile   = ""       # json file
-set tfile      = ""       # tshiftfile (sec)
+set epi_volmoco = ""   # base 3D+time EPI dataset to use to perform corrections
+set epi_slomoco = ""   # base 3D+time EPI dataset to use to perform corrections
+set epi_mask    = ""   # mask 3D+time images
+set jsonfile    = ""       # json file
+set tfile       = ""       # tshiftfile (sec)
 
 set DO_CLEAN = 0                       # default: keep working dir
 
@@ -168,13 +168,11 @@ if ( "${epi_mask}" == "" ) then
 endif
 
 # ----- define variables
-
-set dims = `3dAttribute DATASET_DIMENSIONS ${epi_slomoco}`
-# origentation sagital?
-set zdim = ${dims[3]}                          
-set tdim = `3dnvals ${epi_slomoco}`
-set Taxis = `3dAttribute TAXIS_FLOATS ${epi_slomoco}`
-set TR = ${Taxis[2]}   
+# note SLOMOCO assumes the slice is in z direction.
+# you need to modify the code wtih sagital/coronal acquisition
+set zdim = `3dinfo -nk ${epi_slomoco}`                   
+set tdim = `3dinfo -nt ${epi_slomoco}`
+set TR   = `3dinfo -tr ${epi_slomoco}`
 
 # read slice acquisition timing from tshift file and caculate SMS factor
 set SLOMOCO_SLICE_TIMING = `cat $tfile`
@@ -212,18 +210,18 @@ python $SLOMOCO_DIR/combine_slimot_volmot.py \
     -acq sliacqorder.1D                      \
     -exc inplane/slice_excluded.txt
 
-# calculate SSD
+# calculate SSD of VOLMOCO
 3dTstat                     \
     -mean                   \
     -prefix rm.mean+orig    \
     -overwrite              \
     ${epi_volmoco}
 
-3dcalc                      \
-    -a  ${epi_volmoco}      \
-    -b rm.mean+orig         \
-    -expr '(100*(a-b)/b)^2' \
-    -prefix rm.norm2+orig   \
+3dcalc                          \
+    -a      ${epi_volmoco}      \
+    -b      rm.mean+orig        \
+    -expr   '(100*(a-b)/b)^2'   \
+    -prefix rm.norm2+orig       \
     -overwrite
 
 3dROIstats              \
@@ -232,17 +230,18 @@ python $SLOMOCO_DIR/combine_slimot_volmot.py \
 
 1deval -a rm.norm2.1D -expr 'sqrt(a)' > SSD.volmoco.1D
 
+# calculate SSD of full SLOMOCO
 3dTstat                  \
     -mean                \
     -prefix rm.mean+orig \
     -overwrite           \
     ${epi_slomoco}
 
-3dcalc                      \
-    -a  ${epi_slomoco}      \
-    -b rm.mean+orig         \
-    -expr '(100*(a-b)/b)^2' \
-    -prefix rm.norm2+orig   \
+3dcalc                          \
+    -a      ${epi_slomoco}      \
+    -b      rm.mean+orig        \
+    -expr   '(100*(a-b)/b)^2'   \
+    -prefix rm.norm2+orig       \
     -overwrite
 
 3dROIstats              \
@@ -266,9 +265,15 @@ python $SLOMOCO_DIR/calc_iTD.py \
     -sli  slimot_py_fit.txt    \
     -tdim ${tdim}
 
-python $SLOMOCO_DIR/disp_QAplot.py -ssdvol SSD.volmoco.1D -ssdsli SSD.slomoco.1D -volsli volslimot_py_fit.txt  -sli slimot_py_fit.txt -iFDJ iFDJ_py.txt  -iFDP iFDP_py.txt -iTD iTD_py.txt -ioFDJ ioFDP_py.txt -ioFDP  ioFDP_py.txt -ioTD   ioTD_py.txt
-
-# display will be deleted later 
-# matlab -nodesktop -nosplash -r "addpath ${MATLAB_SLOMOCO_DIR}; addpath ${MATLAB_AFNI_DIR};qa_moco('${epi_volmoco}','${epi_slomoco}','${epi_mask}','$volreg1D','slimot_py_fit.txt'); exit;" 
-
+python $SLOMOCO_DIR/disp_QAplot.py  \
+    -ssdvol SSD.volmoco.1D          \
+    -ssdsli SSD.slomoco.1D          \
+    -volsli volslimot_py_fit.txt    \
+    -sli    slimot_py_fit.txt       \
+    -iFDJ   iFDJ_py.txt             \
+    -iFDP   iFDP_py.txt             \
+    -iTD    iTD_py.txt              \
+    -ioFDJ  ioFDP_py.txt            \
+    -ioFDP  ioFDP_py.txt            \
+    -ioTD   ioTD_py.txt
 

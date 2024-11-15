@@ -519,9 +519,6 @@ else
            -overwrite
 endif
 
-# ----- save name to apply
-set epi_mask = "${owdir}/epi_base_mask+orig"
-
 
 # ----- check about physio/pestica regressors, cp to wdir if present
 
@@ -530,15 +527,15 @@ if ( "${physiofile}" != "" ) then
         echo "** ERROR: cannot find ${physiofile} " |& tee -a $histfile
         goto BAD_EXIT
     else
-        1dcat $physiofile  > ${owdir}/physioreg.1D 
-        echo "++ Physiologic nuisance regressor will be includled: ${physiofile} " \
+        1dcat $physiofile  > ${owdir}/rem.physio.1D 
+        echo "++ Physiologic nuisance regressor will be included: ${physiofile} " \
             |& tee -a $histfile
     endif
 else
     echo "++ Physiologic nuisnance regressor will NOT be includled. " \
         |& tee -a $histfile
     
-    \rm -f ${owdir}/physioreg.1D 
+    \rm -f ${owdir}/rem.physio.1D 
 
 endif
 
@@ -571,46 +568,57 @@ endif
 # move to wdir to do work
 cd "${owdir}"
 
-# update mask file name
-set epi_mask = "epi_base_mask+orig"
 
-# linear detrending matrix
-3dDeconvolve -polort 1 \
-    -input epi_00+orig \
-    -x1D_stop -x1D     \
-    epi_polort_xmat.1D \
-    -overwrite
+# slibase.1D format of physio file
+if ( "${physiofile}" == "" ) then
+    set physiostr = "" 
+else
+    set physiostr = "-slireg rem.physio.1D "
+endif
 
-# ----- step 1 voxelwise time-series PV regressor
+# ----- step 1 voxelwise time-series PV regressor & volmoco
 # volreg output is also generated.
 if ( -f epi_02_pvreg+orig.HEAD ) then
     echo "++ Skip: gen_vol_pvreg.tcsh. epi_02_pvreg+orig.HEAD exists. " |& tee -a ../$histfile
-    echo "++ If you need to regenerate PV regressor, " |& tee -a ../$histfile
-    echo "++   delete epi_02_pvreg+orig.HEAD/BRIK and re-run it. " |& tee -a ../$histfile
+    echo "++ If you need to regenerate PV regressor, "                  |& tee -a ../$histfile
+    echo "++   delete epi_02_pvreg+orig.HEAD/BRIK and re-run it. "      |& tee -a ../$histfile
+
 else
-    echo "++ Run: run_slomoco.tcsh"  |& tee -a ../$histfile
-    if ( "${physiofile}" == "" ) then
-        run_volmoco.tcsh    ${do_echo}      \
-            -dset_epi   epi_00+orig         \
-            -dset_mask  "${epi_mask}"       \
-            -vr_idx     "${vr_idx}"         \
-            -prefix_vr  epi_01_volreg       \
-            -prefix_pv  epi_02_pvreg        \
-            -prefix_out epi_03_volmoco      \
-            |& tee     log_run_volmoco.txt
+    echo "++ Run: gen_vol_pvreg.tcsh"                                   |& tee -a ../$histfile
+    
+    # ----- step 1.1 voxelwise time-series PV regressor
+    # volreg output is also generated.
+    gen_vol_pvreg.tcsh ${do_echo}           \
+	    -dset_epi   epi_00+orig             \
+        -dset_mask  epi_base_mask+orig      \
+        -vr_idx     ${vr_idx}               \
+        -prefix_vr  epi_01_volreg           \
+        -prefix_pv  epi_02_pvreg            \
+        -do_clean                           \
+        |& tee      log_gen_vol_pvreg.txt
 
-    else
-        run_volmoco.tcsh    ${do_echo}      \
-            -dset_epi   epi_00+orig         \
-            -dset_mask  "${epi_mask}"       \
-            -vr_idx     "${vr_idx}"         \
-            -prefix_vr  epi_01_volreg       \
-            -prefix_pv  epi_02_pvreg        \
-            -prefix_out epi_03_volmoco      \
-            -physio    ${physiofile}         \
-            |& tee     log_run_volmoco.txt
+    # step 1.2 regression: 6 volmopa + physio (if any) for QA later        
+    run_regout_nuisance.tcsh ${do_echo}     \
+        -dset_epi   epi_01_volreg+orig      \
+        -dset_mask  epi_base_mask+orig      \
+        -volreg     epi_01_volreg.1D        \
+        -polort     1                       \
+        -prefix     epi_03_volmoco          \
+        -do_clean                           \
+        $physiostr                          \
+        |& tee      log_run_regout_volmoco.txt
 
-    endif
+    # step 1.3 regression: 6 volmopa + PV + physio (if any) for QA later        
+    run_regout_nuisance.tcsh ${do_echo}     \
+        -dset_epi   epi_01_volreg+orig      \
+        -dset_mask  epi_base_mask+orig      \
+        -volreg     epi_01_volreg.1D        \
+        -polort     1                       \
+        -voxreg     epi_02_pvreg+orig       \
+        -prefix     epi_03_volmoco_pvreg    \
+        -do_clean                           \
+        $physiostr                          \
+        |& tee      log_run_regout_volmoco.txt
 
     if ( $status ) then
         goto BAD_EXIT
@@ -630,12 +638,12 @@ if ( -d inplane ) then
     echo "++ If you need to redo slicewise inplane moco, delete inplane directory and re-run it. " |& tee -a ../$histfile
 else
     if ( $volregfirst == 1 ) then
-        echo "++ Run: adjunct_slomoco_slicemoco_xy.tcsh" \
+        echo "++ Run: adjunct_slomoco_slicemoco_xy.tcsh"                \
             |& tee -a ../$histfile
 
         adjunct_slomoco_slicemoco_xy.tcsh  ${do_echo}                   \
            -dset_epi    epi_01_volreg+orig                              \
-           -dset_mask   "${epi_mask}"                                   \
+           -dset_mask   epi_base_mask+orig                              \
            -moco_meth   ${moco_meth}                                    \
            -workdir     inplane                                         \
            -volreg_mat  epi_01_volreg.aff12.1D                          \
@@ -648,7 +656,7 @@ else
             goto BAD_EXIT
         endif
     else
-        echo "++ Run: adjunct_slomoco_vol_slicemoco_xy.tcsh" \
+        echo "++ Run: adjunct_slomoco_vol_slicemoco_xy.tcsh"            \
             |& tee -a ../$histfile
 
         adjunct_slomoco_vol_slicemoco_xy.tcsh  ${do_echo}               \
@@ -673,6 +681,7 @@ if ( $status ) then
     goto BAD_EXIT
 endif
     
+
 # ----- step 3 slicewise out of plane moco
 
 # script for out-of-plane motion correction
@@ -684,7 +693,7 @@ else
 
     adjunct_slomoco_inside_fixed_vol.tcsh  ${do_echo}                       \
         -dset_epi    epi_03_slicemoco_xy+orig                               \
-        -dset_mask   "${epi_mask}"                                          \
+        -dset_mask   epi_base_mask+orig                                     \
         -workdir     outofplane                                             \
         -tfile       tshiftfile.1D                                          \
         |& tee       log_adjunct_slomoco_inside_fixed_vol.txt
@@ -693,6 +702,7 @@ else
         goto BAD_EXIT
     endif
 endif
+
 
 # ----- step 4 generate slicewise 6 rigid motion parameter regressor 
 
@@ -710,7 +720,7 @@ else
         -outdir      outofplane                                             \
         -workdir     combined_slicemopa                                     \
         -tfile       tshiftfile.1D                                          \
-        -prefix      epi_slireg.1D                                          \
+        -prefix      rem.slimopa.1D                                          \
         |& tee       log_adjunct_slomoco_calc_slicemopa.txt
     
     if ( $status ) then
@@ -718,50 +728,33 @@ else
     endif
 endif
 
+
 # -----  step 5 second order regress out
+# regression: 6 volmopa + 6 slimopa + voxel PV + physio (if any)
+echo "++ Run: run_regout_nuisance.tcsh "                            |& tee -a ../$histfile
+echo "   Motion nuisance regressors: 6 vol-/sli-mopa & 1 vox-PV"    |& tee -a ../$histfile
 
-# script for 2nd order regress-out
-if ( $regflag == "MATLAB" ) then
-    # will be removed later
-    echo "++ Run: Nuisance regerssors are regress-out on SLOMOCO images" |& tee -a ../$histfile
-    1dcat epi_polort_xmat.1D > rm_polort.1D
-    1dcat epi_slireg.1D > rm_slireg.1D
+# step 5.1 combine physio 1D with slireg  
+\rm -f rem.slimopa.physio.1D  
+if ( $physiofile == "" ) then
+    cp rem.slimopa.1D rem.slimopa.physio.1D
+else
+    python $SLOMOCO_DIR/combine_physio_slimopa.py   \
+        -slireg rem.slimopa.1D                      \
+        -physio rem.physio.1D                       \
+        -write  rem.slimopa.physio.1D  
+endif
+
+# step 5.2 then run regression
+run_regout_nuisance.tcsh ${do_echo}             \
+    -dset_epi   epi_01_volreg+orig              \
+    -dset_mask  epi_base_mask+orig              \
+    -volreg     epi_01_volreg.1D                \
+    -slireg     rem.slimopa.physio.1D            \
+    -voxreg     epi_02_pvreg+orig               \
+    -prefix     epi_03_slicemoco_xy.slomoco     \
+    -polort     1                    
     
-    matlab -nodesktop -nosplash -r "addpath ${MATLAB_SLOMOCO_DIR}; addpath ${MATLAB_AFNI_DIR}; gen_regout('epi_03_slicemoco_xy+orig','epi_base_mask+orig','physio','physioreg.1D','polort','rm_polort.1D','volreg','epi_01_volreg.1D','slireg','epi_slireg.1D','voxreg','epi_02_pvreg+orig','out','epi_03_slicemoco_xy.slomoco'); exit;" 
-    \rm -f rm_*
-
-else 
-    echo "++ Run: adjunct_slomoco_regout_nuisance.tcsh" |& tee -a ../$histfile
-    echo "Motion nuisance regressors: 6 vol-mopa, 6 sli-mopa & 1 vox-PV" |& tee -a ../$histfile
-
-    if ( "${physiofile}" == "" ) then
-
-        adjunct_slomoco_regout_nuisance.tcsh ${do_echo} \
-            -dset_epi    epi_03_slicemoco_xy+orig       \
-            -dset_mask   epi_base_mask+orig             \
-            -dset_base   epi_base_mean+orig             \
-            -volreg      epi_01_volreg.1D               \
-            -slireg      epi_slireg.1D                  \
-            -voxreg      epi_02_pvreg+orig              \
-            -prefix      epi_03_slicemoco_xy.slomoco    \
-            |& tee       log_adjunct_slomoco_regout_nuisance.txt
-    
-    else
-        echo "Adding physiologic noise regressors" |& tee -a ../$histfile
-        echo " 8 regressors for RETROICOR or 5 regressors for PESTICA" |& tee -a ../$histfile
-
-        adjunct_slomoco_regout_nuisance.tcsh ${do_echo} \
-            -dset_epi    epi_03_slicemoco_xy+orig       \
-            -dset_mask   epi_base_mask+orig             \
-            -dset_base   epi_base_mean+orig             \
-            -volreg      epi_01_volreg.1D               \
-            -slireg      epi_slireg.1D                  \
-            -voxreg      epi_02_pvreg+orig              \
-            -physio      ${physiofile}                  \
-            -prefix      epi_03_slicemoco_xy.slomoco    \
-            |& tee       log_adjunct_slomoco_regout_nuisance.txt
-    
-    endif
 
     if ( $status ) then
         goto BAD_EXIT
@@ -769,33 +762,21 @@ else
     
 endif   
 
+
 # -----  step 6 QA SLOMOCO
-echo "++ Run: QA SLOMOCO, generating estimated in-/out-of-plane motion and motion indices " |& tee -a ../$histfile
-if ( $qaflag == "MATLAB" ) then
-    # will be removed later (W.S)
-    matlab -nodesktop -nosplash -r "addpath ${MATLAB_SLOMOCO_DIR}; addpath ${MATLAB_AFNI_DIR}; qa_slomoco('epi_03_slicemoco_xy+orig','epi_base_mask+orig','epi_01_volreg.1D','epi_slireg.1D'); exit;" 
+echo "++ Run: qa_slomoco.tcsh ++" |& tee -a ../$histfile
+echo "   Generating estimated in-/out-of-plane motion and motion indices" 
+qa_slomoco.tcsh ${do_echo}                              \
+    -dset_volmoco   epi_03_volmoco+orig                 \
+    -dset_slomoco   epi_03_slicemoco_xy.slomoco+orig    \
+    -dset_mask      epi_base_mask+orig                  \
+    -tfile          tshiftfile.1D                       \
+    -volreg1D       epi_01_volreg.1D                    \
+    -slireg1D       rem.slimopa.1D                      \
+    |& tee          log_qa_slomoco.txt
 
-    if ( $status ) then
-        goto BAD_EXIT
-    endif
-else
-    echo "afni version of QA is working in progress" 
-
-    echo "++ Run: qa_slomoco.tcsh ++" |& tee -a ../$histfile
-    echo "   Generating estimated in-/out-of-plane motion and motion indices" 
-    qa_slomoco.tcsh ${do_echo}                              \
-        -dset_volmoco   epi_03_volmoco+orig                 \
-        -dset_slomoco   epi_03_slicemoco_xy.slomoco+orig    \
-        -dset_mask      ${epi_mask}                         \
-        -tfile          tshiftfile.1D                       \
-        -volreg1D       epi_01_volreg.1D                    \
-        -slireg1D       epi_slireg.1D                       \
-        |& tee          log_qa_slomoco.txt
-
-   if ( $status ) then
-       goto BAD_EXIT
-   endif
-
+if ( $status ) then
+    goto BAD_EXIT
 endif  
       
 
@@ -814,10 +795,17 @@ if ( $DO_CLEAN == 1 ) then
     echo "+* Removing several temp files in slomoco working dir: '$wdir'" \
         |& tee -a $histfile
 
-    \rm -rf                         \
-        "${owdir}"/epi_00+orig.*    \
-        "${owdir}"/epi_motsim.*     \
-        "${owdir}"/epi_base_mean.*  
+    \rm -rf                                             \
+        "${owdir}"/epi_00+orig.*                        \
+        "${owdir}"/epi_01_volreg+orig.*                 \
+        "${owdir}"/epi_02_pvreg+orig.*                  \
+        "${owdir}"/epi_03_volmoco+orig.*                \
+        "${owdir}"/epi_03_volmoco_pvreg+orig.*          \
+        "${owdir}"/epi_03_slicemoco_xy+orig.*           \
+        "${owdir}"/epi_03_slicemoco_xy.slomoco+orig.*   \
+        "${owdir}"/epi_motsim*                 \
+        "${owdir}"/epi_base_mean.*              
+        
             
 else
     echo "++ NOT removing temp files in slomoco working dir: '$wdir'" \

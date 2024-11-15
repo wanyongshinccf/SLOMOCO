@@ -8,6 +8,7 @@ set PATH = $PATH:/home/ccf/SLOMOCO  # in your z/csh shell.
 
 # NEW
 PESTICA path should be included for SLOMOCO, and vice versa.
+https://github.com/wanyongshinccf/PESTICA.git
 
 export PATH=$PATH:/home/ccf/PESTICA # in your bash/zsh shell.
 set PATH = $PATH:/home/ccf/PESTICA  # in your z/csh shell.
@@ -19,20 +20,23 @@ Open the terminal and type "afni" in your shell. It should work for SLOMOCO
 SLOMOCO requires python
 Set python path as "python" in your shell environment. 
 
-SLOMOCO requires matlab.
-Set matlab path in your shell environment. 
-Open the terminal and type "matlab" in your shell. It should work for SLOMOCO
-
 If you are running run_slomoco.tcsh in linux or Mac OS, the result might be slightly different.
 DO NOT mix up SLOMOCO results from Linux or Mac OS in your study.
 
 We suggest running PESTICA (or RETROICOR) before SLOMOCO and to add physiologic nuisance
 regressors to SLOMOCO motion nuisance regression model.
-e.g. run_pestica.tcsh 	-dset_epi epi+orig -tfile tshiftfile -prefix epi.pestica \
-						-workdir PESTICA5 -auto
-     run_slomoco.tcsh 	-dset_epi epi+orig -tfile tshiftfile -prefix epi.slomoco \
-     					-physio PESTICA5/RetroTS.PESTICA5.slibase.1D \
-     					-workdir SLOMOCO5 -do_clean
+e.g. run_pestica.tcsh \
+         -dset_epi epi+orig \
+         -tfile tshiftfile.1D \
+         -prefix epi.pestica \
+	 -workdir PESTICA \
+         -auto -do_clean
+     run_slomoco.tcsh 	\
+         -dset_epi epi+orig \
+         -tfile tshiftfile.1D \
+         -prefix epi.slomoco \
+         -physio PESTICA/RetroTS.PESTICA.slibase.1D \
+ 	 -workdir SLOMOCO5 -do_clean
 
 In addition, run_volmoco.tcsh provides voxelwise partial volume (PV) motion nuisance 
 regress-out pipeline (After 3dvolreg, 6 rigid volume motion + PV regress-out)

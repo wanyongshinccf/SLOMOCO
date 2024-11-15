@@ -3,8 +3,14 @@
 To run SLOMOCO, you need to add SLOMOCO path to your PATH in your shell environment.
 If you download a SLOMOCO package in your home directory, e.g. /home/wyshin/SLOMOCO
 
-export PATH=$PATH:/home/wyshin/SLOMOCO # in your bash/zsh shell.
-set PATH = $PATH:/home/wyshin/SLOMOCO  # in your z/csh shell.
+export PATH=$PATH:/home/ccf/SLOMOCO # in your bash/zsh shell.
+set PATH = $PATH:/home/ccf/SLOMOCO  # in your z/csh shell.
+
+# NEW
+PESTICA path should be included for SLOMOCO, and vice versa.
+
+export PATH=$PATH:/home/ccf/PESTICA # in your bash/zsh shell.
+set PATH = $PATH:/home/ccf/PESTICA  # in your z/csh shell.
 
 SLOMOCO requires AFNI
 Set afni path in your shell environment. 

@@ -119,30 +119,37 @@ cat_matvec "${prefix_vr}".aff12.1D -I > "${prefix_vr}"_INV.aff12.1D
 # concatenate images
 echo "++ Generating MotSim dataset; running 3dcalc; no msg ++"
 set tdim = `3dnvals ${epi}`
-set t = 0
-while ( $t < $tdim ) 
-  set tttt   = `printf "%04d" $t`
-  3dcalc -a epi_base_mean+orig 				\
-        -expr 'a'              				\
-        -prefix ___temp_static.${tttt}.nii >& /dev/null
-  3dcalc -a ${epi_mask}						\
-        -expr 'a'              				\
-        -prefix ___temp_mask.${tttt}.nii >& /dev/null
-  @ t++ 
-end
+# set t = 0
+# while ( $t < $tdim ) 
+#  set tttt   = `printf "%04d" $t`
+#  3dcalc -a epi_base_mean+orig 				\
+#        -expr 'a'              				\
+#        -prefix ___temp_static.${tttt}.nii >& /dev/null
+#  3dcalc -a ${epi_mask}						\
+#        -expr 'a'              				\
+#        -prefix ___temp_mask.${tttt}.nii >& /dev/null
+#  @ t++ 
+# end
 
-# concatenate mask and static image
-3dTcat -prefix ___temp_mask.nii   ___temp_mask.????.nii   
-3dTcat -prefix ___temp_static.nii ___temp_static.????.nii  
+# # concatenate mask and static image
+# 3dTcat -prefix ___temp_mask.nii   ___temp_mask.????.nii   
+# 3dTcat -prefix ___temp_static.nii ___temp_static.????.nii  
 
 # clean up
-\rm -f ___temp_static.????.nii ___temp_mask.????.nii 
+# \rm -f ___temp_static.????.nii ___temp_mask.????.nii 
+
+# Make 1D file of $tdim zeros for indexing (A.N)
+echo $tdim
+seq 1 ${tdim} | xargs -I {} echo 0 > __idx.1D
+3dTcat -prefix ___temp_static.nii  epi_base_mean+orig'[1dcat __idx.1D]'
+3dTcat -prefix ___temp_mask.nii    ${epi_mask}'[1dcat __idx.1D]'
+\rm -f __idx.1D
 
 # inject inverse volume motion on static images
 3dAllineate                                   \
-  -prefix ___temp_mask4d.nii                 \
+  -prefix epi_motsim_mask4d                   \
   -1Dmatrix_apply "${prefix_vr}"_INV.aff12.1D \
-  -source ___temp_mask.nii                   \
+  -source ___temp_mask.nii                    \
   -final NN                                   \
   -overwrite
 3dAllineate                                   \
@@ -159,12 +166,12 @@ end
   -final cubic                                \
   -overwrite
 
-# mask 
-3dcalc -a ___temp_mask4d.nii         \
-       -expr 'step(a)'               \
-       -prefix epi_motsim_mask4d     \
-       -nscale                       \
-       -overwrite
+# mask (A.N) 
+# 3dcalc -a ___temp_mask4d.nii         \
+#        -expr 'step(a)'               \
+#        -prefix epi_motsim_mask4d     \
+#        -nscale                       \
+#       -overwrite
 
 # normalize vol pv regressor  
 3dTstat -mean  -prefix ___temp_vol_pvreg_mean.nii ___temp_vol_pvreg.nii 
@@ -176,7 +183,7 @@ end
        -expr 'step(b)*step(c)*(d-a)/b' \
        -prefix "${prefix_pv}"          \
        -overwrite
-\rm -f ___temp* 
+# \rm -f ___temp* 
 
 # copy header
 3drefit -saveatr -atrcopy ${epi} TAXIS_NUMS   "${prefix_vr}"+orig 

@@ -19,8 +19,8 @@ else:
     physiofn = in_arr[in_arr.index('-physio') + 1]
     ofile    = in_arr[in_arr.index('-write') + 1]
 
-#slimot = np.loadtxt('epi_slireg_zp.1D')
-#physio = np.loadtxt('RetroTSPESTICA.1D')
+#slimot = np.loadtxt('slireg_zp.1D')
+#physio = np.loadtxt('physioreg.1D')
 # exclude_slices = np.loadtxt('inplane/slice_excluded.txt')
 
 slimot = np.loadtxt(slimotfn)
@@ -34,13 +34,13 @@ dims = np.shape(physio)
 tdim_p = int(dims[0])
 regnum_physio = int(dims[1]/zdim)
 
-if  tdim_p != tdim_s :
-	retrun 'error: physio and slimopa do not have the same time points')
+if   tdim_p != tdim_s  :
+	print('error: physio and slimopa do not have the same time points')
 	
-print(f'Number of physio regressors is {regnum_physio}')
+print('Number of physio regressors is {regnum_physio}')
 
 # add physio to slimot
-slireg_all = np.array((tdim_p,zdim*(6+regnum_physio)))
+slireg_all = np.zeros((tdim_p,zdim*(6+regnum_physio)))
 
 for z in range(0, zdim, 1) :
 	#print(f'slice number is {num}')

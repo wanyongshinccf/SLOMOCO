@@ -136,7 +136,7 @@ set tdim = `3dnvals ${epi}`
 # 3dTcat -prefix ___temp_static.nii ___temp_static.????.nii  
 
 # clean up
-# \rm -f ___temp_static.????.nii ___temp_mask.????.nii 
+\rm -f ___temp_static.nii ___temp_mask.nii 
 
 # Make 1D file of $tdim zeros for indexing (A.N)
 echo $tdim
@@ -174,16 +174,27 @@ seq 1 ${tdim} | xargs -I {} echo 0 > __idx.1D
 #       -overwrite
 
 # normalize vol pv regressor  
-3dTstat -mean  -prefix ___temp_vol_pvreg_mean.nii ___temp_vol_pvreg.nii 
-3dTstat -stdev -prefix ___temp_vol_pvreg_std.nii  ___temp_vol_pvreg.nii  
-3dcalc -a ___temp_vol_pvreg_mean.nii   \
-       -b ___temp_vol_pvreg_std.nii    \
-       -c ___temp_mask.nii             \
-       -d ___temp_vol_pvreg.nii        \
-       -expr 'step(b)*step(c)*(d-a)/b' \
-       -prefix "${prefix_pv}"          \
-       -overwrite
-# \rm -f ___temp* 
+3dTstat                                 \
+    -mean                               \
+    -prefix ___temp_vol_pvreg_mean.nii  \
+    ___temp_vol_pvreg.nii               \
+    -overwrite
+
+3dTstat                                 \
+    -stdev                              \
+    -prefix ___temp_vol_pvreg_std.nii   \
+    ___temp_vol_pvreg.nii               \
+    -overwrite
+
+3dcalc                              \
+    -a ___temp_vol_pvreg_mean.nii   \
+    -b ___temp_vol_pvreg_std.nii    \
+    -c ___temp_mask.nii             \
+    -d ___temp_vol_pvreg.nii        \
+    -expr 'step(b)*step(c)*(d-a)/b' \
+    -prefix "${prefix_pv}"          \
+    -overwrite
+\rm -f ___temp* 
 
 # copy header
 3drefit -saveatr -atrcopy ${epi} TAXIS_NUMS   "${prefix_vr}"+orig 

@@ -1,4 +1,5 @@
 import sys
+import os
 import numpy as np
 import scipy.interpolate as sp
 import matplotlib.pyplot as plt
@@ -16,16 +17,15 @@ elif '-sli' not in in_arr:
 elif '-acq' not in in_arr:
     print (__doc__)
     raise NameError('error: -acq options are not provided')
-elif '-exc' not in in_arr:
-    print (__doc__)
-    raise NameError('error: -exc options are not provided')
-elif '-exc' not in in_arr:
-    print (__doc__)
-    raise NameError('error: -exc options are not provided')
 else:
     volmotfn = in_arr[in_arr.index('-vol') + 1]
     slimotfn = in_arr[in_arr.index('-sli') + 1]
     acqodrfn = in_arr[in_arr.index('-acq') + 1]
+
+if '-exc' not in in_arr  not in in_arr:
+    print('Note that the excluded slice is not provided')
+    excslifn = ""     
+else :
     excslifn = in_arr[in_arr.index('-exc') + 1]
 
 # python script.py -i1 Input1 -i2 Input2
@@ -37,7 +37,12 @@ else:
 volmot = np.loadtxt(volmotfn)
 slimot = np.loadtxt(slimotfn)
 acqodr = np.loadtxt(acqodrfn)
-excsli = np.loadtxt(excslifn)
+
+if os.path.isfile(excslifn) :
+    print('reading too-zero-ish slices')
+    excsli = np.loadtxt(excslifn)
+else :
+    excsli = []
 
 dims = np.shape(volmot)
 tdim = int(dims[0])

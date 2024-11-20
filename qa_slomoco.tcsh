@@ -204,11 +204,20 @@ setenv AFNI_1D_TIME YES
 
 # combine slimot to volmot
 # output is volslimot_py.txt & volslimot_py_fit.txt
+if ( -f inplane/slice_excluded.txt ) then
+    echo "++ Too zero-ish slice(s) is(are) excluded."
+    set excstr = "-exc inplane/slice_excluded.txt " 
+else
+    echo "++ Excluded slice(s) is(are) not provided."
+    set excstr = ""
+endif
+
+echo "++ Combining slimot with volmot "
 python $SLOMOCO_DIR/combine_slimot_volmot.py \
     -vol $volreg1D                           \
     -sli $slireg1D                           \
     -acq sliacqorder.1D                      \
-    -exc inplane/slice_excluded.txt
+    $excstr
 
 # calculate SSD of VOLMOCO
 3dTstat                     \
@@ -253,18 +262,22 @@ python $SLOMOCO_DIR/combine_slimot_volmot.py \
 \rm -f rm.*
 
 # calculate FD, output will be FDJ.txt, FDP.txt with a length of total volume - 1
+echo "++ Calculating FD "
 python $SLOMOCO_DIR/calc_FD.py \
     -vol epi_01_volreg.1D 
 
 # Test purpse. It does not work well. commented out
+echo "++ Calculating intra-volume FD "
 python $SLOMOCO_DIR/calc_iFD.py \
     -sli  slimot_py_fit.txt    \
     -tdim ${tdim}
 
+echo "++ Calculating intra-volume TD "
 python $SLOMOCO_DIR/calc_iTD.py \
     -sli  slimot_py_fit.txt    \
     -tdim ${tdim}
 
+echo "++ Generating QA plots "
 python $SLOMOCO_DIR/disp_QAplot.py  \
     -ssdvol SSD.volmoco.1D          \
     -ssdsli SSD.slomoco.1D          \

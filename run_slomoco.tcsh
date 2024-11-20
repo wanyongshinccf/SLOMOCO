@@ -547,10 +547,19 @@ if ( "$jsonfile" != "" && "$tfile" != "")  then
     goto BAD_EXIT
 else if ( "$jsonfile" != "")  then
     abids_json_info.py -json $jsonfile -field SliceTiming | sed "s/[][]//g" \
-        | sed "s/,//g" | xargs printf "%s\n" > ${owdir}/tshiftfile.1D
+        | sed "s/,//g" | xargs printf "%s\n" > ${owdir}/__tshiftfile.1D
 else if ( "$tfile" != "")  then
-    \cp $tfile ${owdir}/tshiftfile.1D
+    \cp $tfile ${owdir}/__tshiftfile.1D
 endif
+
+# replace colomn vector to row vector
+set dims = `1d_tools.py -infile  ${owdir}/__tshiftfile.1D -show_rows_cols -verb 0`
+if ${dims[1] == 1} then
+    1dcat ${owdir}/__tshiftfile.1D > ${owdir}/tshiftfile.1D
+else
+    1dtranspose ${owdir}/__tshiftfile.1D > ${owdir}/tshiftfile.1D -overwrite
+endif
+\rm -f ${owdir}/__tshiftfile.1D
 
 # ----- moco method has allowed value
 

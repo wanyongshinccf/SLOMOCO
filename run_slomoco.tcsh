@@ -553,8 +553,8 @@ else if ( "$tfile" != "")  then
 endif
 
 # replace colomn vector to row vector
-set dims = `1d_tools.py -infile  ${owdir}/__tshiftfile.1D -show_rows_cols -verb 0`
-if ${dims[1] == 1} then
+set dims = `1d_tool.py -infile  ${owdir}/__tshiftfile.1D -show_rows_cols -verb 0`
+if ( ${dims[1]} == 1 ) then
     1dcat ${owdir}/__tshiftfile.1D > ${owdir}/tshiftfile.1D
 else
     1dtranspose ${owdir}/__tshiftfile.1D > ${owdir}/tshiftfile.1D -overwrite

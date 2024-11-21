@@ -23,8 +23,7 @@ else:
     acqodrfn = in_arr[in_arr.index('-acq') + 1]
 
 if '-exc' not in in_arr  not in in_arr:
-    print('Note that the excluded slice is not provided')
-    excslifn = ""     
+    excslifn = []     
 else :
     excslifn = in_arr[in_arr.index('-exc') + 1]
 
@@ -39,7 +38,7 @@ slimot = np.loadtxt(slimotfn)
 acqodr = np.loadtxt(acqodrfn)
 
 if os.path.isfile(excslifn) :
-    print('reading too-zero-ish slices')
+    print('++ Reading too-zero-ish slices')
     excsli = np.loadtxt(excslifn)
 else :
     excsli = []

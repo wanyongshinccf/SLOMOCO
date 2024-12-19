@@ -29,6 +29,10 @@
 # + add AFNI version of the part of QA (still running matlab) 
 # + 3dvolreg output with 6 mopa + PV regressors 
 #
+set version  = "0.8";    set rev_dat   = "Dec 18, 2024"
+#
+# + debugging a log file issue
+#
 # ----------------------------------------------------------------
 
 # -------------------- set environment vars -----------------------
@@ -44,10 +48,9 @@ set AFNI_MIN_VNUM = "AFNI_24.2.02"
 # ----------------------- set defaults --------------------------
 
 set this_prog = "run_slomoco"
-set here      = $PWD
 
 set prefix    = ""
-set odir      = $here
+set odir      = ""
 set opref     = ""
 set wdir      = ""
 
@@ -789,15 +792,11 @@ if ( $status ) then
 endif  
       
 
-# move out of wdir to the odir
-cd ..
-set whereout = `pwd`
-
 # copy the final result
 3dcalc                                              \
     -a "${owdir}"/epi_03_slicemoco_xy.slomoco+orig  \
     -expr 'a'                                       \
-    -prefix "${prefix}"                             \
+    -prefix "${odir}/${opref}"                      \
     -overwrite
 
 if ( $DO_CLEAN == 1 ) then
@@ -823,7 +822,6 @@ endif
 
 echo "" 
 echo "++ DONE.  View the finished, axialized product:" |& tee -a $histfile
-echo "     $whereout" 
 echo "" 
 
 goto GOOD_EXIT

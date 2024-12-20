@@ -780,7 +780,7 @@ qa_slomoco.tcsh ${do_echo}                              \
     -dset_mask      epi_base_mask+orig                  \
     -tfile          tshiftfile.1D                       \
     -volreg1D       epi_01_volreg.1D                    \
-    -slireg1D       rm.slimopa.physio.1D                \
+    -slireg1D       rm.slimopa.1D                       \
     |& tee          log_qa_slomoco.txt
 
 if ( $status ) then

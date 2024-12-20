@@ -139,6 +139,3 @@ np.savetxt('volslimot_py.txt',volslimot)
 np.savetxt('volslimot_py_fit.txt',volslimot_fit)
 np.savetxt('slimot_py.txt',slimot)	
 np.savetxt('slimot_py_fit.txt',slimot_fit)	
-
-print('finished')
-

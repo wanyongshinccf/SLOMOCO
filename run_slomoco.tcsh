@@ -30,7 +30,6 @@
 # + 3dvolreg output with 6 mopa + PV regressors 
 #
 set version  = "0.8";    set rev_dat   = "Dec 18, 2024"
-#
 # + debugging a log file issue
 #
 # ----------------------------------------------------------------
@@ -50,7 +49,7 @@ set AFNI_MIN_VNUM = "AFNI_24.2.02"
 set this_prog = "run_slomoco"
 
 set prefix    = ""
-set odir      = ""
+set odir      = $PWD
 set opref     = ""
 set wdir      = ""
 
@@ -109,6 +108,7 @@ while ( $ac <= $#argv )
         set prefix = "$argv[$ac]"
         set opref  = `basename "$argv[$ac]"`
         set odir   = `dirname  "$argv[$ac]"`
+        set odir   = `realpath $odir`
 
     # --------- required either of tfile or json option
     else if ( "$argv[$ac]" == "-tfile" ) then
@@ -228,12 +228,12 @@ if ( ${AFNI_IS_OLD} ) then
         else 
 	    if ( ${os} == "darwin"  ) then
                 if ( "$moco_meth" == "W" ) then
-                    echo "** ERROR: SLOMOCO (with old AFNI) is running with -moco_meth W on macOS" |& tee -a $histfile
+                    echo "** ERROR: SLOMOCO (with old AFNI) is running with -moco_meth W on macOS" |& tee -a $odir/$histfile
                     echo "   Either update your AFNI version (**strongly recommended**),"
                     echo "   or add opt '-moco_meth A' and '-volreg_first' "
                     goto BAD_EXIT
 		else
-		    echo "** Warning: SLOMOCO (with old AFNI) is running with -moco_meth A on macOS" |& tee -a $histfile
+		    echo "** Warning: SLOMOCO (with old AFNI) is running with -moco_meth A on macOS" |& tee -a $odir/$histfile
         	    if ( "$volregfirst" == "0" ) then
 		        echo "   Update your AFNI version (**strongly recommended**)"
                         echo "   or '-volreg_first' "
@@ -257,24 +257,24 @@ setenv AFNI_SLOMOCO_DIR    $SLOMOCO_DIR/afni_linux
 setenv MATLAB_AFNI_DIR     $SLOMOCO_DIR/afni_matlab
 
 # initialize a log file
-echo "" >> $histfile
-echo $fullcommand $fullcommandlines >> $histfile
-date >> $histfile
-echo "" >> $histfile
+echo ""                             >> $odir/$histfile
+echo $fullcommand $fullcommandlines >> $odir/$histfile
+date                                >> $odir/$histfile
+echo ""                             >> $odir/$histfile
 
 if  ( $volregfirst == "1" ) then
-    echo "+* WARNING: You select running SLOMOCO on volume motion corrected images" |& tee -a $histfile
-    echo "+* SLOMOCO is recommended to be used on non-volume motion corrected images" |& tee -a $histfile
-    echo "+* You should know what you are doing. I warn you." |& tee -a $histfile
+    echo "+* WARNING: You select running SLOMOCO on volume motion corrected images"     |& tee -a $odir/$histfile
+    echo "+* SLOMOCO is recommended to be used on non-volume motion corrected images"   |& tee -a $odir/$histfile
+    echo "+* You should know what you are doing. I warn you."                           |& tee -a $odir/$histfile
 else
-    echo "++ MotSim data is used for the reference image of SLOMOCO" |& tee -a $histfile 
-    echo "++ SLOMOCO is running on non-volume motion corrected images"  |& tee -a $histfile
+    echo "++ MotSim data is used for the reference image of SLOMOCO"                    |& tee -a $odir/$histfile 
+    echo "++ SLOMOCO is running on non-volume motion corrected images"                  |& tee -a $odir/$histfile
 endif
     
 if  ( $moco_meth == "A"  ) then 
-    echo "+* WARNING: 3dAllineate is used for slicewise motion correction" |& tee -a $histfile
-    echo "+* Our empirical result shows 3dWarpDrive performs better than 3dAllineate." |& tee -a $histfile
-    echo "+* You should know what you are doing. I warn you." |& tee -a $histfile
+    echo "+* WARNING: 3dAllineate is used for slicewise motion correction"              |& tee -a $odir/$histfile
+    echo "+* Our empirical result shows 3dWarpDrive performs better than 3dAllineate."  |& tee -a $odir/$histfile
+    echo "+* You should know what you are doing. I warn you."                           |& tee -a $odir/$histfile
 endif     
 
 
@@ -296,13 +296,13 @@ endif
 echo "++ Work on output naming"
 
 if ( "${prefix}" == "" ) then
-    echo "** ERROR: need to provide output name with '-prefix ..'" |& tee -a $histfile
+    echo "** ERROR: need to provide output name with '-prefix ..'"  |& tee -a $odir/$histfile
     goto BAD_EXIT
 endif
 
 # check output directory, use input one if nothing given
 if ( ! -e "${odir}" ) then
-    echo "++ Making new output directory: $odir" |& tee -a $histfile
+    echo "++ Making new output directory: $odir"                    |& tee -a $odir/$histfile
     \mkdir -p "${odir}"
 endif
 
@@ -317,24 +317,24 @@ set owdir = "${odir}/${wdir}"
 
 # make the working directory
 if ( ! -e "${owdir}" ) then
-    echo "++ Making working directory: ${owdir}" |& tee -a $histfile
+    echo "++ Making working directory: ${owdir}"                    |& tee -a $odir/$histfile
     \mkdir -p "${owdir}"
 else
-    echo "+* WARNING:  Somehow found a premade working directory:" |& tee -a $histfile
+    echo "+* WARNING:  Somehow found a premade working directory:"  |& tee -a $odir/$histfile
     echo "      ${owdir}"
 endif
 
 # find slice acquisition timing
 if ( "${jsonfile}" == "" && "${tfile}" == "" ) then
-    echo "** ERROR: slice acquisition timing info should be given with -json or -tfile option" |& tee -a $histfile
+    echo "** ERROR: slice acquisition timing info should be given with -json or -tfile option" |& tee -a $odir/$histfile
     goto BAD_EXIT
 else
     if ( ! -e "${jsonfile}" && "${jsonfile}" != "" ) then
-        echo "** ERROR: Json file does not exist" |& tee -a $histfile
+        echo "** ERROR: Json file does not exist"                   |& tee -a $odir/$histfile
         goto BAD_EXIT
     endif
     if ( ! -e "${tfile}" && "${tfile}" != "" ) then
-        echo "** ERROR: tshift file does not exist" |& tee -a $histfile
+        echo "** ERROR: tshift file does not exist"                 |& tee -a $odir/$histfile
         goto BAD_EXIT
     endif
 endif
@@ -342,22 +342,20 @@ endif
 # ----- find required dsets, and any properties
 
 if ( "${epi}" == "" ) then
-    echo "** ERROR: need to provide EPI dataset with '-dset_epi ..'" \
-        |& tee -a $histfile
+    echo "** ERROR: need to provide EPI dataset with -dset_epi "    |& tee -a $odir/$histfile
     goto BAD_EXIT
 else
     # verify dset is OK to read
     3dinfo "${epi}"  >& /dev/null
     if ( ${status} ) then
-        echo "** ERROR: cannot read/open dset: ${epi}" |& tee -a $histfile
+        echo "** ERROR: cannot read/open dset: ${epi} "             |& tee -a $odir/$histfile
         goto BAD_EXIT
     endif
 
     # must have +orig space for input EPI
     set av_space = `3dinfo -av_space "${epi}" `
     if ( "${av_space}" != "+orig" ) then
-        echo "** ERROR: input EPI must have +orig av_space, not: ${av_space}" \
-            |& tee -a $histfile
+        echo "** ERROR: input EPI must have +orig av_space, not: ${av_space}" |& tee -a $odir/$histfile
         goto BAD_EXIT
     endif
 
@@ -381,8 +379,7 @@ if ( "${vr_base}" == "MIN_OUTLIER" ) then
 
     # get TR index for minimum outlier volume
     set vr_idx = `3dTstat -argmin -prefix - "${owdir}"/outcount_rall.1D\'`
-    echo "++ MIN_OUTLIER vr_idx : $vr_idx" \
-        | tee "${owdir}/out.min_outlier.txt"
+    echo "++ MIN_OUTLIER vr_idx : $vr_idx"              | tee "${owdir}/out.min_outlier.txt"
 
 else if ( "${vr_base}" == "MIN_ENORM" ) then
 
@@ -419,16 +416,16 @@ else
     
     if ( `echo "${vr_base} > ${max_idx}" | bc` || \
          `echo "${vr_base} < 0" | bc` ) then
-        echo "** ERROR: allowed volreg_base range is : [0, ${max_idx}]" |& tee -a $histfile
-        echo "   but the user's value is outside this: ${vr_base}" |& tee -a $histfile
-        echo "   Consider using (default, and keyword opt): MIN_OUTLIER" |& tee -a $histfile
+        echo "** ERROR: allowed volreg_base range is : [0, ${max_idx}]"     |& tee -a $odir/$histfile
+        echo "   but the user's value is outside this: ${vr_base}"          |& tee -a $odir/$histfile
+        echo "   Consider using (default, and keyword opt): MIN_OUTLIER"    |& tee -a $odir/$histfile
         goto BAD_EXIT
     endif
 
     # just use that number
     set vr_idx = "${vr_base}"
 endif
-echo "   $vr_idx volume will be the reference volume" |& tee -a $histfile
+echo "   $vr_idx volume will be the reference volume"                       |& tee -a $odir/$histfile
 
 # save reference volume
 3dcalc -a "${epi}[$vr_idx]"            \
@@ -481,7 +478,7 @@ echo "   $vr_idx volume will be the reference volume" |& tee -a $histfile
 # ----- make automask, if one is not provided
 
 if ( "${epi_mask}" == "" ) then
-    echo "++ No mask provided, will make one" |& tee -a $histfile
+    echo "++ No mask provided, will make one" |& tee -a $odir/$histfile
 
     # remove skull (PT: could use 3dAutomask)
     3dSkullStrip                               \
@@ -509,11 +506,11 @@ if ( "${epi_mask}" == "" ) then
     \rm -f ${owdir}/___tmp*nii
 else
     echo "** Note that reference volume is selected $vr_idx volume of input **" \
-        |& tee -a $histfile
+        |& tee -a $odir/$histfile
     echo "** IF input mask is not generated from $vr_idx volume, " \
-        |& tee -a $histfile
+        |& tee -a $odir/$histfile
     echo "** SLOMOCO might underperform. " \
-        |& tee -a $histfile
+        |& tee -a $odir/$histfile
 
     3dcalc -a       "${epi_mask}"               \
            -expr    'step(a)'                   \
@@ -527,18 +524,18 @@ endif
 
 if ( "${physiofile}" != "" ) then
     if ( ! -e "${physiofile}" ) then 
-        echo "** ERROR: cannot find ${physiofile} " |& tee -a $histfile
+        echo "** ERROR: cannot find ${physiofile} " |& tee -a $odir/$histfile
         goto BAD_EXIT
     else
-        1dcat $physiofile  > ${owdir}/rem.physio.1D 
+        1dcat $physiofile  > ${owdir}/rm.physio.1D 
         echo "++ Physiologic nuisance regressor will be included: ${physiofile} " \
-            |& tee -a $histfile
+            |& tee -a $odir/$histfile
     endif
 else
     echo "++ Physiologic nuisnance regressor will NOT be includled. " \
-        |& tee -a $histfile
+        |& tee -a $odir/$histfile
     
-    \rm -f ${owdir}/rem.physio.1D 
+    \rm -f ${owdir}/rm.physio.1D 
 
 endif
 
@@ -546,7 +543,7 @@ endif
 # ----- slice timing file info
 if ( "$jsonfile" != "" && "$tfile" != "")  then
     echo " ** ERROR:  Both jsonfile and tfile options should not be used." \
-        |& tee -a $histfile
+        |& tee -a $odir/$histfile
     goto BAD_EXIT
 else if ( "$jsonfile" != "")  then
     abids_json_info.py -json $jsonfile -field SliceTiming | sed "s/[][]//g" \
@@ -569,8 +566,8 @@ endif
 # value can only be one of a short list
 if ( ${moco_meth} != "A" && ${moco_meth} != "W" ) then
     echo "** ERROR: bad moco method selected; must be one of: A, W." \
-        |& tee -a $histfile
-    echo "   User provided: '${moco_meth}'" |& tee -a $histfile
+        |& tee -a $odir/$histfile
+    echo "   User provided: '${moco_meth}'" |& tee -a $odir/$histfile
     goto BAD_EXIT
 endif
 
@@ -585,18 +582,18 @@ cd "${owdir}"
 if ( "${physiofile}" == "" ) then
     set physiostr = "" 
 else
-    set physiostr = "-slireg rem.physio.1D "
+    set physiostr = "-slireg rm.physio.1D "
 endif
 
 # ----- step 1 voxelwise time-series PV regressor & volmoco
 # volreg output is also generated.
 if ( -f epi_02_pvreg+orig.HEAD ) then
-    echo "++ Skip: gen_vol_pvreg.tcsh. epi_02_pvreg+orig.HEAD exists. " |& tee -a ../$histfile
-    echo "++ If you need to regenerate PV regressor, "                  |& tee -a ../$histfile
-    echo "++   delete epi_02_pvreg+orig.HEAD/BRIK and re-run it. "      |& tee -a ../$histfile
+    echo "++ Skip: gen_vol_pvreg.tcsh. epi_02_pvreg+orig.HEAD exists. " |& tee -a $odir/$histfile
+    echo "++ If you need to regenerate PV regressor, "                  |& tee -a $odir/$histfile
+    echo "++   delete epi_02_pvreg+orig.HEAD/BRIK and re-run it. "      |& tee -a $odir/$histfile
 
 else
-    echo "++ Run: gen_vol_pvreg.tcsh"                                   |& tee -a ../$histfile
+    echo "++ Run: gen_vol_pvreg.tcsh"                                   |& tee -a $odir/$histfile
     
     # ----- step 1.1 voxelwise time-series PV regressor
     # volreg output is also generated.
@@ -643,15 +640,15 @@ endif
 
 if ( -d inplane ) then
     if ( $volregfirst == 1 ) then
-        echo "++ Skip: adjunct_slomoco_slicemoco_xy.tcsh. inplane directory exists. " |& tee -a ../$histfile
+        echo "++ Skip: adjunct_slomoco_slicemoco_xy.tcsh. inplane directory exists. "               |& tee -a $odir/$histfile
     else
-        echo "++ Skip: adjunct_slomoco_vol_slicemoco_xy.tcsh. inplane directory exists. " |& tee -a ../$histfile
+        echo "++ Skip: adjunct_slomoco_vol_slicemoco_xy.tcsh. inplane directory exists. "           |& tee -a $odir/$histfile
     endif
-    echo "++ If you need to redo slicewise inplane moco, delete inplane directory and re-run it. " |& tee -a ../$histfile
+    echo "++ If you need to redo slicewise inplane moco, delete inplane directory and re-run it. "  |& tee -a $odir/$histfile
 else
     if ( $volregfirst == 1 ) then
         echo "++ Run: adjunct_slomoco_slicemoco_xy.tcsh"                \
-            |& tee -a ../$histfile
+            |& tee -a $odir/$histfile
 
         adjunct_slomoco_slicemoco_xy.tcsh  ${do_echo}                   \
            -dset_epi    epi_01_volreg+orig                              \
@@ -669,7 +666,7 @@ else
         endif
     else
         echo "++ Run: adjunct_slomoco_vol_slicemoco_xy.tcsh"            \
-            |& tee -a ../$histfile
+            |& tee -a $odir/$histfile
 
         adjunct_slomoco_vol_slicemoco_xy.tcsh  ${do_echo}               \
            -dset_epi    epi_00+orig                                     \
@@ -698,10 +695,10 @@ endif
 
 # script for out-of-plane motion correction
 if ( -d outofplane ) then
-    echo "++ Skip: adjunct_slomoco_inside_fixed_vol.tcsh. outofplane directory exists. " |& tee -a ../$histfile
-    echo "++ If you need to redo slicewise out-of-plane moco, delete outofplane directory and re-run it. " |& tee -a ../$histfile
+    echo "++ Skip: adjunct_slomoco_inside_fixed_vol.tcsh. outofplane directory exists. " |& tee -a $odir/$histfile
+    echo "++ If you need to redo slicewise out-of-plane moco, delete outofplane directory and re-run it. " |& tee -a $odir/$histfile
 else
-    echo "++ Run: adjunct_slomoco_inside_fixed_vol.tcsh" |& tee -a ../$histfile
+    echo "++ Run: adjunct_slomoco_inside_fixed_vol.tcsh" |& tee -a $odir/$histfile
 
     adjunct_slomoco_inside_fixed_vol.tcsh  ${do_echo}                       \
         -dset_epi    epi_03_slicemoco_xy+orig                               \
@@ -719,12 +716,12 @@ endif
 # ----- step 4 generate slicewise 6 rigid motion parameter regressor 
 
 # script for slice mopa nuisance regressor
-if ( -d combined_slicemopa ) then
-    echo "++ Skip: adjunct_slomoco_calc_slicemopa.tcsh. combined_slicemopa directory exists. " |& tee -a ../$histfile
-    echo "++ If you need to redo in and out-of-plane motion parameter calculation, " |& tee -a ../$histfile
-    echo "++   delete combined_slicemopa directory and re-run it. " |& tee -a ../$histfile
-else
-    echo "++ Run: adjunct_slomoco_calc_slicemopa.tcsh" |& tee -a ../$histfile
+#if ( -d combined_slicemopa ) then
+#    echo "++ Skip: adjunct_slomoco_calc_slicemopa.tcsh. combined_slicemopa directory exists. " |& tee -a $odir/$histfile
+#    echo "++ If you need to redo in and out-of-plane motion parameter calculation, " |& tee -a $odir/$histfile
+#    echo "++   delete combined_slicemopa directory and re-run it. " |& tee -a $odir/$histfile
+#else
+    echo "++ Run: adjunct_slomoco_calc_slicemopa.tcsh" |& tee -a $odir/$histfile
     
     adjunct_slomoco_calc_slicemopa.tcsh ${do_echo}                          \
         -dset_epi    epi_03_slicemoco_xy+orig                               \
@@ -732,29 +729,29 @@ else
         -outdir      outofplane                                             \
         -workdir     combined_slicemopa                                     \
         -tfile       tshiftfile.1D                                          \
-        -prefix      rem.slimopa.1D                                          \
+        -prefix      rm.slimopa.1D                                          \
         |& tee       log_adjunct_slomoco_calc_slicemopa.txt
     
     if ( $status ) then
         goto BAD_EXIT
     endif
-endif
+#endif
 
 
 # -----  step 5 second order regress out
 # regression: 6 volmopa + 6 slimopa + voxel PV + physio (if any)
-echo "++ Run: run_regout_nuisance.tcsh "                            |& tee -a ../$histfile
-echo "   Motion nuisance regressors: 6 vol-/sli-mopa & 1 vox-PV"    |& tee -a ../$histfile
+echo "++ Run: run_regout_nuisance.tcsh "                            |& tee -a $odir/$histfile
+echo "   Motion nuisance regressors: 6 vol-/sli-mopa & 1 vox-PV"    |& tee -a $odir/$histfile
 
 # step 5.1 combine physio 1D with slireg  
-\rm -f rem.slimopa.physio.1D  
+\rm -f rm.slimopa.physio.1D  
 if ( $physiofile == "" ) then
-    cp rem.slimopa.1D rem.slimopa.physio.1D
+    cp rm.slimopa.1D rm.slimopa.physio.1D
 else
     python $SLOMOCO_DIR/combine_physio_slimopa.py   \
-        -slireg rem.slimopa.1D                      \
-        -physio rem.physio.1D                       \
-        -write  rem.slimopa.physio.1D  
+        -slireg rm.slimopa.1D                      \
+        -physio rm.physio.1D                       \
+        -write  rm.slimopa.physio.1D  
 endif
 
 # step 5.2 then run regression
@@ -762,12 +759,11 @@ run_regout_nuisance.tcsh ${do_echo}             \
     -dset_epi   epi_01_volreg+orig              \
     -dset_mask  epi_base_mask+orig              \
     -volreg     epi_01_volreg.1D                \
-    -slireg     rem.slimopa.physio.1D            \
+    -slireg     rm.slimopa.physio.1D            \
     -voxreg     epi_02_pvreg+orig               \
     -prefix     epi_03_slicemoco_xy.slomoco     \
     -polort     1                    
     
-
     if ( $status ) then
         goto BAD_EXIT
     endif
@@ -776,7 +772,7 @@ endif
 
 
 # -----  step 6 QA SLOMOCO
-echo "++ Run: qa_slomoco.tcsh ++" |& tee -a ../$histfile
+echo "++ Run: qa_slomoco.tcsh ++" |& tee -a $odir/$histfile
 echo "   Generating estimated in-/out-of-plane motion and motion indices" 
 qa_slomoco.tcsh ${do_echo}                              \
     -dset_volmoco   epi_03_volmoco+orig                 \
@@ -784,7 +780,7 @@ qa_slomoco.tcsh ${do_echo}                              \
     -dset_mask      epi_base_mask+orig                  \
     -tfile          tshiftfile.1D                       \
     -volreg1D       epi_01_volreg.1D                    \
-    -slireg1D       rem.slimopa.1D                      \
+    -slireg1D       rm.slimopa.physio.1D                \
     |& tee          log_qa_slomoco.txt
 
 if ( $status ) then
@@ -801,7 +797,7 @@ endif
 
 if ( $DO_CLEAN == 1 ) then
     echo "+* Removing several temp files in slomoco working dir: '$wdir'" \
-        |& tee -a $histfile
+        |& tee -a $odir/$histfile
 
     \rm -rf                                             \
         "${owdir}"/epi_00+orig.*                        \
@@ -817,11 +813,11 @@ if ( $DO_CLEAN == 1 ) then
             
 else
     echo "++ NOT removing temp files in slomoco working dir: '$wdir'" \
-        |& tee -a $histfile
+        |& tee -a $odir/$histfile
 endif
 
 echo "" 
-echo "++ DONE.  View the finished, axialized product:" |& tee -a $histfile
+echo "++ DONE.  View the finished, axialized product:" |& tee -a $odir/$histfile
 echo "" 
 
 goto GOOD_EXIT

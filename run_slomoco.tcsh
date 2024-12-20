@@ -748,7 +748,7 @@ echo "   Motion nuisance regressors: 6 vol-/sli-mopa & 1 vox-PV"    |& tee -a $o
 if ( $physiofile == "" ) then
     cp rm.slimopa.1D rm.slimopa.physio.1D
 else
-    python $SLOMOCO_DIR/combine_physio_slimopa.py   \
+    python $SLOMOCO_DIR/combine_physio_slimopa.py  \
         -slireg rm.slimopa.1D                      \
         -physio rm.physio.1D                       \
         -write  rm.slimopa.physio.1D  
@@ -756,7 +756,7 @@ endif
 
 # step 5.2 then run regression
 run_regout_nuisance.tcsh ${do_echo}             \
-    -dset_epi   epi_01_volreg+orig              \
+    -dset_epi   epi_03_slicemoco_xy+orig        \
     -dset_mask  epi_base_mask+orig              \
     -volreg     epi_01_volreg.1D                \
     -slireg     rm.slimopa.physio.1D            \

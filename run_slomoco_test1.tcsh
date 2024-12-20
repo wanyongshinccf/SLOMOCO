@@ -258,7 +258,7 @@ setenv MATLAB_AFNI_DIR     $SLOMOCO_DIR/afni_matlab
 
 # initialize a log file
 echo ""                             > $odir/$histfile
-echo $fullcommand $fullcommandlines >> $odir/$histfile
+#echo $fullcommand $fullcommandlines >> $odir/$histfile
 date                                >> $odir/$histfile
 echo ""                             >> $odir/$histfile
 exit

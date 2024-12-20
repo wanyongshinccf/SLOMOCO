@@ -222,25 +222,25 @@ if ( ${AFNI_IS_OLD} ) then
         set os = $OSTYPE
         if (( "${os}" == "linux" ) || ( "${os}" == "linux-gnu" )) then
             # LINUX 
-	    if ( "${moco_meth}" == "W" ) then
-            	echo "+* WARN: 3dWarpDrive command in the package (afni.afni.openmp.v18.3.16) will be used"
+	        if ( "${moco_meth}" == "W" ) then
+            	echo "+* WARN: 3dWarpDrive command in the package (afni.afni.openmp.v18.3.16) will be used" 
             endif
         else 
-	    if ( ${os} == "darwin"  ) then
+	        if ( ${os} == "darwin"  ) then
                 if ( "$moco_meth" == "W" ) then
-                    echo "** ERROR: SLOMOCO (with old AFNI) is running with -moco_meth W on macOS" |& tee -a $odir/$histfile
+                    echo "** ERROR: SLOMOCO (with old AFNI) is running with -moco_meth W on macOS" 
                     echo "   Either update your AFNI version (**strongly recommended**),"
                     echo "   or add opt '-moco_meth A' and '-volreg_first' "
                     goto BAD_EXIT
-		else
-		    echo "** Warning: SLOMOCO (with old AFNI) is running with -moco_meth A on macOS" |& tee -a $odir/$histfile
-        	    if ( "$volregfirst" == "0" ) then
-		        echo "   Update your AFNI version (**strongly recommended**)"
+		        else
+		            echo "** Warning: SLOMOCO (with old AFNI) is running with -moco_meth A on macOS" 
+        	        if ( "$volregfirst" == "0" ) then
+		                echo "   Update your AFNI version (**strongly recommended**)"
                         echo "   or '-volreg_first' "
                         goto BAD_EXIT
                     endif 
-		endif
-	    endif
+		        endif
+	        endif
     	endif
     endif
 endif

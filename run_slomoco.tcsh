@@ -724,7 +724,7 @@ endif
     echo "++ Run: adjunct_slomoco_calc_slicemopa.tcsh" |& tee -a $odir/$histfile
     
     adjunct_slomoco_calc_slicemopa.tcsh ${do_echo}                          \
-        -dset_epi    epi_03_slicemoco_xy+orig                               \
+        -dset_epi    epi_00+orig                               \
         -indir       inplane                                                \
         -outdir      outofplane                                             \
         -workdir     combined_slicemopa                                     \

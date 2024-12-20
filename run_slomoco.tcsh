@@ -805,8 +805,8 @@ if ( $DO_CLEAN == 1 ) then
 #        "${owdir}"/epi_02_pvreg+orig.*                  \
 #        "${owdir}"/epi_03_volmoco+orig.*                \
 #        "${owdir}"/epi_03_volmoco_pvreg+orig.*          \
-        "${owdir}"/epi_03_slicemoco_xy+orig.*           \
-#        "${owdir}"/epi_03_slicemoco_xy.slomoco+orig.*   \
+#        "${owdir}"/epi_03_slicemoco_xy+orig.*           \
+        "${owdir}"/epi_03_slicemoco_xy.slomoco+orig.*   \
         "${owdir}"/epi_motsim*                          \
         "${owdir}"/epi_base_mean.*              
         

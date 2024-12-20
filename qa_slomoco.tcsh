@@ -199,8 +199,8 @@ endif
 # find the acquisition order from slice acquisition timing
 setenv AFNI_1D_TIME YES
 # for interleaved alt+z 6 slices: sliacqorder.1D = [0 2 4 1 3 5] 
-3dTsort -overwrite -ind -prefix sliacqorder.1D $tfile
-
+3dTsort -overwrite -ind -prefix __rm.sliacqorder.1D $tfile
+1dcat __rm.sliacqorder.1D > sliacqorder.1D
 
 # combine slimot to volmot
 # output is volslimot_py.txt & volslimot_py_fit.txt
@@ -212,7 +212,8 @@ else
     set excstr = ""
 endif
 
-echo "++ Combining slimot with volmot "
+echo "++ Run: combine_slimot_volmot.py ++" 
+echo "   combining volmot with slimot "
 python $SLOMOCO_DIR/combine_slimot_volmot.py \
     -vol $volreg1D                           \
     -sli $slireg1D                           \
@@ -222,62 +223,66 @@ python $SLOMOCO_DIR/combine_slimot_volmot.py \
 # calculate SSD of VOLMOCO
 3dTstat                     \
     -mean                   \
-    -prefix rm.mean+orig    \
+    -prefix __rm.mean+orig  \
     -overwrite              \
     ${epi_volmoco}
 
 3dcalc                          \
     -a      ${epi_volmoco}      \
-    -b      rm.mean+orig        \
+    -b      __rm.mean+orig      \
     -expr   '(100*(a-b)/b)^2'   \
-    -prefix rm.norm2+orig       \
+    -prefix __rm.norm2+orig     \
     -overwrite
 
 3dROIstats              \
     -mask ${epi_mask}   \
-    -quiet rm.norm2+orig > rm.norm2.1D
+    -quiet __rm.norm2+orig > __rm.norm2.1D
 
-1deval -a rm.norm2.1D -expr 'sqrt(a)' > SSD.volmoco.1D
+1deval -a __rm.norm2.1D -expr 'sqrt(a)' > SSD.volmoco.1D
 
 # calculate SSD of full SLOMOCO
 3dTstat                  \
     -mean                \
-    -prefix rm.mean+orig \
+    -prefix __rm.mean+orig \
     -overwrite           \
     ${epi_slomoco}
 
 3dcalc                          \
     -a      ${epi_slomoco}      \
-    -b      rm.mean+orig        \
+    -b      __rm.mean+orig      \
     -expr   '(100*(a-b)/b)^2'   \
-    -prefix rm.norm2+orig       \
+    -prefix __rm.norm2+orig     \
     -overwrite
 
 3dROIstats              \
     -mask ${epi_mask}   \
-    -quiet rm.norm2+orig > rm.norm2.1D
+    -quiet __rm.norm2+orig > __rm.norm2.1D
 
-1deval -a rm.norm2.1D -expr 'sqrt(a)' > SSD.slomoco.1D
+1deval -a __rm.norm2.1D -expr 'sqrt(a)' > SSD.slomoco.1D
 
-\rm -f rm.*
+\rm -f __rm.*
 
 # calculate FD, output will be FDJ.txt, FDP.txt with a length of total volume - 1
-echo "++ Calculating FD "
+echo "++ Run: calc_FD.py ++" 
+echo "   Calculating FD "
 python $SLOMOCO_DIR/calc_FD.py \
     -vol epi_01_volreg.1D 
 
 # Test purpse. It does not work well. commented out
-echo "++ Calculating intra-volume FD "
+echo "++ Run: calc_iFD.py ++" 
+echo "   Calculating intra-volume FD "
 python $SLOMOCO_DIR/calc_iFD.py \
     -sli  slimot_py_fit.txt    \
     -tdim ${tdim}
 
-echo "++ Calculating intra-volume TD "
+echo "++ Run: calc_iTD.py ++" 
+echo "   Calculating intra-volume TD "
 python $SLOMOCO_DIR/calc_iTD.py \
     -sli  slimot_py_fit.txt    \
     -tdim ${tdim}
 
-echo "++ Generating QA plots "
+echo "++ Run: disp_QAplot.py ++" 
+echo "   Generating QA plots "
 python $SLOMOCO_DIR/disp_QAplot.py  \
     -ssdvol SSD.volmoco.1D          \
     -ssdsli SSD.slomoco.1D          \

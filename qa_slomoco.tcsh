@@ -294,4 +294,3 @@ python $SLOMOCO_DIR/disp_QAplot.py  \
     -ioFDJ  ioFDP_py.txt            \
     -ioFDP  ioFDP_py.txt            \
     -ioTD   ioTD_py.txt
-

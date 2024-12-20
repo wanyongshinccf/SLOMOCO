@@ -1,20 +1,21 @@
 #!/bin/tcsh
 
-set version   = "0.0";  set rev_dat   = "May 30, 2024"
+# set version   = "0.0";  set rev_dat   = "May 30, 2024"
 # + tcsh version of Wanyong Shin's voxelwise PV regressor'
+set version   = "1.0";  set rev_dat   = "Dec 20, 2024"
+# + Absolute path is available
 #
 # ----------------------------------------------------------------
 
 set this_prog_full = "gen_vol_pvreg.tcsh"
 set this_prog = "gen_pvreg"
 #set tpname    = "${this_prog:gas///}"
-set here      = $PWD
+set cdir      = $PWD
 
 # ----------------------- set defaults --------------------------
 
 set prefix  = ""
-
-set odir    = $here
+set odir    = $cdir
 set opref   = ""
 
 # --------------------- inputs --------------------
@@ -27,7 +28,6 @@ set prefix_pv = "vol_pvreg"
 
 set DO_CLEAN = 0                       # default: keep working dir
 
-set histfile = hist_${this_prog}.txt
 
 # ------------------- process options, a la rr ----------------------
 

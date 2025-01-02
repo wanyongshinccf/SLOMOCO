@@ -218,7 +218,7 @@ if ( $slireg1D != "" ) then
 
     # replace zero vectors with linear one
     \rm -f __rm.slireg.1D 
-    python $PESTICA_DIR/patch_zeros.py           \
+    python $SLOMOCO_DIR/patch_zeros.py           \
         -infile __rm.slireg.demean.1D \
         -write  __rm.slireg.1D  
 

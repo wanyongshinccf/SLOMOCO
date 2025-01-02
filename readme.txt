@@ -38,8 +38,8 @@ The detail is found in Citation 1)
 ## SIMPACE data ##
 SLOMOCO was validated using the simulated prospective acquisition correction (SIMPACE) 
 dataset in which the volume-/slice-wise motion is injected during ex-vivo brain scan.
-SIMPACE data will be shared upon the request. If you are interested in SIMPACE data,
-please contact Wanyong Shin, shinw@ccf.org
+Single SIMPACE data is incldued in SLOMOCO package. All 10 single band SIMPACE data
+is (will be) shared in https://osf.io/95dxr/
 
 Citation
 1) Shin W., Taylor P., Lowe MJ., Estimation and Removal of Residual Motion Artifact in 

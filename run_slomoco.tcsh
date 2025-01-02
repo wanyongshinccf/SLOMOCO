@@ -746,8 +746,10 @@ echo "   Motion nuisance regressors: 6 vol-/sli-mopa & 1 vox-PV"    |& tee -a $o
 # step 5.1 combine physio 1D with slireg  
 \rm -f rm.slimopa.physio.1D  
 if ( $physiofile == "" ) then
+    echo "copying rm.slimocp.1D to rm.slimopa.physio.1D"
     cp rm.slimopa.1D rm.slimopa.physio.1D
 else
+    echo "combining physio 1D with slicemopa.1D"
     python $SLOMOCO_DIR/combine_physio_slimopa.py  \
         -slireg rm.slimopa.1D                      \
         -physio rm.physio.1D                       \

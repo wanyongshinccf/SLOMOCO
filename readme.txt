@@ -6,13 +6,6 @@ If you download a SLOMOCO package in your home directory, e.g. /home/wyshin/SLOM
 export PATH=$PATH:/home/ccf/SLOMOCO # in your bash/zsh shell.
 set PATH = $PATH:/home/ccf/SLOMOCO  # in your z/csh shell.
 
-# NEW
-PESTICA path should be included for SLOMOCO, and vice versa.
-https://github.com/wanyongshinccf/PESTICA.git
-
-export PATH=$PATH:/home/ccf/PESTICA # in your bash/zsh shell.
-set PATH = $PATH:/home/ccf/PESTICA  # in your z/csh shell.
-
 SLOMOCO requires AFNI
 Set afni path in your shell environment. 
 Open the terminal and type "afni" in your shell. It should work for SLOMOCO

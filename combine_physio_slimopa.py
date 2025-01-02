@@ -37,7 +37,7 @@ regnum_physio = int(dims[1]/zdim)
 if   tdim_p != tdim_s  :
 	print('error: physio and slimopa do not have the same time points')
 	
-print('Number of physio regressors is {regnum_physio}')
+print(f'Number of physio regressors is {regnum_physio}')
 
 # add physio to slimot
 slireg_all = np.zeros((tdim_p,zdim*(6+regnum_physio)))

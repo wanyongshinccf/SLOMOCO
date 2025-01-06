@@ -634,7 +634,7 @@ else
     endif
 endif
 
-
+exit
 # ----- step 2 slicewise moco in xy plane
 # script for inplane motion correction
 

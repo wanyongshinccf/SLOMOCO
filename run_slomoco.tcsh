@@ -598,7 +598,7 @@ else
     # ----- step 1.1 voxelwise time-series PV regressor
     # volreg output is also generated.
     gen_vol_pvreg.tcsh ${do_echo}           \
-	    -dset_epi   epi_00+orig             \
+	-dset_epi   epi_00+orig             \
         -dset_mask  epi_base_mask+orig      \
         -vr_idx     ${vr_idx}               \
         -prefix_vr  epi_01_volreg           \

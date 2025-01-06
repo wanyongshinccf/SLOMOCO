@@ -29,8 +29,11 @@
 # + add AFNI version of the part of QA (still running matlab) 
 # + 3dvolreg output with 6 mopa + PV regressors 
 #
-set version  = "0.8";    set rev_dat   = "Dec 18, 2024"
+# set version  = "0.8";    set rev_dat   = "Dec 18, 2024"
 # + debugging a log file issue
+set version  = "0.9";    set rev_dat   = "Jan 16, 2025"
+# + debugging the conflict of two run_regout_nuisance.tcsh scripts in PESTICA/SLOMOCO
+
 #
 # ----------------------------------------------------------------
 
@@ -634,7 +637,7 @@ else
     endif
 endif
 
-exit
+
 # ----- step 2 slicewise moco in xy plane
 # script for inplane motion correction
 

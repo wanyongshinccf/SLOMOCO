@@ -208,7 +208,7 @@ if ( $DO_CLEAN == 1 ) then
     echo "+* Removing temporary image files "
     echo "+* DO NOT DELETE motin 1D files in working dir "
     echo "+* 1D files will be required to generate slice motion nuisance regressor " 
-    \rm -f epi_base_mean* epi_motsim*
+    \rm -f epi_base_mean* 
         # ***** clean
 
 else

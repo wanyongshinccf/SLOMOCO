@@ -8,7 +8,7 @@ Test runs slomoco with the following commands in your shell
 
 After include SLOMOCO package path to your shell environment,
 run_slomoco.tcsh -dset_epi simpace5.slimot.nii.gz \
-     -tfile tshiftfile \
+     -tfile tshiftfile.1D \
      -prefix epi.slomoco \
      -workdir SLOMOCO \
      -do_clean

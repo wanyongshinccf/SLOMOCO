@@ -69,6 +69,8 @@ for rep in range (0,tdim , 1):
 			slimot_rep = slimot[rep, idxs:idxe]
 			volslimot_rep = volmot_rep + slimot_rep
 			volslimot_added = np.concatenate((volslimot_added, volslimot_rep[None,:]),axis=0)
+		else :
+			volslimot_added = np.concatenate((volslimot_added, volmot_rep[None,:]),axis=0)
 			
 
 volslimot_added = np.delete(volslimot_added,slice(0,tdim),0)
@@ -87,29 +89,31 @@ volmot_ext = np.delete(volmot_ext,slice(0,tdim),0)
 
 
 # interpolate in excluded slices
-if  ( np.size(excsli) > 0 ) :
+if  (np.size(excsli) > 0 ) :
+    all_slices_tp = np.linspace(0, zdim*tdim-1, zdim*tdim,dtype=int)
     exclude_slices_tp = np.array(0)
     for rep in range(0,tdim,1):
-	    # print(rep)
-        for exs in range(len(excsli)):
-            #print("exclude_slices: ", excsli[exs])
-            x = np.where(acqodr == excsli[exs])
+        if ( np.size(excsli) == 1 ) :
+            x = np.where(acqodr == excsli) 
             xx = x[0]
             slice_tp = xx[0]
-            exclude_slices_tp = np.append(exclude_slices_tp, slice_tp+zdim*rep)	
-            
+            exclude_slices_tp = np.append(exclude_slices_tp, slice_tp+zdim*rep)
+        else :
+            for exs in range(len(excsli)):
+                x = np.where(acqodr == excsli[exs])
+                xx = x[0]
+                slice_tp = xx[0]
+                exclude_slices_tp = np.append(exclude_slices_tp, slice_tp+zdim*rep)
     exclude_slices_tp = np.delete(exclude_slices_tp,0,axis=0)
-    
-    x = np.linspace(0, zdim*tdim-1, zdim*tdim)
-    x_obs = np.setxor1d(x,exclude_slices_tp)
+    include_slices_tp = np.setxor1d(all_slices_tp,exclude_slices_tp)
     volslimot = np.zeros((zdim*tdim,6))
     for mopa in range(0,6,1):
 	    # print("mopa = ", mopa)
-        y_obs = volslimot_added[:,mopa]
-        y = sp.pchip_interpolate(x_obs, y_obs, x)
+        y_obs = volslimot_added[include_slices_tp,mopa]
+        y = sp.pchip_interpolate(include_slices_tp, y_obs, all_slices_tp)
         volslimot[:,mopa] = y
 else :
-    volslimot = volslimot_added    
+    volslimot = volslimot_added   
 
 
 #plt.plot(x_obs, y_obs, "o", label="observation")

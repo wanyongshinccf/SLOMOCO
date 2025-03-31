@@ -159,7 +159,7 @@ EOF
 # define PESTICA directory for python
 set fullcommand = "$0"
 set fullcommandlines = "$argv"
-setenv PESTICA_DIR `dirname "${fullcommand}"`
+setenv SLOMOCO_DIR `dirname "${fullcommand}"`
 
 
 # polynomial detrending matrix only

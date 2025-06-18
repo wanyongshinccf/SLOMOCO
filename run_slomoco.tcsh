@@ -31,9 +31,15 @@
 #
 # set version  = "0.8";    set rev_dat   = "Dec 18, 2024"
 # + debugging a log file issue
-set version  = "0.9";    set rev_dat   = "Jan 16, 2025"
+
+#set version  = "0.9";    set rev_dat   = "Jan 16, 2025"
 # + debugging the conflict of two run_regout_nuisance.tcsh scripts in PESTICA/SLOMOCO
 
+set version = "1.0" ;    set rev_dat   = "Jun 18, 2025"
+# + for HCP plug-in
+# +++ direct full command without setting PATH
+# +++ vol-/sli-wise moco only, without regression (Use -do_mocoonly)
+# +++ Scout image as input
 #
 # ----------------------------------------------------------------
 
@@ -78,7 +84,8 @@ set volregfirst = 0         # Slomoco on each aligned refvol.
 set DO_CLEAN    = 0         # default: keep working dir
 set histfile    = log_slomoco.txt
 
-set do_echo  = ""
+set do_echo     = ""
+set do_mocoonly = "0"           # vol-/sli-moco only (HCP)
 
 # ------------------- process options, a la rr ----------------------
 
@@ -175,6 +182,9 @@ while ( $ac <= $#argv )
     else if ( "$argv[$ac]" == "-do_clean" ) then
         set DO_CLEAN     = 1
         
+    else if ( "$argv[$ac]" == "-do_mocoonly" ) then
+        set DO_mocoonly     = 1
+        
     else
         echo ""
         echo "** ERROR: unexpected option #$ac = '$argv[$ac]'"
@@ -255,15 +265,14 @@ endif
 set fullcommand = "$0"
 set fullcommandlines = "$argv"
 setenv SLOMOCO_DIR         `dirname "${fullcommand}"`
-setenv MATLAB_SLOMOCO_DIR  $SLOMOCO_DIR/slomoco_matlab
 setenv AFNI_SLOMOCO_DIR    $SLOMOCO_DIR/afni_linux
-setenv MATLAB_AFNI_DIR     $SLOMOCO_DIR/afni_matlab
 
 # initialize a log file
 echo ""                             >> $odir/$histfile
 echo $fullcommand $fullcommandlines >> $odir/$histfile
 date                                >> $odir/$histfile
 echo ""                             >> $odir/$histfile
+
 
 if  ( $volregfirst == "1" ) then
     echo "+* WARNING: You select running SLOMOCO on volume motion corrected images"     |& tee -a $odir/$histfile
@@ -318,14 +327,13 @@ endif
 # simplify path to wdir
 set owdir = "${odir}/${wdir}"
 
-# make the working directory
-if ( ! -e "${owdir}" ) then
-    echo "++ Making working directory: ${owdir}"                    |& tee -a $odir/$histfile
-    \mkdir -p "${owdir}"
-else
-    echo "+* WARNING:  Somehow found a premade working directory:"  |& tee -a $odir/$histfile
-    echo "      ${owdir}"
+# make the working directory (HCP)
+if ( -e "${owdir}" ) then
+  \rm -f  "${owdir}"
 endif
+echo "++ Making working directory: ${owdir}"                    |& tee -a $odir/$histfile
+\mkdir -p "${owdir}"
+
 
 # find slice acquisition timing
 if ( "${jsonfile}" == "" && "${tfile}" == "" ) then
@@ -600,7 +608,7 @@ else
     
     # ----- step 1.1 voxelwise time-series PV regressor
     # volreg output is also generated.
-    gen_vol_pvreg.tcsh ${do_echo}           \
+    ${SLOMOCO_DIR}/gen_vol_pvreg.tcsh ${do_echo}           \
 	-dset_epi   epi_00+orig             \
         -dset_mask  epi_base_mask+orig      \
         -vr_idx     ${vr_idx}               \
@@ -610,7 +618,7 @@ else
         |& tee      log_gen_vol_pvreg.txt
 
     # step 1.2 regression: 6 volmopa + physio (if any) for QA later        
-    run_regout_nuisance.tcsh ${do_echo}     \
+    ${SLOMOCO_DIR}/run_regout_nuisance.tcsh ${do_echo}     \
         -dset_epi   epi_01_volreg+orig      \
         -dset_mask  epi_base_mask+orig      \
         -volreg     epi_01_volreg.1D        \
@@ -621,7 +629,7 @@ else
         |& tee      log_run_regout_volmoco.txt
 
     # step 1.3 regression: 6 volmopa + PV + physio (if any) for QA later        
-    run_regout_nuisance.tcsh ${do_echo}     \
+    ${SLOMOCO_DIR}/run_regout_nuisance.tcsh ${do_echo}     \
         -dset_epi   epi_01_volreg+orig      \
         -dset_mask  epi_base_mask+orig      \
         -volreg     epi_01_volreg.1D        \
@@ -653,7 +661,7 @@ else
         echo "++ Run: adjunct_slomoco_slicemoco_xy.tcsh"                \
             |& tee -a $odir/$histfile
 
-        adjunct_slomoco_slicemoco_xy.tcsh  ${do_echo}                   \
+        ${SLOMOCO_DIR}/adjunct_slomoco_slicemoco_xy.tcsh  ${do_echo}                   \
            -dset_epi    epi_01_volreg+orig                              \
            -dset_mask   epi_base_mask+orig                              \
            -moco_meth   ${moco_meth}                                    \
@@ -671,7 +679,7 @@ else
         echo "++ Run: adjunct_slomoco_vol_slicemoco_xy.tcsh"            \
             |& tee -a $odir/$histfile
 
-        adjunct_slomoco_vol_slicemoco_xy.tcsh  ${do_echo}               \
+        ${SLOMOCO_DIR}/adjunct_slomoco_vol_slicemoco_xy.tcsh  ${do_echo}               \
            -dset_epi    epi_00+orig                                     \
            -dset_base   epi_motsim+orig                                 \
            -dset_mask   epi_motsim_mask4d+orig                          \
@@ -703,7 +711,7 @@ if ( -d outofplane ) then
 else
     echo "++ Run: adjunct_slomoco_inside_fixed_vol.tcsh" |& tee -a $odir/$histfile
 
-    adjunct_slomoco_inside_fixed_vol.tcsh  ${do_echo}                       \
+    ${SLOMOCO_DIR}/adjunct_slomoco_inside_fixed_vol.tcsh  ${do_echo}                       \
         -dset_epi    epi_03_slicemoco_xy+orig                               \
         -dset_mask   epi_base_mask+orig                                     \
         -workdir     outofplane                                             \
@@ -726,7 +734,7 @@ endif
 #else
     echo "++ Run: adjunct_slomoco_calc_slicemopa.tcsh" |& tee -a $odir/$histfile
     
-    adjunct_slomoco_calc_slicemopa.tcsh ${do_echo}                          \
+    ${SLOMOCO_DIR}/adjunct_slomoco_calc_slicemopa.tcsh ${do_echo}                          \
         -dset_epi    epi_00+orig                               \
         -indir       inplane                                                \
         -outdir      outofplane                                             \
@@ -740,7 +748,7 @@ endif
     endif
 #endif
 
-
+if ( $do_mocoonly == 0 ) then   #(HCP)
 # -----  step 5 second order regress out
 # regression: 6 volmopa + 6 slimopa + voxel PV + physio (if any)
 echo "++ Run: run_regout_nuisance.tcsh "                            |& tee -a $odir/$histfile
@@ -760,7 +768,7 @@ else
 endif
 
 # step 5.2 then run regression
-run_regout_nuisance.tcsh ${do_echo}             \
+${SLOMOCO_DIR}/run_regout_nuisance.tcsh ${do_echo}             \
     -dset_epi   epi_03_slicemoco_xy+orig        \
     -dset_mask  epi_base_mask+orig              \
     -volreg     epi_01_volreg.1D                \
@@ -791,14 +799,22 @@ qa_slomoco.tcsh ${do_echo}                              \
 if ( $status ) then
     goto BAD_EXIT
 endif  
-      
+endif #(HCP)      
 
-# copy the final result
+# copy the final result (HCP)
+if ( $do_mocoonly == 0) then 
 3dcalc                                              \
     -a "${owdir}"/epi_03_slicemoco_xy.slomoco+orig  \
     -expr 'a'                                       \
     -prefix "${odir}/${opref}"                      \
     -overwrite
+else
+3dcalc                                              \
+    -a "${owdir}"/epi_03_slicemoco_xy+orig  \
+    -expr 'a'                                       \
+    -prefix "${odir}/${opref}"                      \
+    -overwrite
+endif
 
 if ( $DO_CLEAN == 1 ) then
     echo "+* Removing several temp files in slomoco working dir: '$wdir'" \

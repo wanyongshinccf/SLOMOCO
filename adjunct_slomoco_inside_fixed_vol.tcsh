@@ -6,6 +6,9 @@ set version   = "0.0";  set rev_dat   = "Dec 09, 2023"
 set version   = "0.1";  set rev_dat   = "Jul 09, 2024"
 # + use nifti for intermed files, simpler scripting (stable to gzip BRIK)
 #
+set version   = "0.3";  set rev_dat   = "Jun 23, 2025"
+# + compatible to HCP pipeline.
+#   applications now#
 # ----------------------------------------------------------------
 
 set this_prog_full = "adjunct_slomoco_inside_fixed_vol.tcsh"

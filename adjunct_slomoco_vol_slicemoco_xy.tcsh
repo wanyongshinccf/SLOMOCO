@@ -6,7 +6,9 @@
 set version   = "0.2";  set rev_dat   = "Jul 18, 2024"
 # + start using local system 3dWarpDrive, which should be fixed for 2D
 #   applications now
-#
+set version   = "0.3";  set rev_dat   = "Jun 23, 2025"
+# + compatible to HCP pipeline.
+#   applications now#
 # ----------------------------------------------------------------
 
 set this_prog_full = "adjunct_slomoco_vol_slicemoco_xy.tcsh"
@@ -194,10 +196,10 @@ else
     endif
 
     # copy to wdir
-    3dcalc \
-        -a "${epi}" \
-        -expr 'a'   \
-        -prefix "${owdir}/epi_00" \
+    3dcalc                              \
+        -a "${epi}"                     \
+        -expr 'a'                       \
+        -prefix "${owdir}/epi_00.nii"   \
         -overwrite
 endif
 
@@ -222,10 +224,10 @@ else
     endif
 
     # copy to wdir
-    3dcalc \
-        -a "${refvol}" \
-        -expr 'a'   \
-        -prefix "${owdir}/epi_01_refvol" \
+    3dcalc                                      \
+        -a "${refvol}"                          \
+        -expr 'a'                               \
+        -prefix "${owdir}/epi_01_refvol.nii"    \
         -overwrite
 endif
 
@@ -250,10 +252,10 @@ else
     endif
 
     # copy to wdir
-    3dcalc \
-        -a "${epi_mask}" \
-        -expr 'a'   \
-        -prefix "${owdir}/epi_00_mask" \
+    3dcalc                                  \
+        -a "${epi_mask}"                    \
+        -expr 'a'                           \
+        -prefix "${owdir}/epi_00_mask.nii"  \
         -overwrite
 endif
 
@@ -329,7 +331,7 @@ cd "${owdir}"
 # ----- get orient and parfix info 
 
 # create ...
-adjunct_slomoco_get_orient.tcsh  epi_00+orig.HEAD  text_parfix.txt
+$SLOMOCO_DIR/adjunct_slomoco_get_orient.tcsh  epi_00.nii  text_parfix.txt
 
 if ( $status ) then
     echo "** ERROR: could get dset orient"
@@ -341,8 +343,8 @@ set parfixline = `cat text_parfix.txt`
 
 # ----- define variables
 
-set dims = `3dAttribute DATASET_DIMENSIONS epi_00+orig.HEAD`
-set tdim = `3dnvals epi_00+orig.HEAD`
+set dims = `3dAttribute DATASET_DIMENSIONS epi_00.nii`
+set tdim = `3dnvals epi_00.nii`
 set zdim = ${dims[3]}                           # tcsh uses 1-based counting
 
 echo "++ Num of z-dir slices : ${zdim}"
@@ -383,7 +385,7 @@ set zmbdim  = `echo "scale=0; ${zdim}/${SMSfactor}" | bc`
 
 # ----- define non-zero voxel threshold
 
-set delta = `3dinfo -ad3 epi_00+orig.HEAD`    # get abs of signed vox dims
+set delta = `3dinfo -ad3 epi_00.nii`    # get abs of signed vox dims
 set xdim  = ${delta[1]}                        # tcsh uses 1-based counting
 set ydim  = ${delta[2]}
 
@@ -410,43 +412,43 @@ foreach t ( `seq 0 1 ${tcount}` )
     set start_time = `date +%s.%3N`
 
     # ----- select the reference volume
-    3dcalc \
-        -overwrite                            \
-        -a         "epi_01_refvol+orig.HEAD[$t]" \
-        -expr      'a' \
-        -prefix    __temp_vol_base  \
+    3dcalc                                  \
+        -overwrite                          \
+        -a         "epi_01_refvol.nii[$t]"  \
+        -expr      'a'                      \
+        -prefix    __temp_vol_base.nii      \
         >& /dev/null
 
     # orig/input dset 
-    3dcalc \
-        -overwrite                            \
-        -a         "epi_00+orig.HEAD[$t]"    \
-        -expr      'a' \
-        -prefix    __temp_vol_input \
+    3dcalc                                  \
+        -overwrite                          \
+        -a         "epi_00.nii[$t]"         \
+        -expr      'a'                      \
+        -prefix    __temp_vol_input.nii     \
         >& /dev/null
 
     # mask
-    3dcalc \
-        -overwrite                            \
-        -a         "epi_00_mask+orig.HEAD[$t]" \
-        -expr      'a' \
-        -prefix    __temp_vol_mask \
+    3dcalc                                  \
+        -overwrite                          \
+        -a         "epi_00_mask.nii[$t]"    \
+        -expr      'a'                      \
+        -prefix    __temp_vol_mask.nii      \
         >& /dev/null
 
    # masked motion-shifted vol
     3dcalc \
-        -overwrite                            \
-        -a         __temp_vol_base+orig \
-        -b         __temp_vol_mask+orig \
-        -expr      'a*step(b)' \
-        -prefix    __temp_vol_weight \
+        -overwrite                          \
+        -a         __temp_vol_base.nii      \
+        -b         __temp_vol_mask.nii      \
+        -expr      'a*step(b)'              \
+        -prefix    __temp_vol_weight.nii    \
         >& /dev/null
 
     # ----- select single time point of 3dvolreg transformation matrix
 
-    1d_tool.py                               \
-        -overwrite                           \
-        -infile   "volreg.aff12.T.1D[$t]"    \
+    1d_tool.py                              \
+        -overwrite                          \
+        -infile   "volreg.aff12.T.1D[$t]"   \
         -write    rm.vol.col.aff12.1D 
 
     1dtranspose rm.vol.col.aff12.1D > rm.vol.aff12.1D 
@@ -458,9 +460,6 @@ foreach t ( `seq 0 1 ${tcount}` )
         set zsimults = ""
         set kstart   = 1
 
-        # [PT] below, this appears to assume that 'mb' will only ever
-        # be single digit. Are we *sure* about this? 
-        # [W.S] maximum MB number in the sequence is 8 (if my rusty memory is correct)
         foreach mb ( `seq 0 1 ${MBcount}` )   # really starts at 0
             # update slice index
             set k = `echo "${mb} * ${zmbdim} + ${z}" | bc`
@@ -469,74 +468,71 @@ foreach t ( `seq 0 1 ${tcount}` )
             # [PT] maybe come back and zeropad these mb-based names?
             # [WS] I am okay to zeropad MB number for safety
             # split off each slice
-            3dZcutup \
-                -keep $k $k \
-                -prefix __temp_slc_$mb \
-                __temp_vol_input+orig.HEAD  \
+            3dZcutup                                \
+                -keep $k $k                         \
+                -prefix __temp_slc_${mb}.nii        \
+                __temp_vol_input.nii                \
                 >& /dev/null
 
-            3dZcutup \
-                -keep $k $k \
-                -prefix __temp_slc_base_$mb \
-                __temp_vol_base+orig.HEAD \
+            3dZcutup                                \
+                -keep $k $k                         \
+                -prefix __temp_slc_base_${mb}.nii   \
+                __temp_vol_base.nii                 \
                 >& /dev/null
 
-            3dZcutup \
-                -keep $k $k \
-                -prefix __temp_slc_weight_$mb \
-                __temp_vol_weight+orig.HEAD   \
+            3dZcutup                                \
+                -keep $k $k                         \
+                -prefix __temp_slc_weight_${mb}.nii \
+                __temp_vol_weight.nii               \
                 >& /dev/null
         end  # end mb loop
 
-        # [PT] not *sure* this if condition is needed?
-        # [WS] 3dZcat does not allow runnng single input,
-        # for example, 3dZcat -prefix test test1 -> error
         if ( `echo "${SMSfactor} > 1" | bc` ) then
-            3dZcat \
-                -overwrite \
-                -prefix __temp_slc \
-                __temp_slc_?+orig.HEAD \
+            3dZcat                                  \
+                -overwrite                          \
+                -prefix __temp_slc.nii              \
+                __temp_slc_?.nii                    \
                 >& /dev/null
 
-            3dZcat \
-                -overwrite \
-                -prefix __temp_slc_base  \
-                __temp_slc_base_?+orig.HEAD \
+            3dZcat                                  \
+                -overwrite                          \
+                -prefix __temp_slc_base.nii         \
+                __temp_slc_base_?.nii               \
                 >& /dev/null
                 
-            3dZcat \
-                -overwrite \
-                -prefix __temp_slc_weight \
-                __temp_slc_weight_?+orig.HEAD \
+            3dZcat                                  \
+                -overwrite                          \
+                -prefix __temp_slc_weight.nii       \
+                __temp_slc_weight_?.nii             \
                 >& /dev/null
         else
-            3dcopy \
-                -overwrite \
-                __temp_slc_0+orig.HEAD  \
-                __temp_slc \
+            3dcopy                                  \
+                -overwrite                          \
+                __temp_slc_0.nii                    \
+                __temp_slc.nii                      \
                 >& /dev/null                
 
-            3dcopy \
-                -overwrite \
-                __temp_slc_base_0+orig.HEAD  \
-                __temp_slc_base \
+            3dcopy                                  \
+                -overwrite                          \
+                __temp_slc_base_0.nii               \
+                __temp_slc_base.nii                 \
                 >& /dev/null
 
-            3dcopy \
-                -overwrite \
-                __temp_slc_weight_0+orig.HEAD  \
-                __temp_slc_weight \
+            3dcopy                                  \
+                -overwrite                          \
+                __temp_slc_weight_0.nii             \
+                __temp_slc_weight.nii               \
                 >& /dev/null
         endif
 
         # clean a bit
-        \rm -f  __temp_slc_?+orig.*         \
-                __temp_slc_base_?+orig.*    \
-                __temp_slc_weight_?+orig.* 
+        \rm -f  __temp_slc_?.*         \
+                __temp_slc_base_?.*    \
+                __temp_slc_weight_?.* 
 
         # -----  get number of nonzero voxels (test below)
         set nvox_nz = `3dBrickStat -non-zero -count \
-                            __temp_slc_weight+orig.HEAD`
+                            __temp_slc_weight.nii`
         
         # ----- disp some info in first loop
        
@@ -571,21 +567,20 @@ foreach t ( `seq 0 1 ${tcount}` )
                     set my_warp_prog = 3dWarpDrive
                 endif
 
-                # [PT] what cost should be used here? specify explicitly
-                ${my_warp_prog}                                              \
-                    -overwrite                                               \
-                    -affine_general                                          \
-                    -cubic                                                   \
-                    -final           cubic                                   \
-                    -maxite          300                                     \
-                    -thresh          0.005                                   \
-                    -prefix          __temp_9999                             \
-                    -base            __temp_slc_base+orig.HEAD               \
-                    -input           __temp_slc+orig.HEAD                    \
-                    -weight          __temp_slc_weight+orig.HEAD             \
-                    -1Dfile          ${bname}.1D                             \
-                    -1Dmatrix_save   ${bname}.aff12.1D                       \
-                    ${parfixline}                                            \
+                ${my_warp_prog}                                             \
+                    -overwrite                                              \
+                    -affine_general                                         \
+                    -cubic                                                  \
+                    -final           cubic                                  \
+                    -maxite          300                                    \
+                    -thresh          0.005                                  \
+                    -prefix          __temp_9999.nii                        \
+                    -base            __temp_slc_base.nii                    \
+                    -input           __temp_slc.nii                         \
+                    -weight          __temp_slc_weight.nii                  \
+                    -1Dfile          ${bname}.1D                            \
+                    -1Dmatrix_save   ${bname}.aff12.1D                      \
+                    ${parfixline}                                           \
                     >& /dev/null
 
                 if ( $status ) then
@@ -594,20 +589,20 @@ foreach t ( `seq 0 1 ${tcount}` )
                 endif
             else if ( "${moco_meth}" == "A" ) then
 
-                3dAllineate                                                  \
-                    -overwrite                                               \
-                    -interp         cubic                                    \
-                    -final          cubic                                    \
-                    -cost           ls                                       \
-                    -conv           0.005                                    \
-                    -onepass                                                 \
-                    -prefix         __temp_9999                              \
-                    -base           __temp_slc_base+orig.HEAD                \
-                    -input          __temp_slc+orig.HEAD                     \
-                    -weight         __temp_slc_weight+orig.HEAD              \
-                    -1Dfile         ${bname}.1D                              \
-                    -1Dmatrix_save  ${bname}.aff12.1D                        \
-                    ${parfixline}                                            \
+                3dAllineate                                                 \
+                    -overwrite                                              \
+                    -interp         cubic                                   \
+                    -final          cubic                                   \
+                    -cost           ls                                      \
+                    -conv           0.005                                   \
+                    -onepass                                                \
+                    -prefix         __temp_9999.nii                         \
+                    -base           __temp_slc_base.nii                     \
+                    -input          __temp_slc.nii                          \
+                    -weight         __temp_slc_weight.nii                   \
+                    -1Dfile         ${bname}.1D                             \
+                    -1Dmatrix_save  ${bname}.aff12.1D                       \
+                    ${parfixline}                                           \
                     >& /dev/null
 
                 if ( $status ) then
@@ -618,11 +613,11 @@ foreach t ( `seq 0 1 ${tcount}` )
         else
             # this is the null case: create null data and 1D files
             
-            3dcalc \
-                -overwrite \
-                -a __temp_slc+orig \
-                -expr 'a' \
-                -prefix __temp_9999 \
+            3dcalc                              \
+                -overwrite                      \
+                -a __temp_slc.nii               \
+                -expr 'a'                       \
+                -prefix __temp_9999.nii         \
                 >& /dev/null
 
 # NB: do *not* indent these cats
@@ -645,7 +640,7 @@ EOF
         cat_matvec ${bname}.aff12.1D -I > rm.sli.inv.aff12.1D
 
     
-        if ( -f __temp_9999+orig.HEAD ) then
+        if ( -f __temp_9999.nii ) then
 
             # ----- break down
 
@@ -653,17 +648,12 @@ EOF
                 set k    = `echo "${mb} * ${zmbdim} + ${z}" | bc`
                 set kstr = `printf %04d $k`
 
-                3dZcutup \
-                    -keep $mb $mb \
-                    -prefix __temp_slc_mocoxy.z${kstr} \
-                    __temp_9999+orig.HEAD  \
+                3dZcutup                                    \
+                    -keep $mb $mb                           \
+                    -prefix __temp_slc_mocoxy.z${kstr}.nii  \
+                    __temp_9999.nii                         \
                     >& /dev/null
                     
-                3dZcutup \
-                    -keep $mb $mb \
-                    -prefix  __temp_slc_pvreg.z${kstr} \
-                    __temp_slc_pvreg2+orig.HEAD  \
-                    >& /dev/null
             end
         else
             echo "** ERROR: in ${this_prog}"
@@ -673,8 +663,10 @@ EOF
 
         # clean
         
-        \rm -f __temp_9999+orig.* __temp_slc_pvreg?+orig.* 
-        \rm -f __temp_slc+orig.*  __temp_slc_base+orig.*   __temp_slc_weight+orig.*   
+        \rm -f  __temp_9999.*       \
+                __temp_slc.*        \
+                __temp_slc_base.*   \
+                __temp_slc_weight.*   
 
     end  # end of z loop
 
@@ -685,24 +677,24 @@ EOF
     endif
 
     # ----- stack up slice images to volume image
-    3dZcat \
-        -prefix __temp_vol_mocoxy+orig \
-        __temp_slc_mocoxy.z????+orig.HEAD \
+    3dZcat                              \
+        -prefix __temp_vol_mocoxy.nii   \
+        __temp_slc_mocoxy.z????.nii     \
         >& /dev/null
 
     # clean
-    \rm -f __temp_slc_mocoxy.z????+orig.*
+    \rm -f __temp_slc_mocoxy.z????.nii
 
     # ----- move volume image back to baseline
-    3dAllineate \
-        -overwrite \
-        -prefix __temp_vol_mocoxy.t${ttt} \
-        -1Dmatrix_apply rm.vol.aff12.1D \
-        -final cubic \
-        -input __temp_vol_mocoxy+orig.HEAD \
+    3dAllineate                                 \
+        -overwrite                              \
+        -prefix __temp_vol_mocoxy.t${ttt}.nii   \
+        -1Dmatrix_apply rm.vol.aff12.1D         \
+        -final cubic                            \
+        -input __temp_vol_mocoxy.nii            \
         >& /dev/null
 
-    \rm -f  __temp_vol_pv+orig.* __temp_vol_mocoxy+orig.*
+    \rm -f __temp_vol_mocoxy.nii
 
 end  # end of t loop
 
@@ -711,20 +703,19 @@ set elapsed  = `echo "scale=3; (${end_time} - ${total_start_time})/1.0" | bc`
 echo "++ Slicewise moco done in ${elapsed} sec"
 
 # ----- concatenate outputs
-
-3dTcat \
-    -prefix epi_02_vol_mocoxy  \
-    __temp_vol_mocoxy.t????+orig.HEAD  
+3dTcat                              \
+    -prefix epi_02_vol_mocoxy.nii   \
+    __temp_vol_mocoxy.t????.nii  
 
 # ----- update header info in new dsets
 
 set all_atr  = ( TAXIS_NUMS TAXIS_FLOATS )
-set all_dset = ( epi_02_vol_mocoxy+orig.HEAD  )
+set all_dset = ( epi_02_vol_mocoxy.nii )
 
 foreach dset ( ${all_dset} )
     # copy over and save t-axis nums and floats to new dsets
     foreach atr ( ${all_atr} ) 
-        3drefit -saveatr -atrcopy epi_00+orig.HEAD ${atr} ${dset}
+        3drefit -saveatr -atrcopy epi_00.nii ${atr} ${dset}
     end
 
     # add slice timing info to new dsets
@@ -732,17 +723,16 @@ foreach dset ( ${all_dset} )
 end
 
 # add notes
-3dNotes -h "${this_prog_full} ${argv}"   epi_02_vol_mocoxy+orig.HEAD
+3dNotes -h "${this_prog_full} ${argv}"   epi_02_vol_mocoxy.nii
 
 # ----- *** write primary output to main output location ***
 
-3dcopy     \
-    epi_02_vol_mocoxy+orig.HEAD \
+3dcopy                      \
+    epi_02_vol_mocoxy.nii   \
     ../${opref}
 
 # clean up
-\rm -f /__temp_vol_pv.t????+orig.* \
-     __temp_vol_mocoxy.t????+orig.*
+\rm -f  __temp_vol_mocoxy.t????.nii
 
 # --------------------------------------------------------------------------
 # let's play with motion parameters here 

@@ -40,7 +40,8 @@ set version = "1.0" ;    set rev_dat   = "Jun 18, 2025"
 # +++ direct full command without setting PATH
 # +++ vol-/sli-wise moco only, without regression (Use -do_mocoonly)
 # +++ Scout image as input
-#
+# intermeidiate and final output format are NIFTI (nii)
+
 # ----------------------------------------------------------------
 
 # -------------------- set environment vars -----------------------
@@ -85,7 +86,8 @@ set DO_CLEAN    = 0         # default: keep working dir
 set histfile    = log_slomoco.txt
 
 set do_echo     = ""
-set do_mocoonly = "0"           # vol-/sli-moco only (HCP)
+set DO_MOCOONLY = "0"       # vol-/sli-moco only (HCP)
+set epi_unsat   = ""        # Unsaturated image or Scout (HCP) 
 
 # ------------------- process options, a la rr ----------------------
 
@@ -145,11 +147,6 @@ while ( $ac <= $#argv )
         set physiofile = "$argv[$ac]"
 
     # below, checked that only allowed keyword is used
-    else if ( "$argv[$ac]" == "-dset_unsat_epi" ) then
-        if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
-        @ ac += 1
-        set unsatepi = "$argv[$ac]"
-
     else if ( "$argv[$ac]" == "-moco_meth" ) then
         if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
         @ ac += 1
@@ -181,10 +178,17 @@ while ( $ac <= $#argv )
 
     else if ( "$argv[$ac]" == "-do_clean" ) then
         set DO_CLEAN     = 1
-        
+
+    # HCP options    
     else if ( "$argv[$ac]" == "-do_mocoonly" ) then
-        set DO_mocoonly     = 1
+        set DO_MOCOONLY     = 1
         
+    else if ( "$argv[$ac]" == "-dset_base" ) then
+        if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
+        @ ac += 1
+        set epi_unsat = "$argv[$ac]"
+    
+    # below, checked that only allowed keyword is used
     else
         echo ""
         echo "** ERROR: unexpected option #$ac = '$argv[$ac]'"
@@ -262,10 +266,10 @@ endif
 # ======================== ** Verify + setup ** =========================
 
 # define SLOMOCO directory
-set fullcommand = "$0"
-set fullcommandlines = "$argv"
-setenv SLOMOCO_DIR         `dirname "${fullcommand}"`
-setenv AFNI_SLOMOCO_DIR    $SLOMOCO_DIR/afni_linux
+set    fullcommand      = "$0"
+set    fullcommandlines = "$argv"
+setenv SLOMOCO_DIR        `dirname "${fullcommand}"`
+setenv AFNI_SLOMOCO_DIR   $SLOMOCO_DIR/afni_linux
 
 # initialize a log file
 echo ""                             >> $odir/$histfile
@@ -371,78 +375,92 @@ else
     endif
 
     # copy to wdir
-    3dcalc                        \
-        -a "${epi}"               \
-        -expr 'a'                 \
-        -prefix "${owdir}/epi_00" \
+    3dcalc                              \
+        -a "${epi}"                     \
+        -expr 'a'                       \
+        -prefix "${owdir}/epi_00.nii"   \
         -overwrite
 endif
 
+# HCP scout option
 # ----- volreg base: MIN_OUTLIER
+if ( ${epi_unsat} == "" ) then
+    if ( "${vr_base}" == "MIN_OUTLIER" ) then
+        # count outliers, as afni_proc.py would
+        3dToutcount                                           \
+            -automask                                         \
+            -fraction -polort 3 -legendre                     \
+            "${epi}"                                          \
+            > "${owdir}/outcount_rall.1D"
 
-if ( "${vr_base}" == "MIN_OUTLIER" ) then
-    # count outliers, as afni_proc.py would
-    3dToutcount                                           \
-        -automask                                         \
-        -fraction -polort 3 -legendre                     \
-        "${epi}"                                          \
-        > "${owdir}/outcount_rall.1D"
+        # get TR index for minimum outlier volume
+        set vr_idx = `3dTstat -argmin -prefix - "${owdir}"/outcount_rall.1D\'`
+        echo "++ MIN_OUTLIER vr_idx : $vr_idx"              | tee "${owdir}/out.min_outlier.txt"
 
-    # get TR index for minimum outlier volume
-    set vr_idx = `3dTstat -argmin -prefix - "${owdir}"/outcount_rall.1D\'`
-    echo "++ MIN_OUTLIER vr_idx : $vr_idx"              | tee "${owdir}/out.min_outlier.txt"
+    else if ( "${vr_base}" == "MIN_ENORM" ) then
 
-else if ( "${vr_base}" == "MIN_ENORM" ) then
+        3dvolreg                                    \
+            -1Dfile "${owdir}"/___temp_volreg.1D    \
+            -prefix "${owdir}"/___temp_volreg.nii   \
+            -overwrite                              \
+            "${epi}"
 
-    3dvolreg                                    \
-        -1Dfile "${owdir}"/___temp_volreg.1D    \
-        -prefix "${owdir}"/___temp_volreg.nii   \
-        -overwrite                              \
-        "${epi}"
+        1d_tool.py -infile "${owdir}"/___temp_volreg.1D          \
+                   -derivative                                   \
+                   -collapse_cols euclidean_norm                 \
+                   -write "${owdir}"/enorm_deriv.1D              \
+                   -overwrite
+        1d_tool.py -infile "${owdir}"/___temp_volreg.1D          \
+                   -collapse_cols euclidean_norm                 \
+                   -write "${owdir}"/enorm.1D                    \
+                   -overwrite
+        1d_tool.py -infile "${owdir}"/enorm.1D                   \
+                   -demean                                       \
+                   -write "${owdir}"/enorm_demean.1D             \
+                   -overwrite
+        1deval     -a "${owdir}"/enorm_demean.1D                 \
+                   -b "${owdir}"/enorm_deriv.1D                  \
+                   -expr 'abs(a)+b'                              \
+                   > "${owdir}"/min_enorm_disp_deriv.1D
 
-    1d_tool.py -infile "${owdir}"/___temp_volreg.1D          \
-               -derivative                                   \
-               -collapse_cols euclidean_norm                 \
-               -write "${owdir}"/enorm_deriv.1D              \
-               -overwrite
-    1d_tool.py -infile "${owdir}"/___temp_volreg.1D          \
-               -collapse_cols euclidean_norm                 \
-               -write "${owdir}"/enorm.1D                    \
-               -overwrite
-    1d_tool.py -infile "${owdir}"/enorm.1D                   \
-               -demean                                       \
-               -write "${owdir}"/enorm_demean.1D             \
-               -overwrite
-    1deval     -a "${owdir}"/enorm_demean.1D                 \
-               -b "${owdir}"/enorm_deriv.1D                  \
-               -expr 'abs(a)+b'                              \
-               > "${owdir}"/min_enorm_disp_deriv.1D
+        set vr_idx = `3dTstat -argmin -prefix - "${owdir}"/min_enorm_disp_deriv.1D\'`
 
-    set vr_idx = `3dTstat -argmin -prefix - "${owdir}"/min_enorm_disp_deriv.1D\'`
-
-    \rm -f "${owdir}"/___temp_volreg*
-else 
-    # not be choice, but hope user entered an int
-    set max_idx = `3dinfo -nvi "${epi}"`
+        \rm -f "${owdir}"/___temp_volreg*
+    else 
+        # not be choice, but hope user entered an int
+        set max_idx = `3dinfo -nvi "${epi}"`
     
-    if ( `echo "${vr_base} > ${max_idx}" | bc` || \
-         `echo "${vr_base} < 0" | bc` ) then
-        echo "** ERROR: allowed volreg_base range is : [0, ${max_idx}]"     |& tee -a $odir/$histfile
-        echo "   but the user's value is outside this: ${vr_base}"          |& tee -a $odir/$histfile
-        echo "   Consider using (default, and keyword opt): MIN_OUTLIER"    |& tee -a $odir/$histfile
-        goto BAD_EXIT
+        if ( `echo "${vr_base} > ${max_idx}" | bc` || \
+             `echo "${vr_base} < 0" | bc` ) then
+            echo "** ERROR: allowed volreg_base range is : [0, ${max_idx}]"     |& tee -a $odir/$histfile
+            echo "   but the user's value is outside this: ${vr_base}"          |& tee -a $odir/$histfile
+            echo "   Consider using (default, and keyword opt): MIN_OUTLIER"    |& tee -a $odir/$histfile
+            goto BAD_EXIT
+        endif
+
+        # just use that number
+        set vr_idx = "${vr_base}"
     endif
+    echo "   $vr_idx volume will be the reference volume"                       |& tee -a $odir/$histfile
 
-    # just use that number
-    set vr_idx = "${vr_base}"
+    # save reference volume
+    3dcalc  -a "${epi}[$vr_idx]"            \
+            -expr 'a'                       \
+            -prefix "${owdir}"/epi_base.nii \
+            -overwrite 
+else
+    if ( $vr_idx != "-1" ) then 
+        echo "Error: Unsaturated EPI and reference volume in EPI input should not be provided simulateneously" \
+            |& tee -a $odir/$histfile
+        exit
+    else
+        3dcalc                              \
+            -a "${epi_unsat}"               \
+            -expr 'a'                       \
+            -prefix "${owdir}"/epi_base.nii \
+            -overwrite
+    endif 
 endif
-echo "   $vr_idx volume will be the reference volume"                       |& tee -a $odir/$histfile
-
-# save reference volume
-3dcalc -a "${epi}[$vr_idx]"            \
-       -expr 'a'                       \
-       -prefix "${owdir}"/epi_base     \
-       -overwrite 
 
 # ---- check dsets that are optional, to verify (if present)
 # unsaturated EPI image might be useful for high SMS accelrated dataset, e.g. HCP
@@ -493,7 +511,7 @@ if ( "${epi_mask}" == "" ) then
 
     # remove skull (PT: could use 3dAutomask)
     3dSkullStrip                               \
-        -input "${owdir}"/epi_base+orig        \
+        -input "${owdir}"/epi_base.nii        \
         -prefix "${owdir}/___tmp_mask0.nii"    \
         -overwrite
 
@@ -510,24 +528,35 @@ if ( "${epi_mask}" == "" ) then
         -a "${owdir}/___tmp_mask1.nii"            \
         -b a+i -c a-i -d a+j -e a-j -f a+k -g a-k \
         -expr   'amongst(1,a,b,c,d,e,f,g)'        \
-        -prefix "${owdir}/epi_base_mask"          \
+        -prefix "${owdir}/epi_base_mask.nii"          \
         -overwrite
 
     # clean a bit
     \rm -f ${owdir}/___tmp*nii
 else
-    echo "** Note that reference volume is selected $vr_idx volume of input **" \
-        |& tee -a $odir/$histfile
-    echo "** IF input mask is not generated from $vr_idx volume, " \
-        |& tee -a $odir/$histfile
-    echo "** SLOMOCO might underperform. " \
-        |& tee -a $odir/$histfile
-
-    3dcalc -a       "${epi_mask}"               \
-           -expr    'step(a)'                   \
-           -prefix  "${owdir}/epi_base_mask"    \
-           -nscale                              \
-           -overwrite
+    if ( ${epi_unsat} == "" ) then
+        echo "** Note that reference volume is selected $vr_idx volume of input **" \
+            |& tee -a $odir/$histfile
+        echo "** IF input mask is not generated from $vr_idx volume, " \
+            |& tee -a $odir/$histfile
+        echo "** SLOMOCO might underperform. " \
+            |& tee -a $odir/$histfile
+    else
+        echo "** Note that reference volume is selected as ${epi_unsat}" \
+            |& tee -a $odir/$histfile
+        echo "** IF input mask is not generated from ${epi_unsat}, " \
+            |& tee -a $odir/$histfile
+        echo "** SLOMOCO might underperform. " \
+            |& tee -a $odir/$histfile
+    endif
+    
+    3dcalc                                      \
+        -a       "${epi_mask}"                  \
+        -expr    'step(a)'                      \
+        -prefix  "${owdir}/epi_base_mask.nii"   \
+        -nscale                                 \
+        -overwrite
+           
 endif
 
 
@@ -538,7 +567,7 @@ if ( "${physiofile}" != "" ) then
         echo "** ERROR: cannot find ${physiofile} " |& tee -a $odir/$histfile
         goto BAD_EXIT
     else
-        1dcat $physiofile  > ${owdir}/rm.physio.1D 
+        1dcat $physiofile  > ${owdir}/physio.1D 
         echo "++ Physiologic nuisance regressor will be included: ${physiofile} " \
             |& tee -a $odir/$histfile
     endif
@@ -546,7 +575,7 @@ else
     echo "++ Physiologic nuisnance regressor will NOT be includled. " \
         |& tee -a $odir/$histfile
     
-    \rm -f ${owdir}/rm.physio.1D 
+    \rm -f ${owdir}/physio.1D 
 
 endif
 
@@ -593,243 +622,232 @@ cd "${owdir}"
 if ( "${physiofile}" == "" ) then
     set physiostr = "" 
 else
-    set physiostr = "-slireg rm.physio.1D "
+    set physiostr = "-slireg physio.1D "
 endif
 
 # ----- step 1 voxelwise time-series PV regressor & volmoco
 # volreg output is also generated.
-if ( -f epi_02_pvreg+orig.HEAD ) then
-    echo "++ Skip: gen_vol_pvreg.tcsh. epi_02_pvreg+orig.HEAD exists. " |& tee -a $odir/$histfile
-    echo "++ If you need to regenerate PV regressor, "                  |& tee -a $odir/$histfile
-    echo "++   delete epi_02_pvreg+orig.HEAD/BRIK and re-run it. "      |& tee -a $odir/$histfile
-
-else
-    echo "++ Run: gen_vol_pvreg.tcsh"                                   |& tee -a $odir/$histfile
+echo "++ Run: gen_vol_pvreg.tcsh"                                   |& tee -a $odir/$histfile
     
-    # ----- step 1.1 voxelwise time-series PV regressor
-    # volreg output is also generated.
-    ${SLOMOCO_DIR}/gen_vol_pvreg.tcsh ${do_echo}           \
-	-dset_epi   epi_00+orig             \
-        -dset_mask  epi_base_mask+orig      \
-        -vr_idx     ${vr_idx}               \
-        -prefix_vr  epi_01_volreg           \
-        -prefix_pv  epi_02_pvreg            \
-        -do_clean                           \
-        |& tee      log_gen_vol_pvreg.txt
+# ----- step 1.1 voxelwise time-series PV regressor
+# volreg output is also generated.
+${SLOMOCO_DIR}/gen_vol_pvreg.tcsh ${do_echo}           \
+    -dset_epi   epi_00.nii                     \
+    -dset_mask  epi_base_mask.nii              \
+    -dset_base  epi_base.nii                        \
+    -prefix_vr  epi_01_volreg.nii                   \
+    -prefix_pv  epi_02_pvreg.nii                    \
+    -do_clean                                   \
+    |& tee      log_gen_vol_pvreg.txt
 
+if ( $DO_MOCOONLY == "0" ) then
     # step 1.2 regression: 6 volmopa + physio (if any) for QA later        
     ${SLOMOCO_DIR}/run_regout_nuisance.tcsh ${do_echo}     \
-        -dset_epi   epi_01_volreg+orig      \
-        -dset_mask  epi_base_mask+orig      \
+        -dset_epi   epi_01_volreg.nii      \
+        -dset_mask  epi_base_mask.nii      \
         -volreg     epi_01_volreg.1D        \
         -polort     1                       \
-        -prefix     epi_03_volmoco          \
+        -prefix     epi_03_volmoco.nii      \
         -do_clean                           \
         $physiostr                          \
         |& tee      log_run_regout_volmoco.txt
 
     # step 1.3 regression: 6 volmopa + PV + physio (if any) for QA later        
     ${SLOMOCO_DIR}/run_regout_nuisance.tcsh ${do_echo}     \
-        -dset_epi   epi_01_volreg+orig      \
-        -dset_mask  epi_base_mask+orig      \
-        -volreg     epi_01_volreg.1D        \
-        -polort     1                       \
-        -voxreg     epi_02_pvreg+orig       \
-        -prefix     epi_03_volmoco_pvreg    \
-        -do_clean                           \
-        $physiostr                          \
+        -dset_epi   epi_01_volreg.nii           \
+        -dset_mask  epi_base_mask.nii           \
+        -volreg     epi_01_volreg.1D            \
+        -polort     1                           \
+        -voxreg     epi_02_pvreg.nii            \
+        -prefix     epi_03_volmoco_pvreg.nii    \
+        -do_clean                               \
+        $physiostr                              \
         |& tee      log_run_regout_volmoco.txt
+
+endif
+
+if ( $status ) then
+    goto BAD_EXIT
+endif
+
+# ----- step 2 slicewise moco in xy plane
+# script for inplane motion correction
+if ( -d inplane ) then
+    \rm -r inplane
+endif
+
+if ( $volregfirst == 1 ) then
+    echo "++ Run: adjunct_slomoco_slicemoco_xy.tcsh"                \
+        |& tee -a $odir/$histfile
+
+    ${SLOMOCO_DIR}/adjunct_slomoco_slicemoco_xy.tcsh  ${do_echo}                   \
+       -dset_epi    epi_01_volreg.nii                              \
+        -dset_mask   epi_base_mask.nii                              \
+        -moco_meth   ${moco_meth}                                    \
+        -workdir     inplane                                         \
+        -volreg_mat  epi_01_volreg.aff12.1D                          \
+        -tfile       tshiftfile.1D                                   \
+        -prefix      epi_03_slicemoco_xy.nii                         \
+        -do_clean                                                    \
+        |& tee       log_adjunct_slomoco_slicemoco_xy.txt
+           
+    if ( $status ) then
+        goto BAD_EXIT
+    endif
+else
+    echo "++ Run: adjunct_slomoco_vol_slicemoco_xy.tcsh"            \
+        |& tee -a $odir/$histfile
+    ${SLOMOCO_DIR}/adjunct_slomoco_vol_slicemoco_xy.tcsh  ${do_echo}               \
+        -dset_epi    epi_00.nii                                     \
+        -dset_base   epi_motsim.nii                                 \
+        -dset_mask   epi_motsim_mask4d.nii                          \
+        -moco_meth   ${moco_meth}                                    \
+        -workdir     inplane                                         \
+        -volreg_mat  epi_01_volreg.aff12.1D                          \
+        -tfile       tshiftfile.1D                                   \
+        -prefix      epi_03_slicemoco_xy.nii                             \
+        -do_clean                                                    \
+        |& tee       log_adjunct_slomoco_vol_slicemoco_xy.txt
 
     if ( $status ) then
         goto BAD_EXIT
     endif
-endif
-
-
-# ----- step 2 slicewise moco in xy plane
-# script for inplane motion correction
-
-if ( -d inplane ) then
-    if ( $volregfirst == 1 ) then
-        echo "++ Skip: adjunct_slomoco_slicemoco_xy.tcsh. inplane directory exists. "               |& tee -a $odir/$histfile
-    else
-        echo "++ Skip: adjunct_slomoco_vol_slicemoco_xy.tcsh. inplane directory exists. "           |& tee -a $odir/$histfile
-    endif
-    echo "++ If you need to redo slicewise inplane moco, delete inplane directory and re-run it. "  |& tee -a $odir/$histfile
-else
-    if ( $volregfirst == 1 ) then
-        echo "++ Run: adjunct_slomoco_slicemoco_xy.tcsh"                \
-            |& tee -a $odir/$histfile
-
-        ${SLOMOCO_DIR}/adjunct_slomoco_slicemoco_xy.tcsh  ${do_echo}                   \
-           -dset_epi    epi_01_volreg+orig                              \
-           -dset_mask   epi_base_mask+orig                              \
-           -moco_meth   ${moco_meth}                                    \
-           -workdir     inplane                                         \
-           -volreg_mat  epi_01_volreg.aff12.1D                          \
-           -tfile       tshiftfile.1D                                   \
-           -prefix      epi_03_slicemoco_xy                             \
-           -do_clean                                                    \
-           |& tee       log_adjunct_slomoco_slicemoco_xy.txt
-           
-        if ( $status ) then
-            goto BAD_EXIT
-        endif
-    else
-        echo "++ Run: adjunct_slomoco_vol_slicemoco_xy.tcsh"            \
-            |& tee -a $odir/$histfile
-
-        ${SLOMOCO_DIR}/adjunct_slomoco_vol_slicemoco_xy.tcsh  ${do_echo}               \
-           -dset_epi    epi_00+orig                                     \
-           -dset_base   epi_motsim+orig                                 \
-           -dset_mask   epi_motsim_mask4d+orig                          \
-           -moco_meth   ${moco_meth}                                    \
-           -workdir     inplane                                         \
-           -volreg_mat  epi_01_volreg.aff12.1D                          \
-           -tfile       tshiftfile.1D                                   \
-           -prefix      epi_03_slicemoco_xy                             \
-           -do_clean                                                    \
-           |& tee       log_adjunct_slomoco_vol_slicemoco_xy.txt
-
-        if ( $status ) then
-            goto BAD_EXIT
-        endif
-     endif
 endif
 
 if ( $status ) then
     goto BAD_EXIT
 endif
     
-
 # ----- step 3 slicewise out of plane moco
 
 # script for out-of-plane motion correction
 if ( -d outofplane ) then
-    echo "++ Skip: adjunct_slomoco_inside_fixed_vol.tcsh. outofplane directory exists. " |& tee -a $odir/$histfile
-    echo "++ If you need to redo slicewise out-of-plane moco, delete outofplane directory and re-run it. " |& tee -a $odir/$histfile
-else
-    echo "++ Run: adjunct_slomoco_inside_fixed_vol.tcsh" |& tee -a $odir/$histfile
+    \rm -r outofplane
+endif
 
-    ${SLOMOCO_DIR}/adjunct_slomoco_inside_fixed_vol.tcsh  ${do_echo}                       \
-        -dset_epi    epi_03_slicemoco_xy+orig                               \
-        -dset_mask   epi_base_mask+orig                                     \
-        -workdir     outofplane                                             \
-        -tfile       tshiftfile.1D                                          \
-        |& tee       log_adjunct_slomoco_inside_fixed_vol.txt
+echo "++ Run: adjunct_slomoco_inside_fixed_vol.tcsh" |& tee -a $odir/$histfile
+${SLOMOCO_DIR}/adjunct_slomoco_inside_fixed_vol.tcsh  ${do_echo}    \
+    -dset_epi    epi_03_slicemoco_xy.nii                            \
+    -dset_mask   epi_base_mask.nii                                  \
+    -workdir     outofplane                                         \
+    -tfile       tshiftfile.1D                                      \
+    |& tee       log_adjunct_slomoco_inside_fixed_vol.txt
 
-    if ( $status ) then
-        goto BAD_EXIT
-    endif
+if ( $status ) then
+    goto BAD_EXIT
 endif
 
 
 # ----- step 4 generate slicewise 6 rigid motion parameter regressor 
 
 # script for slice mopa nuisance regressor
-#if ( -d combined_slicemopa ) then
+if ( -d combined_slicemopa ) then
 #    echo "++ Skip: adjunct_slomoco_calc_slicemopa.tcsh. combined_slicemopa directory exists. " |& tee -a $odir/$histfile
 #    echo "++ If you need to redo in and out-of-plane motion parameter calculation, " |& tee -a $odir/$histfile
 #    echo "++   delete combined_slicemopa directory and re-run it. " |& tee -a $odir/$histfile
-#else
-    echo "++ Run: adjunct_slomoco_calc_slicemopa.tcsh" |& tee -a $odir/$histfile
-    
-    ${SLOMOCO_DIR}/adjunct_slomoco_calc_slicemopa.tcsh ${do_echo}                          \
-        -dset_epi    epi_00+orig                               \
-        -indir       inplane                                                \
-        -outdir      outofplane                                             \
-        -workdir     combined_slicemopa                                     \
-        -tfile       tshiftfile.1D                                          \
-        -prefix      rm.slimopa.1D                                          \
-        |& tee       log_adjunct_slomoco_calc_slicemopa.txt
-    
-    if ( $status ) then
-        goto BAD_EXIT
-    endif
-#endif
-
-if ( $do_mocoonly == 0 ) then   #(HCP)
-# -----  step 5 second order regress out
-# regression: 6 volmopa + 6 slimopa + voxel PV + physio (if any)
-echo "++ Run: run_regout_nuisance.tcsh "                            |& tee -a $odir/$histfile
-echo "   Motion nuisance regressors: 6 vol-/sli-mopa & 1 vox-PV"    |& tee -a $odir/$histfile
-
-# step 5.1 combine physio 1D with slireg  
-\rm -f rm.slimopa.physio.1D  
-if ( $physiofile == "" ) then
-    echo "copying rm.slimocp.1D to rm.slimopa.physio.1D"
-    cp rm.slimopa.1D rm.slimopa.physio.1D
-else
-    echo "combining physio 1D with slicemopa.1D"
-    python $SLOMOCO_DIR/combine_physio_slimopa.py  \
-        -slireg rm.slimopa.1D                      \
-        -physio rm.physio.1D                       \
-        -write  rm.slimopa.physio.1D  
+  \rm -r combined_slicemopa
 endif
 
-# step 5.2 then run regression
-${SLOMOCO_DIR}/run_regout_nuisance.tcsh ${do_echo}             \
-    -dset_epi   epi_03_slicemoco_xy+orig        \
-    -dset_mask  epi_base_mask+orig              \
-    -volreg     epi_01_volreg.1D                \
-    -slireg     rm.slimopa.physio.1D            \
-    -voxreg     epi_02_pvreg+orig               \
-    -prefix     epi_03_slicemoco_xy.slomoco     \
-    -polort     1                    
+echo "++ Run: adjunct_slomoco_calc_slicemopa.tcsh" |& tee -a $odir/$histfile
     
-    if ( $status ) then
-        goto BAD_EXIT
-    endif
-    
-endif   
-
-
-# -----  step 6 QA SLOMOCO
-echo "++ Run: qa_slomoco.tcsh ++" |& tee -a $odir/$histfile
-echo "   Generating estimated in-/out-of-plane motion and motion indices" 
-qa_slomoco.tcsh ${do_echo}                              \
-    -dset_volmoco   epi_03_volmoco+orig                 \
-    -dset_slomoco   epi_03_slicemoco_xy.slomoco+orig    \
-    -dset_mask      epi_base_mask+orig                  \
-    -tfile          tshiftfile.1D                       \
-    -volreg1D       epi_01_volreg.1D                    \
-    -slireg1D       rm.slimopa.1D                       \
-    |& tee          log_qa_slomoco.txt
-
+${SLOMOCO_DIR}/adjunct_slomoco_calc_slicemopa.tcsh ${do_echo}   \
+    -dset_epi    epi_00.nii                                     \
+    -indir       inplane                                        \
+    -outdir      outofplane                                     \
+    -workdir     combined_slicemopa                             \
+    -tfile       tshiftfile.1D                                  \
+    -prefix      slimopa.1D                                  \
+    |& tee       log_adjunct_slomoco_calc_slicemopa.txt
+ 
 if ( $status ) then
     goto BAD_EXIT
-endif  
+endif
+
+
+if ( $DO_MOCOONLY == "0" ) then   #(HCP)
+    # -----  step 5 second order regress out
+    # regression: 6 volmopa + 6 slimopa + voxel PV + physio (if any)
+    echo "++ Run: run_regout_nuisance.tcsh "                            |& tee -a $odir/$histfile
+    echo "   Motion nuisance regressors: 6 vol-/sli-mopa & 1 vox-PV"    |& tee -a $odir/$histfile
+
+    # step 5.1 combine physio 1D with slireg  
+    \rm -f slimopa.physio.1D  
+    if ( $physiofile == "" ) then
+        echo "copying slimocp.1D to slimopa.physio.1D"
+        cp slimopa.1D slimopa.physio.1D
+    else
+        echo "combining physio 1D with slicemopa.1D"
+        python $SLOMOCO_DIR/combine_physio_slimopa.py  \
+            -slireg slimopa.1D                      \
+            -physio physio.1D                       \
+            -write  slimopa.physio.1D  
+    endif
+
+    # step 5.2 then run regression
+    ${SLOMOCO_DIR}/run_regout_nuisance.tcsh ${do_echo}             \
+        -dset_epi   epi_03_slicemoco_xy.nii         \
+        -dset_mask  epi_base_mask.nii               \
+        -volreg     epi_01_volreg.1D                \
+        -slireg     slimopa.physio.1D            \
+        -voxreg     epi_02_pvreg.nii                \
+        -prefix     epi_03_slicemoco_xy.slomoco.nii \
+        -polort     1                    
+    
+    if ( $status ) then
+          goto BAD_EXIT
+    endif
+endif   # HCP
+
+if ( $DO_MOCOONLY == "0" ) then   #(HCP)
+    # -----  step 6 QA SLOMOCO
+    echo "++ Run: qa_slomoco.tcsh ++" |& tee -a $odir/$histfile
+    echo "   Generating estimated in-/out-of-plane motion and motion indices" 
+    qa_slomoco.tcsh ${do_echo}                              \
+        -dset_volmoco   epi_03_volmoco.nii                 \
+        -dset_slomoco   epi_03_slicemoco_xy.slomoco.nii    \
+        -dset_mask      epi_base_mask.nii                  \
+        -tfile          tshiftfile.1D                       \
+        -volreg1D       epi_01_volreg.1D                    \
+        -slireg1D       slimopa.physio.1D                   \
+        |& tee          log_qa_slomoco.txt
+
+    if ( $status ) then
+        goto BAD_EXIT
+    endif  
 endif #(HCP)      
 
 # copy the final result (HCP)
-if ( $do_mocoonly == 0) then 
-3dcalc                                              \
-    -a "${owdir}"/epi_03_slicemoco_xy.slomoco+orig  \
-    -expr 'a'                                       \
-    -prefix "${odir}/${opref}"                      \
-    -overwrite
+if ( $DO_MOCOONLY == "0" ) then 
+    3dcalc                                              \
+        -a "${owdir}"/epi_03_slicemoco_xy.slomoco.nii  \
+        -expr 'a'                                       \
+        -prefix "${odir}/${opref}"                      \
+        -overwrite
 else
-3dcalc                                              \
-    -a "${owdir}"/epi_03_slicemoco_xy+orig  \
-    -expr 'a'                                       \
-    -prefix "${odir}/${opref}"                      \
-    -overwrite
+    3dcalc                                              \
+        -a "${owdir}"/epi_03_slicemoco_xy.nii  \
+        -expr 'a'                                       \
+        -prefix "${odir}/${opref}"                      \
+        -overwrite
 endif
 
 if ( $DO_CLEAN == 1 ) then
     echo "+* Removing several temp files in slomoco working dir: '$wdir'" \
         |& tee -a $odir/$histfile
-
-    \rm -rf                                             \
-        "${owdir}"/epi_00+orig.*                        \
-        "${owdir}"/epi_01_volreg+orig.*                 \
-        "${owdir}"/epi_02_pvreg+orig.*                  \
-        "${owdir}"/epi_03_volmoco+orig.*                \
-        "${owdir}"/epi_03_volmoco_pvreg+orig.*          \
-#        "${owdir}"/epi_03_slicemoco_xy+orig.*           \
-        "${owdir}"/epi_03_slicemoco_xy.slomoco+orig.*   \
-        "${owdir}"/epi_motsim*                          \
-        "${owdir}"/epi_base_mean.*              
+    if ( $DO_MOCOONLY == "0" ) then
+    \rm -f                                          \
+        "${owdir}"/epi_02_pvreg.nii                 \
+        "${owdir}"/epi_03_volmoco.nii               \
+        "${owdir}"/epi_03_volmoco_pvreg.nii                 
+    endif 
+    \rm -rf                                         \
+        "${owdir}"/epi_00.nii                       \
+        "${owdir}"/epi_01_volreg.nii                \
+        "${owdir}"/epi_03_slicemoco_xy.nii          \
+        "${owdir}"/epi_03_slicemoco_xy.slomoco.nii  \
+        "${owdir}"/epi_motsim.nii                   \
+        "${owdir}"/epi_base_mean.nii                \
+        "${owdir}"/epi_motsim_mask4d.nii
         
             
 else

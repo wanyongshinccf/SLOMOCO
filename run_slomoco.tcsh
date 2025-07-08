@@ -39,7 +39,8 @@ set version = "1.0" ;    set rev_dat   = "Jun 18, 2025"
 # + for HCP plug-in
 # +++ direct full command without setting PATH
 # +++ vol-/sli-wise moco only, without regression (Use -do_mocoonly)
-# +++ Scout image as input
+# +++ Scout image as input (use -epi_unsat)
+# +++ motion parameter directory
 # intermeidiate and final output format are NIFTI (nii)
 
 # ----------------------------------------------------------------

@@ -283,19 +283,17 @@ date                                >> $odir/$histfile
 echo ""                             >> $odir/$histfile
 
 # fsl input without postfix (HCP)
-echo $FSLOUTPUTTYPE  >> $odir/$histfile
 if ( $FSLOUTPUTTYPE == "NIFTI_PAIR" ) then
-    set fslpostfix = "hdr" >> $odir/$histfile
+    set fslpostfix = "hdr" 
 else if ( $FSLOUTPUTTYPE == "NIFTI" ) then
-    set fslpostfix = "nii" >> $odir/$histfile
+    set fslpostfix = "nii" 
 else if ( $FSLOUTPUTTYPE == "NIFTI_GZ" ) then
-    set fslpostfix = "nii.gz" >> $odir/$histfile
+    set fslpostfix = "nii.gz"
 else
     echo "WARNING: FSL ANAZYE format is used" >> $odir/$histfile
-    set fslpostfix = "hdr" >> $odir/$histfile
+    set fslpostfix = "hdr" 
 endif
-
-echo ${fslpostfix} is used  >> $odir/$histfile
+echo ${fslpostfix} is used for input >> $odir/$histfile
 
 if  ( $volregfirst == "1" ) then
     echo "+* WARNING: You select running SLOMOCO on volume motion corrected images"     |& tee -a $odir/$histfile

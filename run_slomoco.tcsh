@@ -283,16 +283,19 @@ date                                >> $odir/$histfile
 echo ""                             >> $odir/$histfile
 
 # fsl input without postfix (HCP)
+echo $FSLOUTPUTTYPE  >> $odir/$histfile
 if ( $FSLOUTPUTTYPE == "NIFTI_PAIR" ) then
-    set fslpostfix = "hdr"
-elif ( $FSLOUTPUTTYPE == "NIFTI" ) then
-    set fslpostfix = "nii"
-elif ( $FSLOUTPUTTYPE == "NIFTI_GZ" ) then
-    set fslpostfix = "nii.gz"
+    set fslpostfix = "hdr" >> $odir/$histfile
+else if ( $FSLOUTPUTTYPE == "NIFTI" ) then
+    set fslpostfix = "nii" >> $odir/$histfile
+else if ( $FSLOUTPUTTYPE == "NIFTI_GZ" ) then
+    set fslpostfix = "nii.gz" >> $odir/$histfile
 else
-    echo "WARNING: FSL ANAZYE format is used"
-    set fslpostfix = "hdr"
-fi
+    echo "WARNING: FSL ANAZYE format is used" >> $odir/$histfile
+    set fslpostfix = "hdr" >> $odir/$histfile
+endif
+
+echo ${fslpostfix} is used  >> $odir/$histfile
 
 if  ( $volregfirst == "1" ) then
     echo "+* WARNING: You select running SLOMOCO on volume motion corrected images"     |& tee -a $odir/$histfile
@@ -378,8 +381,9 @@ if ( "${epi}" == "" ) then
 else
     # verify dset is OK to read
     3dinfo "${epi}".${fslpostfix}  >& /dev/null
+    
     if ( ${status} ) then
-        echo "** ERROR: cannot read/open dset: ${epi} "             |& tee -a $odir/$histfile
+        echo "** ERROR: cannot read/open dset: ${epi}.${fslpostfix} "             |& tee -a $odir/$histfile
         goto BAD_EXIT
     endif
 

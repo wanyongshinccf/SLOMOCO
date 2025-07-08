@@ -377,14 +377,14 @@ if ( "${epi}" == "" ) then
     goto BAD_EXIT
 else
     # verify dset is OK to read
-    3dinfo "${epi}"  >& /dev/null
+    3dinfo "${epi}".${fslpostfix}  >& /dev/null
     if ( ${status} ) then
         echo "** ERROR: cannot read/open dset: ${epi} "             |& tee -a $odir/$histfile
         goto BAD_EXIT
     endif
 
     # must have +orig space for input EPI
-    set av_space = `3dinfo -av_space "${epi}" `
+    set av_space = `3dinfo -av_space "${epi}".${fslpostfix} `
     if ( "${av_space}" != "+orig" ) then
         echo "** ERROR: input EPI must have +orig av_space, not: ${av_space}" |& tee -a $odir/$histfile
         goto BAD_EXIT

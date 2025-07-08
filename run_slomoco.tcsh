@@ -43,6 +43,10 @@ set version = "1.0" ;    set rev_dat   = "Jun 18, 2025"
 # +++ motion parameter directory
 # intermeidiate and final output format are NIFTI (nii)
 
+set version = "1.01" ;    set rev_dat   = "Jul 8, 2025"
+# + for HCP plug-in debug
+# input/output file extension for fsl convension
+
 # ----------------------------------------------------------------
 
 # -------------------- set environment vars -----------------------
@@ -278,6 +282,17 @@ echo $fullcommand $fullcommandlines >> $odir/$histfile
 date                                >> $odir/$histfile
 echo ""                             >> $odir/$histfile
 
+# fsl input without postfix (HCP)
+if ( $FSLOUTPUTTYPE == "NIFTI_PAIR" ) then
+    set fslpostfix = "hdr"
+elif ( $FSLOUTPUTTYPE == "NIFTI" ) then
+    set fslpostfix = "nii"
+elif ( $FSLOUTPUTTYPE == "NIFTI_GZ" ) then
+    set fslpostfix = "nii.gz"
+else
+    echo "WARNING: FSL ANAZYE format is used"
+    set fslpostfix = "hdr"
+fi
 
 if  ( $volregfirst == "1" ) then
     echo "+* WARNING: You select running SLOMOCO on volume motion corrected images"     |& tee -a $odir/$histfile
@@ -377,7 +392,7 @@ else
 
     # copy to wdir
     3dcalc                              \
-        -a "${epi}"                     \
+        -a "${epi}".${fslpostfix}       \
         -expr 'a'                       \
         -prefix "${owdir}/epi_00.nii"   \
         -overwrite
@@ -391,7 +406,7 @@ if ( ${epi_unsat} == "" ) then
         3dToutcount                                           \
             -automask                                         \
             -fraction -polort 3 -legendre                     \
-            "${epi}"                                          \
+            "${epi}".${fslpostfix}                            \
             > "${owdir}/outcount_rall.1D"
 
         # get TR index for minimum outlier volume
@@ -429,7 +444,7 @@ if ( ${epi_unsat} == "" ) then
         \rm -f "${owdir}"/___temp_volreg*
     else 
         # not be choice, but hope user entered an int
-        set max_idx = `3dinfo -nvi "${epi}"`
+        set max_idx = `3dinfo -nvi "${epi}".${fslpostfix}`
     
         if ( `echo "${vr_base} > ${max_idx}" | bc` || \
              `echo "${vr_base} < 0" | bc` ) then
@@ -445,9 +460,9 @@ if ( ${epi_unsat} == "" ) then
     echo "   $vr_idx volume will be the reference volume"                       |& tee -a $odir/$histfile
 
     # save reference volume
-    3dcalc  -a "${epi}[$vr_idx]"            \
-            -expr 'a'                       \
-            -prefix "${owdir}"/epi_base.nii \
+    3dcalc  -a "${epi}.${fslpostfix}[$vr_idx]"  \
+            -expr 'a'                           \
+            -prefix "${owdir}"/epi_base.nii     \
             -overwrite 
 else
     if ( $vr_idx != "-1" ) then 
@@ -456,7 +471,7 @@ else
         exit
     else
         3dcalc                              \
-            -a "${epi_unsat}"               \
+            -a "${epi_unsat}".${fslpostfix} \
             -expr 'a'                       \
             -prefix "${owdir}"/epi_base.nii \
             -overwrite
@@ -552,7 +567,7 @@ else
     endif
     
     3dcalc                                      \
-        -a       "${epi_mask}"                  \
+        -a       "${epi_mask}".${fslpostfix}    \
         -expr    'step(a)'                      \
         -prefix  "${owdir}/epi_base_mask.nii"   \
         -nscale                                 \
@@ -820,15 +835,15 @@ endif #(HCP)
 # copy the final result (HCP)
 if ( $DO_MOCOONLY == "0" ) then 
     3dcalc                                              \
-        -a "${owdir}"/epi_03_slicemoco_xy.slomoco.nii  \
+        -a "${owdir}"/epi_03_slicemoco_xy.slomoco.nii   \
         -expr 'a'                                       \
-        -prefix "${odir}/${opref}"                      \
+        -prefix "${odir}/${opref}".${fslpostfix}        \
         -overwrite
 else
     3dcalc                                              \
-        -a "${owdir}"/epi_03_slicemoco_xy.nii  \
+        -a "${owdir}"/epi_03_slicemoco_xy.nii           \
         -expr 'a'                                       \
-        -prefix "${odir}/${opref}"                      \
+        -prefix "${odir}/${opref}".${fslpostfix}        \
         -overwrite
 endif
 

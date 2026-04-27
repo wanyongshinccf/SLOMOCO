@@ -1,11 +1,17 @@
-function qa_slomoco(ep2d_filename,filestr_out,filestr_in,filter_width,sub_xy_offsets)
+function qa_slomoco_v54(ep2d_filename,filestr_out,filestr_in,filter_width,sub_xy_offsets)
+function qa_slomoco_v54((TR,tdim,zdim, dx, dy, dz, vol_filename, sli_filename, tfile)
 %function qa_slomoco(ep2d_filename,filestr_out,filestr_in,slice_timing,filter_width,sub_xy_offsets)
 % script reads in SLOMOCO files and fit data in local directory (currently inside pestica/ subdirectory)
 % plot motion parameters, histograms of excessive motion, histograms of motion coupling t-score (sum across model)
+
 % clear all
 % ep2d_filename='S42vol.slicemocoxy_afni+orig'
 % filestr_out='tempslmoco_volslc_alg_vol_S42vol.slicemocoxy_afni/motion.wholevol_zt'
 % filestr_in='tempslmocoxy_afni_S42vol'
+
+if (exist('tfile')==0)
+  tfile='tshiftfile.1D';
+end
 if (exist('filter_width')==0)
   filter_width=5;
 end
@@ -13,36 +19,20 @@ if (exist('sub_xy_offsets')==0)
   sub_xy_offsets=1;
 end
 
-% BrikInfo only works on AFNI BRIK format files
-[err,ainfo] = BrikInfo(ep2d_filename);
-xdim=ainfo.DATASET_DIMENSIONS(1);
-ydim=ainfo.DATASET_DIMENSIONS(2);
-zdim=ainfo.DATASET_DIMENSIONS(3);
-tdim=ainfo.DATASET_RANK(2);
-dx=ainfo.DELTA(1);
-dy=ainfo.DELTA(2);
-dz=ainfo.DELTA(3);
-TR=double(ainfo.TAXIS_FLOATS(2));
-slice_timing=load('tshiftfile.1D'); slice_timing=1000*slice_timing; %ms
-
 % check time unit
+slice_timing=load(tfile); slice_timing=1000*slice_timing; %ms
 [TRsec TRms] = TRtimeunitcheck(TR);
 [slice_timing_sec slice_timing_ms] = TRtimeunitcheck(slice_timing);
 [MB zmbdim uniq_slice_timing_ms uniq_acq_order] = SMSacqcheck(TRms, zdim, slice_timing_ms);
 
-% get scan orientation from header
-[rx,cx]=find(ainfo.Orientation=='R');  % for axial == 1
-[ry,cy]=find(ainfo.Orientation=='A');  % for axial == 2
-[rz,cz]=find(ainfo.Orientation=='I');  % for axial == 3
-
 % apparently its not uncommon for DELTA to be negative on one or more axes, but don't know why that would be...
-voxsize=abs(prod(ainfo.DELTA));
+voxsize=abs(dx*dy));
 
 % read volumetric params first (assume AFNI 3dvolreg)
-motion=textread('mocoafni.txt'); % n roll(I-S) pitch(R-L) yaw(A-P) dS dL dP
-
+motion=textread(vol_filename);
 % re-order volumetric params
-motion=motion(:,[6 7 5 3 4 2]); % dL dP dS pitch(R-L) yaw(A-P) roll(I-S)
+motion=motion(:,[5 6 4 2 3 1]); % 3dallineate convention
+motion(:,1:3) = motion(:,1:3); flip
 
 % make TD metric
 meanvox=parallelepiped_jiang(motion);
@@ -52,37 +42,44 @@ volinds=find(meanvox>2*median(meanvox));
 
 % read out-of-plane motion parameters
 % [outofplane,outofplane6]=read_motion_newslicealg(filestr_out,slice_timing_ms);
-[rotmat_zt,outofplane6new]=read_1dmat_zt(filestr_out); % rotmat_zt = [zmbdim tdim 12], outofplane6new = [zmbdim tdim 6]
-outofplane=zeros(tdim*zmbdim,12);
-outofplane6=zeros(tdim*zmbdim,6);
-for t=1:tdim
-  for z = 1:zmbdim
-    acqtp = find(uniq_acq_order==z) + (t-1)*zmbdim;
-    outofplane(acqtp,:) = rotmat_zt(z,t,:);      % [tdim*zmbdim [dL dP dS rotmatvector (1:9)]]
-    outofplane6(acqtp,:) = outofplane6new(z,t,:);% [tdim*zmbdim [dL dP dS pitch raw roll]]
+% [rotmat_zt,outofplane6new]=read_1dmat_zt(filestr_out); % rotmat_zt = [zmbdim tdim 12], outofplane6new = [zmbdim tdim 6]
+
+% read slicewise motion, following 3dvolreg convention
+slimot_volreg = load(sli_filename);  % [tdim x (zdim x 6)]
+% resample based on slice acq order
+% temp stores only upto zmbdim
+slimot_tzmopa = zeros(tdim,zmbdim,6);
+for t = 1:tdim
+  for m = 1:6
+    slimot_tzmopa(t,:,m) = slimot_volreg(t,m:6:m+zmbdim*6-1);   % [tdim,zmbdim,6]
   end
 end
 
+% re-write slice motion in time series
+slimot = zeros(tdim*zmbdim,6);
+for t = 1:tdim
+  for zmb = 1:zmbdim
+    acqsliorder = uniq_acq_order(zmb);
+    tsli = (t-1)*zmbdim + zmb;
+    slimot(tsli,:) = squeeze(slimot_tzmopa(t,acqsliorder,:));
+  end
+end
+ 
+% put them back in 3dAllineate convention
+% {'z-rot','x-rot','y-rot','z-trans','x-trans','y-trans'};
+% {'x-trans','y-trans','z-trans','x-rot','y-rot','z-rot'};
+slimot_jiang=slimot(:,[5 6 4 2 3 1]); % dL dP dS pitch(R-L) yaw(A-P) roll(I-S)
+slimot_jiang(:,1:3) = -1*slimot_jiang(:,1:3);
+
+outofplane=zeros(tdim*zmbdim,12);
+outofplane6=zeros(tdim*zmbdim,6);
+inplane6(:,[1 2 6]) = slimot_jiang(:,[1 2 6]);
+outofplane6(:,[3 4 5]) = slimot_jiang(:,[3 4 5]);
+
 % read in-plane motion parameters
-[inplane,inplane6]=read_slicemocoxy_AFNI_files_auto(filestr_in,uniq_slice_timing_ms); 
+% [inplane,inplane6]=read_slicemocoxy_AFNI_files_auto(filestr_in,uniq_slice_timing_ms); 
 % inplane = [tdim*zmbdim [dL dP dS rotmatvector (1:9)]]
 % inplane6 = [tdim*zmbdim [dL dP dS pitch raw roll]]
-
-% correct for scan axis orientation: 
-% axial [rx ry rz]=[1 2 3], sagittal=[3 1 2], coronal=[1 3 2]
-axisz=find([rx ry rz]==3);
-if (axisz==2)
-  inplane6=inplane6(:,[3 1 2 6 4 5]);
-  outofplane6=outofplane6(:,[3 1 2 6 4 5]);
-  disp('Swapping axes for coronal acquisition');
-elseif (axisz==1)
-  inplane6=inplane6(:,[3 2 1 6 5 4]);
-  outofplane6=outofplane6(:,[3 2 1 6 5 4]);
-  % 1, 4 are inverted
-  inplane6(:,[1 4])=-1*inplane6(:,[1 4]);
-  outofplane6(:,[1 4])=-1*outofplane6(:,[1 4]);
-  disp('Swapping axes for sagittal acquisition');
-end
 
 % Step 1: remove mean from out-of-plane params (offset removal)
 outofplane6=outofplane6-repmat(mean(outofplane6),[length(outofplane6) 1]);

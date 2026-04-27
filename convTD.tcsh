@@ -108,7 +108,7 @@ echo matlab $MATLABLINE
 matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_v22($TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"
 
 # run SLOMOCO_afni_v5.4
-#matlab $MATLABLINE <<<"addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_sh('$epi.slicemocoxy_afni+orig','$epi.brain+orig','$epi.mocoafni.1D','$epi.slicemopa.1D'); exit;"
+#matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_v54('$epi.slicemocoxy_afni+orig','$epi.brain+orig','$epi.mocoafni.1D','$epi.slicemopa.1D'); exit;"
 
 # run SLOMOCO_afni_v5.50
 #matlab $MATLABLINE <<<"addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_sh('$epi.slicemocoxy_afni+orig','$epi.brain+orig','$epi.mocoafni.1D','$epi.slicemopa.1D'); exit;"

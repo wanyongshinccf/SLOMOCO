@@ -175,8 +175,7 @@ for i=[3 4 5]
   volslo(:,i)=mean(reshape(newmot(:,i),[zmbdim tdim]));
   [p(i),stand_err(i),mse] = lscov(volslo(:,i)-mean(volslo(:,i)),motion(:,i)-mean(motion(:,i)));
 end
-size(motion)
-size(std(volslo))
+
 normfactor=std(motion)./std(volslo);
 normfactor=p; % (W.S) this should be a bug. Not debugged to keep a consistency
 % do not alter in-planes, these are to be trusted, as-is

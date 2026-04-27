@@ -4,30 +4,30 @@ function [volslimot_final slimot_final_jiang] =  qa_slomoco(ep2d_filename,mask_f
 % plot motion parameters, histograms of excessive motion, histograms of motion coupling t-score (sum across model)
 % BrikInfo only works on AFNI BRIK format files
  
-[err,ainfo] = BrikInfo(ep2d_filename);
-xdim=ainfo.DATASET_DIMENSIONS(1);
-ydim=ainfo.DATASET_DIMENSIONS(2);
-zdim=ainfo.DATASET_DIMENSIONS(3);
-tdim=ainfo.DATASET_RANK(2);
-dx=ainfo.DELTA(1);
-dy=ainfo.DELTA(2);
-dz=ainfo.DELTA(3);
-TR=double(ainfo.TAXIS_FLOATS(2));
-slice_timing=load('tshiftfile.1D'); slice_timing=1000*slice_timing; %ms
- 
-% get scan orientation from header
-[rx,cx]=find(ainfo.Orientation=='R');  % for axial == 1
-[ry,cy]=find(ainfo.Orientation=='A');  % for axial == 2
-[rz,cz]=find(ainfo.Orientation=='I');  % for axial == 3
- 
-% apparently its not uncommon for DELTA to be negative on one or more axes, but don't know why that would be...
-voxsize=abs(prod(ainfo.DELTA));
- 
+% TR=2.8;
+% tdim=156;
+% zdim=81;
+% dx=1.2;
+% dy=-1.2;
+% dz=1.5;
+% tfile='tshiftfile.1D';
+% vol_filename='epi_01_volreg.1D';
+% sli_filename='rm.slimopa.1D';
+% mask_filename='epi_base_mask+orig'
+
+if (exist('tfile')==0)
+  tfile='tshiftfile.1D';
+end
+
 % check time unit
+slice_timing=load(tfile); slice_timing=1000*slice_timing; %ms
 [TRsec TRms] = TRtimeunitcheck(TR);
 [slice_timing_sec slice_timing_ms] = TRtimeunitcheck(slice_timing);
 [MB zmbdim uniq_slice_timing_ms uniq_acq_order] = SMSacqcheck(TRms, zdim, slice_timing_ms);
  
+% apparently its not uncommon for DELTA to be negative on one or more axes, but don't know why that would be...
+voxsize=abs(dx*dy);
+
 % read mask and set the scale factor for out-of-plane
 [err, mask, Info, ErrMessage]  = BrikLoad(mask_filename);
 mask(find(mask))=1;
@@ -133,26 +133,26 @@ for t = 1:tdim
   end
 end
  
-% correct for scan axis orientation:
-% axial [rx ry rz]=[1 2 3], sagittal=[3 1 2], coronal=[1 3 2]
-axisz=find([rx ry rz]==3);
-if (axisz==2)
-  disp('Swapping axes for coronal acquisition');
-  volmot =volmot(:,[3 1 2 6 4 5]); % zsh xsh ysh zrot xrot yrot
-  slimot =slimot(:,[3 1 2 6 4 5]); %
-%   volmot_jiang=volmot_jiang(:,[3 1 2 6 4 5]); % zsh xsh ysh zrot xrot yrot
-%   slimot_jiang=slimot_jiang(:,[3 1 2 6 4 5]); %
-elseif (axisz==1)
-  disp('Swapping axes for sagittal acquisition');
-  volmot=volmot(:,[2 1 3 5 4 6]);
-  slimot=slimot(:,[2 1 3 5 4 6]);
-  volmot(:,[2 5])=-1*volmot(:,[2 5]);
-  slimot(:,[2 5])=-1*slimot(:,[2 5]);
-  %   volmot_jiang=volmot_jiang(:,[3 2 1 6 5 4]);
-%   slimot_jiang=slimot_jiang(:,[3 2 1 6 5 4]);% 1, 4 are inverted
-%   volmot_jiang(:,[1 4])=-1*volmot_jiang(:,[1 4]);
-%   slimot_jiang(:,[1 4])=-1*slimot_jiang(:,[1 4]);
-end
+% % correct for scan axis orientation:
+% % axial [rx ry rz]=[1 2 3], sagittal=[3 1 2], coronal=[1 3 2]
+% axisz=find([rx ry rz]==3);
+% if (axisz==2)
+%   disp('Swapping axes for coronal acquisition');
+%   volmot =volmot(:,[3 1 2 6 4 5]); % zsh xsh ysh zrot xrot yrot
+%   slimot =slimot(:,[3 1 2 6 4 5]); %
+% %   volmot_jiang=volmot_jiang(:,[3 1 2 6 4 5]); % zsh xsh ysh zrot xrot yrot
+% %   slimot_jiang=slimot_jiang(:,[3 1 2 6 4 5]); %
+% elseif (axisz==1)
+%   disp('Swapping axes for sagittal acquisition');
+%   volmot=volmot(:,[2 1 3 5 4 6]);
+%   slimot=slimot(:,[2 1 3 5 4 6]);
+%   volmot(:,[2 5])=-1*volmot(:,[2 5]);
+%   slimot(:,[2 5])=-1*slimot(:,[2 5]);
+%   %   volmot_jiang=volmot_jiang(:,[3 2 1 6 5 4]);
+% %   slimot_jiang=slimot_jiang(:,[3 2 1 6 5 4]);% 1, 4 are inverted
+% %   volmot_jiang(:,[1 4])=-1*volmot_jiang(:,[1 4]);
+% %   slimot_jiang(:,[1 4])=-1*slimot_jiang(:,[1 4]);
+% end
  
 % Step 1, define two outer slices in case of single band acq
 % identify outer-most slices according to slice timing
@@ -186,7 +186,7 @@ end
 % Step 3.   apply a Savitsky-Golay filter with 2 seconds of window
   % this should be turned off for data with really fast motion (like SimPACE data with motion on only one slice)
 for m = 1:6
-  volslimot_fit(:,m) = sgolayfilt(volslimot(:,m),3,zmbdim);
+  volslimot_fit(:,m) = sgolayfilt(volslimot(:,m),3,floor(zmbdim/2)*2+1); % debugged (W.S) 20250611
   % in case of signal processing box is not availble, uncommnet the below
 %   SGbin = round(Fs/2)*4+1;
 %   i =  -2*round(Fs/2): 2*round(Fs/2);
@@ -215,27 +215,27 @@ volslimot_fit_jiang(:,1:3) = -1*volslimot_fit_jiang(:,1:3);
 % save all
 % test TDz here, will be commented out
 [td_slomoco,tdz_slomoco]   =  parallelepiped_jiang(slimot_jiang);
-fp=fopen('slomoco.iTDmetric.txt','w'); fprintf(fp,'%g\n',td_slomoco); fclose(fp);
-fp=fopen('slomoco.iTDzmetric.txt','w'); fprintf(fp,'%g\n',tdz_slomoco); fclose(fp);
+fp=fopen('slomoco.iTDmetric.tcsh_mean.txt','w'); fprintf(fp,'%g\n',td_slomoco); fclose(fp);
+fp=fopen('slomoco.iTDzmetric.tcsh_mean.txt','w'); fprintf(fp,'%g\n',tdz_slomoco); fclose(fp);
  
-% for a volumetric metric of motion corruption, use the max across slices within a volume
-fp=fopen('slomoco.volumetric.iTDmetric.txt','w'); fprintf(fp,'%g\n',max(reshape(td_slomoco,[zmbdim tdim]))); fclose(fp);
-fp=fopen('slomoco.volumetric.iTDzmetric.txt','w'); fprintf(fp,'%g\n',max(reshape(tdz_slomoco,[zmbdim tdim]))); fclose(fp);
+% for a volumetric metric of motion corruption, use the mean across slices within a volume (W.S 20240611)
+fp=fopen('slomoco.volumetric.iTDmetric.tcsh_mean.txt','w'); fprintf(fp,'%g\n',mean(reshape(td_slomoco,[zmbdim tdim]))); fclose(fp);
+fp=fopen('slomoco.volumetric.iTDzmetric.tcsh_mean.txt','w'); fprintf(fp,'%g\n',mean(reshape(tdz_slomoco,[zmbdim tdim]))); fclose(fp);
  
 % 3dvolreg motion x,y,z trans are inverted w.r.t. 3dWarpDrive
 % [td_volmoco,tdz_volmoco]=parallelepiped_jiang(volmot_jiang);
 % fp=fopen('volmoco.TDmetric.txt','w'); fprintf(fp,'%g\n',td_volmoco); fclose(fp);
 % fp=fopen('volmoco.TDzmetric.txt','w'); fprintf(fp,'%g\n',tdz_volmoco); fclose(fp);
 %
-% 3dvolreg derivative motion x,y,z trans are inverted w.r.t. 3dWarpDrive
-[td_volmoco_deriv,tdz_volmoco_deriv]=parallelepiped_jiang(volmot_deriv_jiang);
-fp=fopen('volmoco.Deriv.TDmetric.txt','w'); fprintf(fp,'%g\n',td_volmoco_deriv); fclose(fp);
-fp=fopen('volmoco.Deriv.TDzmetric.txt','w'); fprintf(fp,'%g\n',tdz_volmoco_deriv); fclose(fp);
- 
-% save the 3dvolreg volumetric motion, repeated over slices
-fp=fopen('volslimot_fit.txt','w'); fprintf(fp,'%g\t%g\t%g\t%g\t%g\t%g\n',volslimot_fit'); fclose(fp);
-fp=fopen('volslimot.txt','w'); fprintf(fp,'%g\t%g\t%g\t%g\t%g\t%g\n',volslimot'); fclose(fp);
-fp=fopen('volslimot_raw.txt','w'); fprintf(fp,'%g\t%g\t%g\t%g\t%g\t%g\n',volslimot_raw'); fclose(fp);
+% % 3dvolreg derivative motion x,y,z trans are inverted w.r.t. 3dWarpDrive
+% [td_volmoco_deriv,tdz_volmoco_deriv]=parallelepiped_jiang(volmot_deriv_jiang);
+% fp=fopen('volmoco.Deriv.TDmetric.txt','w'); fprintf(fp,'%g\n',td_volmoco_deriv); fclose(fp);
+% fp=fopen('volmoco.Deriv.TDzmetric.txt','w'); fprintf(fp,'%g\n',tdz_volmoco_deriv); fclose(fp);
+% 
+% % save the 3dvolreg volumetric motion, repeated over slices
+% fp=fopen('volslimot_fit.txt','w'); fprintf(fp,'%g\t%g\t%g\t%g\t%g\t%g\n',volslimot_fit'); fclose(fp);
+% fp=fopen('volslimot.txt','w'); fprintf(fp,'%g\t%g\t%g\t%g\t%g\t%g\n',volslimot'); fclose(fp);
+% fp=fopen('volslimot_raw.txt','w'); fprintf(fp,'%g\t%g\t%g\t%g\t%g\t%g\n',volslimot_raw'); fclose(fp);
 
 % original commented by E.B
 % to see the difference between volumetric motion and slice motion, plot(slomoco-volmotion)
@@ -265,7 +265,7 @@ subplot(4,2,8);
 plot(td_volmoco_deriv);xlim([0 tdim]);
 legend('Avg Vox Disp');
 title('Deriv of Vol Mot TD (Jiang parallelepiped method)');
-saveas(gcf,'qa_volslimoco_metrics.jpg');
+saveas(gcf,'qa_volslimoco_metrics.tcsh_mean.jpg');
  
 figure
 subplot(3,1,1);
@@ -291,11 +291,11 @@ plot(slimot_fit_jiang(:,[1 2 6]))
 xlim([0 tdim*zmbdim]);
 legend('x-trans','y-trans','z-rot');
 title('in-plane params');
-saveas(gcf,'qa_slomoco_motionvectors.jpg');
+saveas(gcf,'qa_slomoco_motionvectors.tcsh_mean.jpg');
 
-% DVARS and FD caclulation
-DV = calcDVARS(ep2d_filename,mask_filename,slice_timing);
-FD = calcFD(vol_filename);
-fp=fopen('FD.txt','w'); fprintf(fp,'%g\n',FD); fclose(fp);
-fp=fopen('DVARS.txt','w'); fprintf(fp,'%g\n',DV); fclose(fp);
+% % DVARS and FD caclulation
+% DV = calcDVARS(ep2d_filename,mask_filename,slice_timing);
+% FD = calcFD(vol_filename);
+% fp=fopen('FD.txt','w'); fprintf(fp,'%g\n',FD); fclose(fp);
+% fp=fopen('DVARS.txt','w'); fprintf(fp,'%g\n',DV); fclose(fp);
  

@@ -1,13 +1,18 @@
-function qa_slomoco_v54(ep2d_filename,filestr_out,filestr_in,filter_width,sub_xy_offsets)
-function qa_slomoco_v54((TR,tdim,zdim, dx, dy, dz, vol_filename, sli_filename, tfile)
+function qa_slomoco_v54(TR,tdim,zdim, dx, dy, dz, vol_filename, sli_filename, tfile)
 %function qa_slomoco(ep2d_filename,filestr_out,filestr_in,slice_timing,filter_width,sub_xy_offsets)
 % script reads in SLOMOCO files and fit data in local directory (currently inside pestica/ subdirectory)
 % plot motion parameters, histograms of excessive motion, histograms of motion coupling t-score (sum across model)
 
-% clear all
-% ep2d_filename='S42vol.slicemocoxy_afni+orig'
-% filestr_out='tempslmoco_volslc_alg_vol_S42vol.slicemocoxy_afni/motion.wholevol_zt'
-% filestr_in='tempslmocoxy_afni_S42vol'
+
+% TR=2.8;
+% tdim=156;
+% zdim=81;
+% dx=1.2;
+% dy=-1.2;
+% dz=1.5;
+% tfile='tshiftfile.1D';
+% vol_filename='epi_01_volreg.1D';
+% sli_filename='rm.slimopa.1D';
 
 if (exist('tfile')==0)
   tfile='tshiftfile.1D';
@@ -26,13 +31,13 @@ slice_timing=load(tfile); slice_timing=1000*slice_timing; %ms
 [MB zmbdim uniq_slice_timing_ms uniq_acq_order] = SMSacqcheck(TRms, zdim, slice_timing_ms);
 
 % apparently its not uncommon for DELTA to be negative on one or more axes, but don't know why that would be...
-voxsize=abs(dx*dy));
+voxsize=abs(dx*dy);
 
 % read volumetric params first (assume AFNI 3dvolreg)
 motion=textread(vol_filename);
 % re-order volumetric params
 motion=motion(:,[5 6 4 2 3 1]); % 3dallineate convention
-motion(:,1:3) = motion(:,1:3); flip
+motion(:,1:3) = motion(:,1:3); % flip
 
 % make TD metric
 meanvox=parallelepiped_jiang(motion);
@@ -92,7 +97,7 @@ outofplane6=outofplane6-repmat(mean(outofplane6),[length(outofplane6) 1]);
     % either way, detrending is critical
 for i=1:zmbdim
   a=outofplane6(i:zmbdim:end,:);
-  for q=1:6
+  for q=[3 4 5]
     a(:,q)=pchip(setxor(volinds,1:tdim),a(setxor(volinds,1:tdim),q),1:tdim);
     p=polyfit(1:tdim,a(:,q)',1);
     outofplane6(i:zmbdim:end,q)=(outofplane6(i:zmbdim:end,q) - polyval(p,1:tdim)');
@@ -136,15 +141,18 @@ end
 % Step 3: interpolate over outer two end slices (two on each end) for in-planes
 inputmesh_two=setxor(1:length(outofplane6),exclude_slices_two);
 inputmesh_one=setxor(1:length(outofplane6),exclude_slices_one);
-for i=1:6
+for i=[1 2 6]
   % can't trust the in-plane or out-of-plane motion in outer two slices - this may be dependent on # of voxels in those slices
   % this is worst when its slice #2 (half-way thru a stack of odd # of slices) and slice #30 (last even in stack of odds)
   % but the first and last odd is also modestly bad. This is entirely from out-of-plane motion
   % unfortunately, we cannot be sure whether a given motion is really in-plane or just apparent in-plane
   % so we have no choice unless we can obtain some other information
   inplane6(:,i)=pchip(inputmesh_two,inplane6(inputmesh_two,i),1:length(inplane6));
+end
+for i=[3 4 5]
   outofplane6(:,i)=pchip(inputmesh_two,outofplane6(inputmesh_two,i),1:length(outofplane6));
 end
+
 % and re-normalize by slice stddev again after the interpolation
 newmot=outofplane6;
 for i=1:zmbdim
@@ -163,15 +171,16 @@ for i=1:zmbdim
 end
 
 
-
 % Step 4: normalize out-of-plane, fit the volume-averaged motion to volumetric paramter motion
 % important key: average across slices to get a volumetric measure of motion from the out-of-planes
-for i=1:6
+p=zeros(1,6);
+volslo = zeros(tdim,6);
+for i=[3 4 5]
   volslo(:,i)=mean(reshape(newmot(:,i),[zmbdim tdim]));
   [p(i),stand_err(i),mse] = lscov(volslo(:,i)-mean(volslo(:,i)),motion(:,i)-mean(motion(:,i)));
 end
 normfactor=std(motion)./std(volslo);
-normfactor=p;
+normfactor=p; % should be a bug, Keetping a consistency (W.S)
 % do not alter in-planes, these are to be trusted, as-is
 normfactor([1 2 6])=1;
 % polarity can be inverted w.r.t. volumetric coregistration, but this is not necessarily important for metrics
@@ -184,7 +193,7 @@ newmot=newmot.*repmat(normfactor,[tdim*zmbdim 1]);
 % (this, and other steps, assumes that slices have been read in and re-ordered by temporal acquisition order)
 % simple hard-coded SG filter for 3 points
 % this should be turned off for data with really fast motion (like SimPACE data with motion on only one slice)
-for q=1:6
+for q=[3 4 5]
   if (filter_width==5)
     for i=3:tdim*zmbdim-2
       % for 5-point quadratic, coeffs are -3, 12, 17, 12, -3 (norm = 35)
@@ -268,45 +277,46 @@ end
 % and B0 field inhomogeneity in less than half the brain, while the spin history effects will be everywhere a voxel
 % went out-of-plane by a few hundred microns
 [td_slomoco,td_slomocoz]=parallelepiped_jiang(combined_rotoffsets);
-fp=fopen('slomoco.TDmetric.txt','w'); fprintf(fp,'%g\n',td_slomoco); fclose(fp);
-fp=fopen('slomoco.TDzmetric.txt','w'); fprintf(fp,'%g\n',td_slomocoz); fclose(fp);
+fp=fopen('slomoco.TDmetric.ver54.txt','w'); fprintf(fp,'%g\n',td_slomoco); fclose(fp);
+fp=fopen('slomoco.TDzmetric.ver54.txt','w'); fprintf(fp,'%g\n',td_slomocoz); fclose(fp);
 % for a volumetric metric of motion corruption, use the max across slices within a volume
-fp=fopen('slomoco.volumetric.TDzmetric.txt','w'); fprintf(fp,'%g\n',max(reshape(td_slomocoz,[zmbdim tdim]))); fclose(fp);
-fp=fopen('slomoco.volumetric.TDmetric.txt','w'); fprintf(fp,'%g\n',max(reshape(td_slomoco,[zmbdim tdim]))); fclose(fp);
-% 3dvolreg motion x,y,z trans are inverted w.r.t. 3dWarpDrive
-motion(:,1:3)=-1*motion(:,1:3);
-[td_volmoco,tdz_volmoco]=parallelepiped_jiang(motion);
-fp=fopen('volmotion.TDmetric.txt','w'); fprintf(fp,'%g\n',td_volmoco); fclose(fp);
-fp=fopen('volmotion.TDzmetric.txt','w'); fprintf(fp,'%g\n',tdz_volmoco); fclose(fp);
-for i=1:6
-  volmotion(:,i)=reshape(repmat(motion(:,i)',[zmbdim 1]),[zmbdim*tdim 1]);
-end
-% save the 3dvolreg volumetric motion, repeated over slices
-fp=fopen('volmotion.repslices.txt','w'); fprintf(fp,'%g\t%g\t%g\t%g\t%g\t%g\n',volmotion'); fclose(fp);
-% to see the difference between volumetric motion and slice motion, plot(slomoco-volmotion)
-% this is the residual motion left after volumetric correction, or what volmoco misses
-% finally, if prospective motion is turned on (Thesen et al 2002), the volumetric motion is essentially
-% subtracted from the data, delayed by one volume, so there will be sharp disruptions at the volume boundary
-% we could obtain the true (free-space) motion by shifting the volumetric motion by one volume, and adding to slomoco
-% this could also be used to improve the edge slice interpolations and could be done earlier, but many sites do not
-% use PACE (the Siemens name, each vendor has their own, as far as I know), and is outside the scope of this work
-% NOTE, it will be important to know the real free-space motion for applying RX field and B0 inhomogeneity motion corrections
-pacemotion=volmotion;
-pacemotion(zmbdim+1:end,:)=volmotion(1:end-zmbdim,:);
+fp=fopen('slomoco.volumetric.TDzmetric.ver54.txt','w'); fprintf(fp,'%g\n',max(reshape(td_slomocoz,[zmbdim tdim]))); fclose(fp);
+fp=fopen('slomoco.volumetric.TDmetric.ver54.txt','w'); fprintf(fp,'%g\n',max(reshape(td_slomoco,[zmbdim tdim]))); fclose(fp);
+
+% % 3dvolreg motion x,y,z trans are inverted w.r.t. 3dWarpDrive
+% motion(:,1:3)=-1*motion(:,1:3);
+% [td_volmoco,tdz_volmoco]=parallelepiped_jiang(motion);
+% fp=fopen('volmotion.TDmetric.txt','w'); fprintf(fp,'%g\n',td_volmoco); fclose(fp);
+% fp=fopen('volmotion.TDzmetric.txt','w'); fprintf(fp,'%g\n',tdz_volmoco); fclose(fp);
+% for i=1:6
+%   volmotion(:,i)=reshape(repmat(motion(:,i)',[zmbdim 1]),[zmbdim*tdim 1]);
+% end
+% % save the 3dvolreg volumetric motion, repeated over slices
+% fp=fopen('volmotion.repslices.txt','w'); fprintf(fp,'%g\t%g\t%g\t%g\t%g\t%g\n',volmotion'); fclose(fp);
+% % to see the difference between volumetric motion and slice motion, plot(slomoco-volmotion)
+% % this is the residual motion left after volumetric correction, or what volmoco misses
+% % finally, if prospective motion is turned on (Thesen et al 2002), the volumetric motion is essentially
+% % subtracted from the data, delayed by one volume, so there will be sharp disruptions at the volume boundary
+% % we could obtain the true (free-space) motion by shifting the volumetric motion by one volume, and adding to slomoco
+% % this could also be used to improve the edge slice interpolations and could be done earlier, but many sites do not
+% % use PACE (the Siemens name, each vendor has their own, as far as I know), and is outside the scope of this work
+% % NOTE, it will be important to know the real free-space motion for applying RX field and B0 inhomogeneity motion corrections
+% pacemotion=volmotion;
+% pacemotion(zmbdim+1:end,:)=volmotion(1:end-zmbdim,:);
 
 
-%fp=fopen('slomoco.combined.6dof.txt','w'); fprintf(fp,'%g\t%g\t%g\t%g\t%g\t%g\n',combined'); fclose(fp);
-% convert back to 12-dof
-%for i=1:length(combined)
-%  rotmat=convert_rots_into_rotmat(-1*combined(i,4),combined(i,5),combined(i,6)); combined12dof(i,:)=[combined(i,1:3) rotmat(:)'];
-%end
-%fp=fopen('slomoco.combined.12dof.txt','w'); fprintf(fp,'%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\n',combined12dof'); fclose(fp);
-fp=fopen('slomoco.combined.reg6dof.txt','w'); fprintf(fp,'%g\t%g\t%g\t%g\t%g\t%g\n',combined_rotoffsets'); fclose(fp);
-% convert back to 12-dof for use potentially in voxel-specific regression correction
-for i=1:length(combined)
-  rotmat=convert_rots_into_rotmat(-1*combined_rotoffsets(i,4),combined_rotoffsets(i,5),combined_rotoffsets(i,6)); combined12dof(i,:)=[combined_rotoffsets(i,1:3) rotmat(:)'];
-end
-fp=fopen('slomoco.combined.reg12dof.txt','w'); fprintf(fp,'%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\n',combined12dof'); fclose(fp);
+% %fp=fopen('slomoco.combined.6dof.txt','w'); fprintf(fp,'%g\t%g\t%g\t%g\t%g\t%g\n',combined'); fclose(fp);
+% % convert back to 12-dof
+% %for i=1:length(combined)
+% %  rotmat=convert_rots_into_rotmat(-1*combined(i,4),combined(i,5),combined(i,6)); combined12dof(i,:)=[combined(i,1:3) rotmat(:)'];
+% %end
+% %fp=fopen('slomoco.combined.12dof.txt','w'); fprintf(fp,'%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\n',combined12dof'); fclose(fp);
+% fp=fopen('slomoco.combined.reg6dof.txt','w'); fprintf(fp,'%g\t%g\t%g\t%g\t%g\t%g\n',combined_rotoffsets'); fclose(fp);
+% % convert back to 12-dof for use potentially in voxel-specific regression correction
+% for i=1:length(combined)
+%   rotmat=convert_rots_into_rotmat(-1*combined_rotoffsets(i,4),combined_rotoffsets(i,5),combined_rotoffsets(i,6)); combined12dof(i,:)=[combined_rotoffsets(i,1:3) rotmat(:)'];
+% end
+% fp=fopen('slomoco.combined.reg12dof.txt','w'); fprintf(fp,'%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\n',combined12dof'); fclose(fp);
 
  figure
  subplot(3,1,1);
@@ -325,21 +335,21 @@ fp=fopen('slomoco.combined.reg12dof.txt','w'); fprintf(fp,'%g\t%g\t%g\t%g\t%g\t%
  title('SLOMOCO TD-0D motion estimator - slicewise motion, converted to TD')
  ylabel('TD')
  xlabel('slice*vol number');
- saveas(gcf,'qa_slomoco_metrics.jpg');
+ saveas(gcf,'qa_slomoco_metrics.ver54.jpg');
 
  figure
  subplot(2,1,1);
  plot(combined_rotoffsets(:,[3 4 5]))
  xlim([0 tdim*zmbdim]);
  %plot(newmot)
- title(sprintf('out-of-plane params for %s',ep2d_filename));
+ title(sprintf('out-of-plane params'));
  legend('z-trans','x-rot','y-rot');
  subplot(2,1,2);
  plot(combined_rotoffsets(:,[1 2 6]))
  xlim([0 tdim*zmbdim]);
  legend('x-trans','y-trans','z-rot');
  title('in-plane params');
- saveas(gcf,'qa_slomoco_motionvectors.jpg');
+ saveas(gcf,'qa_slomoco_motionvectors.ver54.jpg');
 
 % figure
 % plot(volmotion(:,3),'b')

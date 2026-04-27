@@ -1,25 +1,30 @@
-function qa_slomoco(ep2d_filename,mask_filename,vol_filename, sli_filename,maxscale)
+function qa_slomoco(mask_filename, TR,tdim,zdim, dx, dy, dz, vol_filename, sli_filename, tfile)
 %function qa_slomoco(ep2d_filename,filestr_out,filestr_in,slice_timing,filter_width,sub_xy_offsets)
 % script reads in SLOMOCO files and fit data in local directory (currently inside pestica/ subdirectory)
 % plot motion parameters, histograms of excessive motion, histograms of motion coupling t-score (sum across model)
 
-% BrikInfo only works on AFNI BRIK format files
-[err,ainfo] = BrikInfo(ep2d_filename);
-xdim=ainfo.DATASET_DIMENSIONS(1);
-ydim=ainfo.DATASET_DIMENSIONS(2);
-zdim=ainfo.DATASET_DIMENSIONS(3);
-tdim=ainfo.DATASET_RANK(2);
-dx=ainfo.DELTA(1);
-dy=ainfo.DELTA(2);
-dz=ainfo.DELTA(3);
-TR=double(ainfo.TAXIS_FLOATS(2));
-slice_timing=load('tshiftfile.1D'); slice_timing=1000*slice_timing; %ms
+% 
+% TR=2.8;
+% tdim=156;
+% zdim=81;
+% dx=1.2;
+% dy=-1.2;
+% dz=1.5;
+% tfile='tshiftfile.1D';
+% vol_filename='epi_01_volreg.1D';
+% sli_filename='rm.slimopa.1D';
+% mask_filename='epi_base_mask+orig'
+
+if (exist('tfile')==0)
+  tfile='tshiftfile.1D';
+end
 
 % check time unit
+slice_timing=load(tfile); slice_timing=1000*slice_timing; %ms
 [TRsec TRms] = TRtimeunitcheck(TR);
 [slice_timing_sec slice_timing_ms] = TRtimeunitcheck(slice_timing);
 [MB zmbdim uniq_slice_timing_ms uniq_acq_order] = SMSacqcheck(TRms, zdim, slice_timing_ms);
-
+% 
 % read mask and set the scale factor for out-of-plane
 [err, mask, Info, ErrMessage]  = BrikLoad(mask_filename);
 mask(find(mask))=1;
@@ -50,14 +55,14 @@ end
 % scale_sli(find(scale_sli>scalemax))=scalemax;
 % not used scaling factor anymore...
 scale_sli=ones(zmbdim,1);
-
-% get scan orientation from header
-[rx,cx]=find(ainfo.Orientation=='R');  % for axial == 1
-[ry,cy]=find(ainfo.Orientation=='A');  % for axial == 2
-[rz,cz]=find(ainfo.Orientation=='I');  % for axial == 3
+% 
+% % get scan orientation from header
+% [rx,cx]=find(ainfo.Orientation=='R');  % for axial == 1
+% [ry,cy]=find(ainfo.Orientation=='A');  % for axial == 2
+% [rz,cz]=find(ainfo.Orientation=='I');  % for axial == 3
 
 % apparently its not uncommon for DELTA to be negative on one or more axes, but don't know why that would be...
-voxsize=abs(prod(ainfo.DELTA));
+voxsize=abs(dx*dy);
 
 %% reading volreg parameter 
 % 3dvolreg motion parametner
@@ -114,21 +119,21 @@ slimot_jiang = slimot_volreg(:,[5 6 4 2 3 1]); %  [dL dP dS pitch yaw roll]]
 slimot_jiang_scaled = slimot_volreg_scaled(:,[5 6 4 2 3 1]); %  [dL dP dS pitch yaw roll]] 
 
 %% 
-% correct for scan axis orientation: 
-% axial [rx ry rz]=[1 2 3], sagittal=[3 1 2], coronal=[1 3 2]
-axisz=find([rx ry rz]==3);
-if (axisz==2)
-  slimot_jiang=slimot_jiang(:,[3 1 2 6 4 5]);
-  slimot_jiang_scaled=slimot_jiang_scaled(:,[3 1 2 6 4 5]);
-  disp('Swapping axes for coronal acquisition');
-elseif (axisz==1)
-  slimot_jiang=slimot_jiang(:,[3 2 1 6 5 4]);
-  slimot_jiang_scaled=slimot_jiang_scaled(:,[3 2 1 6 5 4]);
-  % 1, 4 are inverted
-  slimot_jiang(:,[1 4])=-1*slimot_jiang(:,[1 4]);
-  slimot_jiang_scaled(:,[1 4])=-1*slimot_jiang_scaled(:,[1 4]);
-  disp('Swapping axes for sagittal acquisition');
-end
+% % correct for scan axis orientation: 
+% % axial [rx ry rz]=[1 2 3], sagittal=[3 1 2], coronal=[1 3 2]
+% axisz=find([rx ry rz]==3);
+% if (axisz==2)
+%   slimot_jiang=slimot_jiang(:,[3 1 2 6 4 5]);
+%   slimot_jiang_scaled=slimot_jiang_scaled(:,[3 1 2 6 4 5]);
+%   disp('Swapping axes for coronal acquisition');
+% elseif (axisz==1)
+%   slimot_jiang=slimot_jiang(:,[3 2 1 6 5 4]);
+%   slimot_jiang_scaled=slimot_jiang_scaled(:,[3 2 1 6 5 4]);
+%   % 1, 4 are inverted
+%   slimot_jiang(:,[1 4])=-1*slimot_jiang(:,[1 4]);
+%   slimot_jiang_scaled(:,[1 4])=-1*slimot_jiang_scaled(:,[1 4]);
+%   disp('Swapping axes for sagittal acquisition');
+% end
 
 % step 2, define two outer slices in case of single band acq
 % identify outer-most slices according to slice timing
@@ -193,19 +198,19 @@ slimot_jiang_scaled_fit(:,end-1:end) = slimot_jiang_scaled(:,end-1:end);
 [td_volslimoco,tdz_volslimoco]=parallelepiped_jiang(volslimot_jiang_fit);
     
 % save volmoco td(z)             
-fp=fopen('volmotion.TDmetric.txt','w');  fprintf(fp,'%g\n',td_volmoco);  fclose(fp);
-fp=fopen('volmotion.TDzmetric.txt','w'); fprintf(fp,'%g\n',tdz_volmoco); fclose(fp); 
+% fp=fopen('volmotion.TDmetric.v55.txt','w');  fprintf(fp,'%g\n',td_volmoco);  fclose(fp);
+% fp=fopen('volmotion.TDzmetric.v55.txt','w'); fprintf(fp,'%g\n',tdz_volmoco); fclose(fp); 
 
 % save slomoco td(z)
-fp=fopen('slomoco.TDmetric.txt','w');  fprintf(fp,'%g\n',td_slomoco);  fclose(fp);
-fp=fopen('slomoco.TDzmetric.txt','w'); fprintf(fp,'%g\n',tdz_slomoco); fclose(fp);
+fp=fopen('slomoco.TDmetric.ver55.txt','w');  fprintf(fp,'%g\n',td_slomoco);  fclose(fp);
+fp=fopen('slomoco.TDzmetric.ver55.txt','w'); fprintf(fp,'%g\n',tdz_slomoco); fclose(fp);
 % for a volumetric metric of motion corruption, use the max across slices within a volume
-fp=fopen('slomoco.volumetric.TDzmetric.txt','w'); fprintf(fp,'%g\n',max(reshape(tdz_slomoco,[zmbdim tdim]))); fclose(fp);
-fp=fopen('slomoco.volumetric.TDmetric.txt','w');  fprintf(fp,'%g\n',max(reshape(td_slomoco, [zmbdim tdim]))); fclose(fp);
+fp=fopen('slomoco.volumetric.TDzmetric.ver55.txt','w'); fprintf(fp,'%g\n',max(reshape(tdz_slomoco,[zmbdim tdim]))); fclose(fp);
+fp=fopen('slomoco.volumetric.TDmetric.ver55.txt','w');  fprintf(fp,'%g\n',max(reshape(td_slomoco, [zmbdim tdim]))); fclose(fp);
 
-% save Jiang's parameter, repeated over slices
-fp=fopen('volmotion.repslices.txt','w');    fprintf(fp,'%g\t%g\t%g\t%g\t%g\t%g\n',volmot_jiang_slires'); fclose(fp);
-fp=fopen('volslimotion.repslices.txt','w'); fprintf(fp,'%g\t%g\t%g\t%g\t%g\t%g\n',volslimot_jiang_scaled_fit'); fclose(fp);
+% % save Jiang's parameter, repeated over slices
+% fp=fopen('volmotion.repslices.txt','w');    fprintf(fp,'%g\t%g\t%g\t%g\t%g\t%g\n',volmot_jiang_slires'); fclose(fp);
+% fp=fopen('volslimotion.repslices.txt','w'); fprintf(fp,'%g\t%g\t%g\t%g\t%g\t%g\n',volslimot_jiang_scaled_fit'); fclose(fp);
 
 figure
 subplot(3,1,1);
@@ -227,7 +232,7 @@ plot(0:tdim*zmbdim-1,td_slomoco,0:tdim*zmbdim-1,tdz_slomoco)
 xlim([0 tdim*zmbdim]);
 legend('sli TD','sli TDz');
 title('TD and TDz (Slice motion only)');
-saveas(gcf,'qa_TD_TDz_metrics.jpg');
+saveas(gcf,'qa_TD_TDz_metrics.ver55.jpg');
 
 figure
 subplot(3,1,1)
@@ -245,6 +250,6 @@ plot(slimot_jiang_scaled_fit)
 xlim([0 tdim*zmbdim]);
 title(sprintf('in/out-of-plane params'));
 legend('x-trans','y-trans','z-trans','x-rot','y-rot','z-rot');
-saveas(gcf,'qa_slomoco_motionvectors.jpg');
+saveas(gcf,'qa_slomoco_motionvectors.ver55.jpg');
 
 

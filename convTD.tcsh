@@ -118,7 +118,7 @@ matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_sl
 
 
 echo "" 
-echo "++ DONE.  View the finished, axialized product:" |& tee -a $odir/$histfile
+echo "++ DONE.  View the finished"
 echo "" 
 
 goto GOOD_EXIT

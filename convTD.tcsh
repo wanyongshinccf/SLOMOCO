@@ -50,6 +50,11 @@ while ( $ac <= $#argv )
         @ ac += 1
         set epi = "$argv[$ac]"
     
+    else if ( "$argv[$ac]" == "-dset_mask" ) then
+        if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
+        @ ac += 1
+        set epi_mask = "$argv[$ac]"
+    
     else if ( "$argv[$ac]" == "-slomoco_dir" ) then
         if ( $ac >= $#argv ) goto FAIL_MISSING_ARG
         @ ac += 1
@@ -97,8 +102,8 @@ set dy = `3dinfo -dj ${epi}`
 set dz = `3dinfo -dk ${epi}`
 set TR = `3dinfo -tr ${epi}`
 
-# volreg1D and slireg
-
+% BRIK file conversion
+3dcalc -a ${epi_mask} -expr 'a' -prefix ${slomoco_dir}/mask+orig -overwrite
 
 echo $TR $tdim $zdim $dx $dy $dz
 cd ${slomoco_dir}
@@ -111,20 +116,27 @@ matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_sl
 matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_v54($TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"
 
 # run SLOMOCO_afni_v5.50, slicewise motion is fitted with volmot
-matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_v55('epi_base_mask+orig',$TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"
+matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_v55('mask+orig',$TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"
 
 # run SLOMOCO_afni_v5.51
-matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_v551('epi_base_mask+orig',$TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"
+matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_v551('mask+orig',$TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"
 
 # run SLOMOCO_afni_v5.52
-matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_v552('epi_base_mask+orig',$TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"
+matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_v552('mask+orig',$TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"
 
 # run SLOMOCO_20240604, 0605, 0611 : Minor fitting still max iTDz
-matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_tcsh_max('epi_base_mask+orig',$TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"
+matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_tcsh_max('mask+orig',$TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"
 
 # run SLOMOCO_20240611.1: Golayfit considering TR & mean iTD
-matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_tcsh_mean('epi_base_mask+orig',$TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"
+matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_tcsh_mean('mask+orig',$TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"
 
+echo "++ Run: calc_iTD.py ++" 
+echo "   Calculating intra-volume TD "
+python $SLOMOCO_DIR/calc_iTD_max.py \
+    -sli  slimot_py_fit.txt    \
+    -tdim ${tdim}
+
+rm -f ${slomoco_dir}/mask+orig.*
 
 echo "" 
 echo "++ DONE.  View the finished"

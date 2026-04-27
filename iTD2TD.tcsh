@@ -105,7 +105,7 @@ cd ${slomoco_dir}
 
 # run SLOMOCO_afni_v2.2, original Erik's codes. Validated with Katherine's study, but a bug is found (W.S)
 echo matlab $MATLABLINE
-matlab $MATLABLINE -r "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_v22($TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg.1D'); exit;"
+matlab $MATLABLINE -r "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_v22($TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"
 
 # run SLOMOCO_afni_v5.4
 #matlab $MATLABLINE <<<"addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_sh('$epi.slicemocoxy_afni+orig','$epi.brain+orig','$epi.mocoafni.1D','$epi.slicemopa.1D'); exit;"

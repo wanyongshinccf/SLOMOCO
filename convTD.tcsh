@@ -107,14 +107,23 @@ cd ${slomoco_dir}
 echo matlab $MATLABLINE
 matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_v22($TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"
 
-# run SLOMOCO_afni_v5.4
-#matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_v54('$epi.slicemocoxy_afni+orig','$epi.brain+orig','$epi.mocoafni.1D','$epi.slicemopa.1D'); exit;"
+# run SLOMOCO_afni_v5.4, out-of-plane normalization was set to one. 
+matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_v54($TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"
 
-# run SLOMOCO_afni_v5.50
-#matlab $MATLABLINE <<<"addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_sh('$epi.slicemocoxy_afni+orig','$epi.brain+orig','$epi.mocoafni.1D','$epi.slicemopa.1D'); exit;"
+# run SLOMOCO_afni_v5.50, slicewise motion is fitted with volmot
+matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_v55('epi_base_mask+orig',$TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"
 
-# run SLOMOCO_afni_v5.50
-#matlab $MATLABLINE <<<"addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_sh('$epi.slicemocoxy_afni+orig','$epi.brain+orig','$epi.mocoafni.1D','$epi.slicemopa.1D'); exit;"
+# run SLOMOCO_afni_v5.51
+matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_v551('epi_base_mask+orig',$TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"
+
+# run SLOMOCO_afni_v5.52
+matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_v552('epi_base_mask+orig',$TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"
+
+# run SLOMOCO_20240604, 0605, 0611 : Minor fitting still max iTDz
+matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_tcsh_max('epi_base_mask+orig',$TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"
+
+# run SLOMOCO_20240611.1: Golayfit considering TR & mean iTD
+matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_tcsh_mean('epi_base_mask+orig',$TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"
 
 
 echo "" 

@@ -99,9 +99,9 @@ for t in range (0, int(tdim)):
     iTD_max[t,0]=max(iTDarray)
     iTDz_max[t,0]=max(iTDzarray)
     ioTD_max[t,0]=max(iTDarray)
-    iTD_mean[t,0]=mean(iTDarray)
-    iTDz_mean[t,0]=mean(iTDzarray)
-    ioTD_mean[t,0]=mean(ioTDarray)
+    iTD_mean[t,0]=np.mean(iTDarray)
+    iTDz_mean[t,0]=np.mean(iTDzarray)
+    ioTD_mean[t,0]=np.mean(ioTDarray)
 
 # write the result
 np.savetxt('iTD_py_mean.txt',iTD_mean)	

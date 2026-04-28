@@ -104,9 +104,9 @@ for t in range (0, int(tdim)):
     ioTD_mean[t,0]=np.mean(ioTDarray)
 
 # write the result
-np.savetxt('iTD_py_mean.txt',iTD_mean)	
-np.savetxt('iTDz_py_mean.txt',iTDz_mean)
-np.savetxt('ioTD_py_mean.txt',ioTD_mean)
+np.savetxt('iTD_py.txt',iTD_mean)	
+np.savetxt('iTDz_py.txt',iTDz_mean)
+np.savetxt('ioTD_py.txt',ioTD_mean)
 np.savetxt('iTD_py_max.txt',iTD_max)	
 np.savetxt('iTDz_py_max.txt',iTDz_max)
-np.savetxt('ioTD_py_mean.txt',ioTD_max)
+np.savetxt('ioTD_py_max.txt',ioTD_max)

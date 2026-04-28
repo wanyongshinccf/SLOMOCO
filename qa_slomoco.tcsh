@@ -277,7 +277,7 @@ python $SLOMOCO_DIR/calc_iFD.py \
 
 echo "++ Run: calc_iTD.py ++" 
 echo "   Calculating intra-volume TD "
-python $SLOMOCO_DIR/calc_iTD.py \
+python $SLOMOCO_DIR/calc_iTD_TD_max_mean.py \
     -sli  slimot_py_fit.txt    \
     -tdim ${tdim}
 

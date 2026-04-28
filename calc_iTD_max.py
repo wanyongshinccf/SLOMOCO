@@ -93,8 +93,8 @@ for t in range (0, int(tdim)):
                     iotd   = iotd  + dist
 
         iTDarray[iz,0] = itd / npix
-        iTDzarray[iz,0] = itdz / nipx
-        ioTDarray[iz,0] = iotd / nipx
+        iTDzarray[iz,0] = itdz / npix
+        ioTDarray[iz,0] = iotd / npix
 
     iTD_max[t,0]=max(iTDarray)
     iTDz_max[t,0]=max(iTDzarray)

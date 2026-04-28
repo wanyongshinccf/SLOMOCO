@@ -81,7 +81,7 @@ while ( $ac <= $#argv )
     endif
     @ ac += 1
 end
-echo test
+echo test1
 # =======================================================================
 # ======================== ** Verify + setup ** =========================
 
@@ -101,13 +101,13 @@ set dx = `3dinfo -di ${epi}`
 set dy = `3dinfo -dj ${epi}`
 set dz = `3dinfo -dk ${epi}`
 set TR = `3dinfo -tr ${epi}`
-
+echo test2
 % BRIK file conversion
 3dcalc -a ${epi_mask} -expr 'a' -prefix ${slomoco_dir}/mask+orig -overwrite
-
+echo test3
 echo $TR $tdim $zdim $dx $dy $dz
 cd ${slomoco_dir}
-
+echo test4
 # run SLOMOCO_afni_v2.2, original Erik's codes. Validated with Katherine's study, but a bug is found (W.S)
 echo matlab $MATLABLINE
 matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_v22($TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"

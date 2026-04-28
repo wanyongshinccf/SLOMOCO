@@ -109,30 +109,30 @@ set tfile = "tshiftfile.1D"
 # change directory
 cd ${slomoco_dir}
 
-# run SLOMOCO_afni_v2.2, original Erik's codes. Validated with Katherine's study, but a bug is found (W.S)
-echo matlab $MATLABLINE
-matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_v22($TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"
+# 1 SLOMOCO_afni_v2.2, original Erik's codes. Validated with Katherine's study, but a bug is found (W.S)
+# matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_v22($TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"
 
-# run SLOMOCO_afni_v5.4, out-of-plane normalization was set to one. 
+# 2 up to SLOMOCO_afni_v5.4
 matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_v54($TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"
 
-# run SLOMOCO_afni_v5.50, slicewise motion is fitted with volmot
-matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_v55('mask+orig',$TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"
+# 3 run SLOMOCO_afni_v5.50, slicewise motion is fitted with volmot
+# matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_v55('mask+orig',$TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"
 
-# run SLOMOCO_afni_v5.51
+# 4 run SLOMOCO_afni_v5.50 and v5.51: TD(z) starts to be scaled down a lot. 
+#Vol+slice motion parameters were temporally interpolated, and slice motion parameters were pulled out later.
 matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_v551('mask+orig',$TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"
 
-# run SLOMOCO_afni_v5.52
+# 5 run SLOMOCO_afni_v5.52: slicewise weighted fitting. slightly different from 4)
 matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_v552('mask+orig',$TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"
 
-# run SLOMOCO_20240604, 0605, 0611 : Minor fitting still max iTDz
-matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_tcsh_max('mask+orig',$TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"
+# 6 SLOMOCO_20240604, 0605, 0611 : slicewise weighted fitting is rmoved. Minor fitting change. 
+matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_20240611('mask+orig',$TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"
 
-# run SLOMOCO_20240611.1: Golayfit considering TR & mean iTD
-matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_tcsh_mean('mask+orig',$TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"
+# 7 after SLOMOCO_20240611.1: Golayfit considering TR & mean iTD (not Max); generating mean and max both now.
+# matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_202406111('mask+orig',$TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"
 
-# run SLOMOCO_2024, SLOMOCO_2025XXXX
-# for interleaved alt+z 6 slices: sliacqorder.1D = [0 2 4 1 3 5] 
+# 8 python version after SLOMOCO_202411.1, should be same as 7, but max is new
+# # for interleaved alt+z 6 slices: sliacqorder.1D = [0 2 4 1 3 5] 
 3dTsort -overwrite -ind -prefix __rm.sliacqorder.1D $tfile
 1dcat __rm.sliacqorder.1D > sliacqorder.1D
 
@@ -144,7 +144,7 @@ python $SLOMOCO_DIR/combine_slimot_volmot.py \
     -sli $slireg1D                          \
     -acq sliacqorder.1D        
 
-echo "++ Run: calc_iTD_max.py ++" 
+echo "++ Run: calc_iTD_max_mean.py ++" 
 python $SLOMOCO_DIR/calc_iTD_max_mean.py \
     -sli  slimot_py_fit.txt    \
     -tdim ${tdim}

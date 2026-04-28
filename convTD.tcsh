@@ -101,6 +101,7 @@ set dx = `3dinfo -di ${epi}`
 set dy = `3dinfo -dj ${epi}`
 set dz = `3dinfo -dk ${epi}`
 set TR = `3dinfo -tr ${epi}`
+set tfile = "tshiftfile.1D"
 
 # BRIK file conversion
 3dcalc -a ${epi_mask} -expr 'a' -prefix ${slomoco_dir}/mask+orig -overwrite
@@ -130,9 +131,21 @@ matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_sl
 # run SLOMOCO_20240611.1: Golayfit considering TR & mean iTD
 matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_slomoco_tcsh_mean('mask+orig',$TR, $tdim, $zdim, $dx, $dy, $dz,'$volreg1D','$slireg1D'); exit;"
 
-echo "++ Run: calc_iTD.py ++" 
-echo "   Calculating intra-volume TD "
-python $SLOMOCO_DIR/calc_iTD_max.py \
+# run SLOMOCO_2024, SLOMOCO_2025XXXX
+# for interleaved alt+z 6 slices: sliacqorder.1D = [0 2 4 1 3 5] 
+3dTsort -overwrite -ind -prefix __rm.sliacqorder.1D $tfile
+1dcat __rm.sliacqorder.1D > sliacqorder.1D
+
+# excluded_slice is null here
+echo "++ Run: combine_slimot_volmot.py ++" 
+echo "   combining volmot with slimot "
+python $SLOMOCO_DIR/combine_slimot_volmot.py \
+    -vol $volreg1D                          \
+    -sli $slireg1D                          \
+    -acq sliacqorder.1D        
+
+echo "++ Run: calc_iTD_max.py ++" 
+python $SLOMOCO_DIR/calc_iTD_max_mean.py \
     -sli  slimot_py_fit.txt    \
     -tdim ${tdim}
 

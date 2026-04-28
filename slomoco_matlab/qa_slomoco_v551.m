@@ -3,16 +3,16 @@ function qa_slomoco(mask_filename, TR,tdim,zdim, dx, dy, dz, vol_filename, sli_f
 % script reads in SLOMOCO files and fit data in local directory (currently inside pestica/ subdirectory)
 % plot motion parameters, histograms of excessive motion, histograms of motion coupling t-score (sum across model)
 
-TR=2.8;
-tdim=156;
-zdim=81;
-dx=1.2;
-dy=-1.2;
-dz=1.5;
-tfile='tshiftfile.1D';
-vol_filename='epi_01_volreg.1D';
-sli_filename='rm.slimopa.1D';
-mask_filename='epi_base_mask+orig'
+% TR=2.8;
+% tdim=156;
+% zdim=81;
+% dx=1.2;
+% dy=-1.2;
+% dz=1.5;
+% tfile='tshiftfile.1D';
+% vol_filename='epi_01_volreg.1D';
+% sli_filename='rm.slimopa.1D';
+% mask_filename='epi_base_mask+orig'
 
 if (exist('tfile')==0)
   tfile='tshiftfile.1D';

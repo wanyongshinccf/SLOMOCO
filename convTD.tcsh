@@ -102,7 +102,7 @@ set dy = `3dinfo -dj ${epi}`
 set dz = `3dinfo -dk ${epi}`
 set TR = `3dinfo -tr ${epi}`
 echo test2
-% BRIK file conversion
+# BRIK file conversion
 3dcalc -a ${epi_mask} -expr 'a' -prefix ${slomoco_dir}/mask+orig -overwrite
 echo test3
 echo $TR $tdim $zdim $dx $dy $dz

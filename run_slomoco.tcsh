@@ -31,7 +31,10 @@
 #
 # set version  = "0.8";    set rev_dat   = "Dec 18, 2024"
 # + debugging a log file issue
-set version  = "0.9";    set rev_dat   = "Jan 16, 2025"
+# set version  = "0.9";    set rev_dat   = "Jan 16, 2025"
+#
+# + clean is default. 
+set version  = "1.0";    set rev_dat   = "April 28, 2026"
 # + debugging the conflict of two run_regout_nuisance.tcsh scripts in PESTICA/SLOMOCO
 
 #
@@ -75,7 +78,7 @@ set qaflag     = "AFNI"     # MATLAB or AFNI
 set allow_old_afni = 0      # user *should* update code, but can use old
 
 set volregfirst = 0         # Slomoco on each aligned refvol.
-set DO_CLEAN    = 0         # default: keep working dir
+set DO_CLEAN    = 1         # default: keep working dir
 set histfile    = log_slomoco.txt
 
 set do_echo  = ""
@@ -172,8 +175,8 @@ while ( $ac <= $#argv )
     else if ( "$argv[$ac]" == "-allow_old_afni" ) then
         set allow_old_afni  = 1
 
-    else if ( "$argv[$ac]" == "-do_clean" ) then
-        set DO_CLEAN     = 1
+    else if ( "$argv[$ac]" == "-keep_all" ) then
+        set DO_CLEAN     = 0
         
     else
         echo ""
@@ -264,6 +267,14 @@ echo ""                             >> $odir/$histfile
 echo $fullcommand $fullcommandlines >> $odir/$histfile
 date                                >> $odir/$histfile
 echo ""                             >> $odir/$histfile
+
+# clean or unclean
+if ( $DO_CLEAN == "0" ) then
+    echo "Warning: -keep_all option is selected."                                       |& tee -a $odir/$histfile
+    echo "All intermediate files will be stored in a working directory. "               |& tee -a $odir/$histfile
+    echo "Those files might be useful for a test purpose. "                             |& tee -a $odir/$histfile
+    echo "However, they take quite a lot of spaces. "                                  |& tee -a $odir/$histfile
+endif
 
 if  ( $volregfirst == "1" ) then
     echo "+* WARNING: You select running SLOMOCO on volume motion corrected images"     |& tee -a $odir/$histfile

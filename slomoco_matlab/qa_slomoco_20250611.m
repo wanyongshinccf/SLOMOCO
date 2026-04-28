@@ -1,4 +1,4 @@
-function [volslimot_final slimot_final_jiang] =  qa_slomoco_new(mask_filename, TR,tdim,zdim, dx, dy, dz, vol_filename, sli_filename, tfile)
+function [volslimot_final slimot_final_jiang] =  qa_slomoco_20250611(mask_filename, TR,tdim,zdim, dx, dy, dz, vol_filename, sli_filename, tfile)
 %function qa_slomoco(ep2d_filename,filestr_out,filestr_in,slice_timing,filter_width,sub_xy_offsets)
 % script reads in SLOMOCO files and fit data in local directory (currently inside pestica/ subdirectory)
 % plot motion parameters, histograms of excessive motion, histograms of motion coupling t-score (sum across model)
@@ -27,7 +27,7 @@ slice_timing=load(tfile); slice_timing=1000*slice_timing; %ms
  
 % apparently its not uncommon for DELTA to be negative on one or more axes, but don't know why that would be...
 voxsize=abs(dx*dy);
-
+ 
 % read mask and set the scale factor for out-of-plane
 [err, mask, Info, ErrMessage]  = BrikLoad(mask_filename);
 mask(find(mask))=1;
@@ -186,7 +186,7 @@ end
 % Step 3.   apply a Savitsky-Golay filter with 2 seconds of window
   % this should be turned off for data with really fast motion (like SimPACE data with motion on only one slice)
 for m = 1:6
-  volslimot_fit(:,m) = sgolayfilt(volslimot(:,m),3,floor(zmbdim/2)*2+1); % debugged (W.S) 20250611
+  volslimot_fit(:,m) = sgolayfilt(volslimot(:,m),3,zmbdim);
   % in case of signal processing box is not availble, uncommnet the below
 %   SGbin = round(Fs/2)*4+1;
 %   i =  -2*round(Fs/2): 2*round(Fs/2);
@@ -215,12 +215,12 @@ volslimot_fit_jiang(:,1:3) = -1*volslimot_fit_jiang(:,1:3);
 % save all
 % test TDz here, will be commented out
 [td_slomoco,tdz_slomoco]   =  parallelepiped_jiang(slimot_jiang);
-fp=fopen('slomoco.iTDmetric.tcsh_mean.txt','w'); fprintf(fp,'%g\n',td_slomoco); fclose(fp);
-fp=fopen('slomoco.iTDzmetric.tcsh_mean.txt','w'); fprintf(fp,'%g\n',tdz_slomoco); fclose(fp);
+fp=fopen('slomoco.iTDmetric.20250611.txt','w'); fprintf(fp,'%g\n',td_slomoco); fclose(fp);
+fp=fopen('slomoco.iTDzmetric.20250611.txt','w'); fprintf(fp,'%g\n',tdz_slomoco); fclose(fp);
  
-% for a volumetric metric of motion corruption, use the mean across slices within a volume (W.S 20240611)
-fp=fopen('slomoco.volumetric.iTDmetric.tcsh_mean.txt','w'); fprintf(fp,'%g\n',mean(reshape(td_slomoco,[zmbdim tdim]))); fclose(fp);
-fp=fopen('slomoco.volumetric.iTDzmetric.tcsh_mean.txt','w'); fprintf(fp,'%g\n',mean(reshape(tdz_slomoco,[zmbdim tdim]))); fclose(fp);
+% for a volumetric metric of motion corruption, use the max across slices within a volume
+fp=fopen('slomoco.volumetric.iTDmetric.20250611.txt','w'); fprintf(fp,'%g\n',max(reshape(td_slomoco,[zmbdim tdim]))); fclose(fp);
+fp=fopen('slomoco.volumetric.iTDzmetric.20250611.txt','w'); fprintf(fp,'%g\n',max(reshape(tdz_slomoco,[zmbdim tdim]))); fclose(fp);
  
 % 3dvolreg motion x,y,z trans are inverted w.r.t. 3dWarpDrive
 % [td_volmoco,tdz_volmoco]=parallelepiped_jiang(volmot_jiang);
@@ -265,7 +265,7 @@ subplot(4,2,8);
 plot(td_volmoco_deriv);xlim([0 tdim]);
 legend('Avg Vox Disp');
 title('Deriv of Vol Mot TD (Jiang parallelepiped method)');
-saveas(gcf,'qa_volslimoco_metrics.tcsh_mean.jpg');
+saveas(gcf,'qa_volslimoco_metrics.tcsh_max.jpg');
  
 figure
 subplot(3,1,1);
@@ -291,7 +291,7 @@ plot(slimot_fit_jiang(:,[1 2 6]))
 xlim([0 tdim*zmbdim]);
 legend('x-trans','y-trans','z-rot');
 title('in-plane params');
-saveas(gcf,'qa_slomoco_motionvectors.tcsh_mean.jpg');
+saveas(gcf,'qa_slomoco_motionvectors.20250611.jpg');
 
 % % DVARS and FD caclulation
 % DV = calcDVARS(ep2d_filename,mask_filename,slice_timing);

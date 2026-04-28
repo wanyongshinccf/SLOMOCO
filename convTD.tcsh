@@ -137,6 +137,7 @@ matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_sl
 echo 3dTsort -overwrite -ind -prefix __rm.sliacqorder.1D $tfile
 3dTsort -overwrite -ind -prefix __rm.sliacqorder.1D $tfile
 
+setenv AFNI_1D_TIME YES
 echo "1dcat __rm.sliacqorder.1D > sliacqorder.1D"
 1dcat __rm.sliacqorder.1D > sliacqorder.1D
 

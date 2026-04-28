@@ -45,6 +45,7 @@ ioTD_max = np.zeros((int(tdim),1))
 npix = 6
 iTDarray = np.zeros((int(zmbdim),1))
 iTDzarray = np.zeros((int(zmbdim),1))
+ioTDarray = np.zeros((int(zmbdim),1))
 
 # calculate intra-volume total volume displacement
 # Jiang Jiang A, Kennedy DN, Baker JR, et al. HBM. 1995;3(3):224-235
@@ -75,8 +76,9 @@ for t in range (0, int(tdim)):
         zrotmat0 = np.array([[cal.cos(rz0), -1*cal.sin(rz0), 0], [cal.sin(rz0), cal.cos(rz0), 0], [0, 0, 1]])
         xyzrotmat0 = np.dot(zrotmat0,np.dot(yrotmat, xrotmat))
 
-        itd = 0;
-        itdz = 0;
+        itd = 0
+        itdz = 0
+        iotd = 0
         for z in (lowz, highz): 
             for x in (lowx, highx):
                 for y in (lowy, highy):
@@ -92,11 +94,14 @@ for t in range (0, int(tdim)):
 
         iTDarray[iz,0] = itd / npix
         iTDzarray[iz,0] = itdz / nipx
+        ioTDarray[iz,0] = iotd / nipx
 
     iTD_max[t,0]=max(iTDarray)
     iTDz_max[t,0]=max(iTDzarray)
+    ioTD_max[t,0]=max(iTDarray)
     iTD_mean[t,0]=mean(iTDarray)
-    iTDz_mean[t,0]=mean(iTDarray)
+    iTDz_mean[t,0]=mean(iTDzarray)
+    ioTD_mean[t,0]=mean(ioTDarray)
 
 # write the result
 np.savetxt('iTD_py_mean.txt',iTD_mean)	

@@ -23,7 +23,8 @@ else:
     acqodrfn = in_arr[in_arr.index('-acq') + 1]
 
 if '-exc' not in in_arr  not in in_arr:
-    excslifn = []     
+    excslifn = []
+    excslifn = dummy     
 else :
     excslifn = in_arr[in_arr.index('-exc') + 1]
 

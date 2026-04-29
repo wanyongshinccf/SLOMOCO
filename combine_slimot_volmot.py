@@ -57,14 +57,14 @@ zdim = int(dims[1]/6)
 volslimot_added = volmot
 
 for rep in range (0,tdim , 1):
-	print(f'volume number = {rep}')
+	# print(f'volume number = {rep}')
 	volmot_rep = volmot[rep,:]
 	for num in acqodr :
-		print(f'slice number is {num}')
+		#print(f'slice number is {num}')
 		idxs = int( num*6 + 0 )
 		idxe = int( num*6 + 6 )
 		idx = np.where( excsli == num)
-		print("idx = ", np.size(idx))
+		#print("idx = ", np.size(idx))
 		if (np.size(idx) == 0)  :
 			slimot_rep = slimot[rep, idxs:idxe]
 			volslimot_rep = volmot_rep + slimot_rep

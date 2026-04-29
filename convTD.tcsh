@@ -135,9 +135,7 @@ matlab $MATLABLINE "addpath $MATLAB_AFNI_DIR; addpath $MATLAB_SLOMOCO_DIR; qa_sl
 # 8 python version after SLOMOCO_202411.1, should be same as 7, but max is new
 # # for interleaved alt+z 6 slices: sliacqorder.1D = [0 2 4 1 3 5] 
 setenv AFNI_1D_TIME YES
-echo 3dTsort -overwrite -ind -prefix __rm.sliacqorder.1D $tfile
 3dTsort -overwrite -ind -prefix __rm.sliacqorder.1D $tfile
-echo "1dcat __rm.sliacqorder.1D > sliacqorder.1D"
 1dcat __rm.sliacqorder.1D > sliacqorder.1D
 
 # excluded_slice is null here
@@ -149,6 +147,7 @@ python $SLOMOCO_DIR/combine_slimot_volmot.py \
     -acq sliacqorder.1D        
 
 echo "++ Run: calc_iTD_max_mean.py ++" 
+echo "   generating iTD & iTDz "
 python $SLOMOCO_DIR/calc_iTD_max_mean.py \
     -sli  slimot_py_fit.txt    \
     -tdim ${tdim}

@@ -24,7 +24,7 @@ else:
 
 if '-exc' not in in_arr  not in in_arr:
     excslifn = []
-    excslifn = dummy     
+    excslifn = "dummy"     
 else :
     excslifn = in_arr[in_arr.index('-exc') + 1]
 

@@ -152,8 +152,8 @@ python $SLOMOCO_DIR/calc_iTD_max_mean.py \
     -sli  slimot_py_fit.txt    \
     -tdim ${tdim}
 
-\rm -f ${slomoco_dir}/mask+orig.* \
-  ${slomoco_dir}/__rm.sliacqorder.1D
+\rm -f ${slomoco_dir}/__rm.sliacqorder.1D
+rm -f ${slomoco_dir}/mask+orig.BRIK
 
 echo "" 
 echo "++ DONE.  View the finished"

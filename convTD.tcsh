@@ -104,7 +104,7 @@ set TR = `3dinfo -tr ${epi}`
 set tfile = "tshiftfile.1D"
 
 # BRIK file conversion
-3dcalc -a ${epi_mask} -expr 'a' -prefix ${slomoco_dir}/mask+orig -overwrite
+3dcalc -a ${epi_mask} -expr 'a' -prefix ${slomoco_dir}/__rm.mask+orig -overwrite
 
 # change directory
 
@@ -152,7 +152,7 @@ python $SLOMOCO_DIR/calc_iTD_max_mean.py \
     -sli  slimot_py_fit.txt    \
     -tdim ${tdim}
 
-rm -f mask+orig.* __rm.sliacqorder.1D
+rm -f __rm.mask+orig.* __rm.sliacqorder.1D
 
 echo "" 
 echo "++ DONE.  View the finished"

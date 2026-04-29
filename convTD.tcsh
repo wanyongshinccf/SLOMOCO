@@ -153,7 +153,7 @@ python $SLOMOCO_DIR/calc_iTD_max_mean.py \
     -tdim ${tdim}
 
 rm -f ${slomoco_dir}/mask+orig.* \
-  ${slomoco_dir}/__rm.sliacqorder.1D 
+  ${slomoco_dir}/__rm.sliacqorder.1D
 
 echo "" 
 echo "++ DONE.  View the finished"

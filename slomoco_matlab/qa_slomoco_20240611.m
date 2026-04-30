@@ -186,7 +186,7 @@ end
 % Step 3.   apply a Savitsky-Golay filter with 2 seconds of window
   % this should be turned off for data with really fast motion (like SimPACE data with motion on only one slice)
 for m = 1:6
-  volslimot_fit(:,m) = sgolayfilt(volslimot(:,m),3,zmbdim);
+  volslimot_fit(:,m) = sgolayfilt(volslimot(:,m),3,2*floor(zmbdim/2)+1);
   % in case of signal processing box is not availble, uncommnet the below
 %   SGbin = round(Fs/2)*4+1;
 %   i =  -2*round(Fs/2): 2*round(Fs/2);

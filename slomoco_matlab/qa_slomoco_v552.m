@@ -258,8 +258,8 @@ fp=fopen('slomoco.volumetric.TDzmetric.ver552.txt','w'); fprintf(fp,'%g\n',max(r
  
 % 3dvolreg motion x,y,z trans are inverted w.r.t. 3dWarpDrive
 [td_volmoco,tdz_volmoco]=parallelepiped_jiang(volmot_jiang);
-fp=fopen('volmotion.TDmetric.txt','w'); fprintf(fp,'%g\n',td_volmoco); fclose(fp);
-fp=fopen('volmotion.TDzmetric.txt','w'); fprintf(fp,'%g\n',tdz_volmoco); fclose(fp);
+% fp=fopen('volmotion.TDmetric.txt','w'); fprintf(fp,'%g\n',td_volmoco); fclose(fp);
+% fp=fopen('volmotion.TDzmetric.txt','w'); fprintf(fp,'%g\n',tdz_volmoco); fclose(fp);
  
 % % 3dvolreg derivative motion x,y,z trans are inverted w.r.t. 3dWarpDrive
 % [td_volmoco_deriv,tdz_volmoco_deriv]=parallelepiped_jiang(volmot_deriv_jiang);

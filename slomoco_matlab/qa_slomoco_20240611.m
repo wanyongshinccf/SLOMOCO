@@ -265,7 +265,7 @@ subplot(4,2,8);
 plot(td_volmoco_deriv);xlim([0 tdim]);
 legend('Avg Vox Disp');
 title('Deriv of Vol Mot TD (Jiang parallelepiped method)');
-saveas(gcf,'qa_volslimoco_metrics.tcsh_max.jpg');
+saveas(gcf,'qa_volslimoco_metrics.20250611.jpg');
  
 figure
 subplot(3,1,1);

@@ -746,6 +746,9 @@ endif
         -prefix      rm.slimopa.1D                                          \
         |& tee       log_adjunct_slomoco_calc_slicemopa.txt
     
+    # for GLM, epi_00.volreg.1D + epi_02_pvreg + epi_03.slicemopa.1D
+    cp rm.slicemopa.1D epi_03.slicemopa.1D
+
     if ( $status ) then
         goto BAD_EXIT
     endif

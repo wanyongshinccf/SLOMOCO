@@ -35,7 +35,7 @@ set vr_mat      = ""  # req, need matrix from full volume volreg
 
 set DO_CLEAN = 0                       # default: keep working dir
 
-set histfile = hist_${this_prog}.txt
+# set histfile = hist_${this_prog}.txt
 
 # ------------------- process options, a la rr ----------------------
 

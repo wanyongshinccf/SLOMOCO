@@ -34,10 +34,17 @@
 # set version  = "0.9";    set rev_dat   = "Jan 16, 2025"
 #
 # + clean is default. 
-set version  = "1.0";    set rev_dat   = "April 28, 2026"
+# set version  = "1.0";    set rev_dat   = "April 28, 2026"
 # + debugging the conflict of two run_regout_nuisance.tcsh scripts in PESTICA/SLOMOCO
 
-#
+# + 3dWarpdrive option for a newer AFNI. 
+set version  = "1.1";    set rev_dat   = "Sept 9, 2026"
+# + debugging iTD calculation from max. The output is "i(o)TD(z).txt"
+# + changed old_afni version from 24.2.02 to 24.2.08
+# + debugging adjunct_slomoco_vol_slicemoco_xy.tcsh: too zero-ish issue
+# + a newer 3dWarpDrive has -setup_mask option (erode_off, erode_2d_min_dim)
+# + check adjunct_slomoco_vol_slicemoco_xy.tcsh, if necessary
+# + additional option not to regress out
 # ----------------------------------------------------------------
 
 # -------------------- set environment vars -----------------------
@@ -48,7 +55,7 @@ setenv AFNI_IS_OLD               0          # pre-3dWarpDrive update?
 # this is the minimal version to use to be able to work with the
 # AFNI-distributed 3dWarpDrive; this is the first build after updating
 # the internal mask erosion to work work with 2D slices.
-set AFNI_MIN_VNUM = "AFNI_24.2.02"
+set AFNI_MIN_VNUM = "AFNI_24.2.08"
 
 # ----------------------- set defaults --------------------------
 
@@ -79,6 +86,7 @@ set allow_old_afni = 0      # user *should* update code, but can use old
 
 set volregfirst = 0         # Slomoco on each aligned refvol.
 set DO_CLEAN    = 1         # default: keep working dir
+set DONOT_REGRESS = 0       # new option; slice moco EPI & regresssros only
 set histfile    = log_slomoco.txt
 
 set do_echo  = ""
@@ -177,6 +185,9 @@ while ( $ac <= $#argv )
 
     else if ( "$argv[$ac]" == "-keep_all" ) then
         set DO_CLEAN     = 0
+        
+    else if ( "$argv[$ac]" == "-donot_regress" ) then
+        set DONOT_REGRESS = 1
         
     else
         echo ""
@@ -620,28 +631,18 @@ else
         -do_clean                           \
         |& tee      log_gen_vol_pvreg.txt
 
-    # step 1.2 regression: 6 volmopa + physio (if any) for QA later        
-    run_regout_nuisance.tcsh ${do_echo}     \
-        -dset_epi   epi_01_volreg+orig      \
-        -dset_mask  epi_base_mask+orig      \
-        -volreg     epi_01_volreg.1D        \
-        -polort     1                       \
-        -prefix     epi_03_volmoco          \
-        -do_clean                           \
-        $physiostr                          \
-        |& tee      log_run_regout_volmoco.txt
 
-    # step 1.3 regression: 6 volmopa + PV + physio (if any) for QA later        
-    run_regout_nuisance.tcsh ${do_echo}     \
-        -dset_epi   epi_01_volreg+orig      \
-        -dset_mask  epi_base_mask+orig      \
-        -volreg     epi_01_volreg.1D        \
-        -polort     1                       \
-        -voxreg     epi_02_pvreg+orig       \
-        -prefix     epi_03_volmoco_pvreg    \
-        -do_clean                           \
-        $physiostr                          \
-        |& tee      log_run_regout_volmoco.txt
+#    # step 1.3 regression: 6 volmopa + PV + physio (if any) for QA later        
+#    run_regout_nuisance.tcsh ${do_echo}     \
+#        -dset_epi   epi_01_volreg+orig      \
+#        -dset_mask  epi_base_mask+orig      \
+#        -volreg     epi_01_volreg.1D        \
+#        -polort     1                       \
+#        -voxreg     epi_02_pvreg+orig       \
+#        -prefix     epi_03_volmoco_pvreg    \
+#        -do_clean                           \
+#        $physiostr                          \
+#        |& tee      log_run_regout_volmoco.txt
 
     if ( $status ) then
         goto BAD_EXIT
@@ -743,11 +744,8 @@ endif
         -outdir      outofplane                                             \
         -workdir     combined_slicemopa                                     \
         -tfile       tshiftfile.1D                                          \
-        -prefix      rm.slimopa.1D                                          \
+        -prefix      slomoco_slimopa.1D                                          \
         |& tee       log_adjunct_slomoco_calc_slicemopa.txt
-    
-    # for GLM, epi_00.volreg.1D + epi_02_pvreg + epi_03.slicemopa.1D
-    cp rm.slimopa.1D epi_03.slimopa.1D
 
     if ( $status ) then
         goto BAD_EXIT
@@ -760,59 +758,101 @@ endif
 echo "++ Run: run_regout_nuisance.tcsh "                            |& tee -a $odir/$histfile
 echo "   Motion nuisance regressors: 6 vol-/sli-mopa & 1 vox-PV"    |& tee -a $odir/$histfile
 
-# step 5.1 combine physio 1D with slireg  
-\rm -f rm.slimopa.physio.1D  
-if ( $physiofile == "" ) then
-    echo "copying rm.slimocp.1D to rm.slimopa.physio.1D"
-    cp rm.slimopa.1D rm.slimopa.physio.1D
-else
-    echo "combining physio 1D with slicemopa.1D"
-    python $SLOMOCO_DIR/combine_physio_slimopa.py  \
-        -slireg rm.slimopa.1D                      \
-        -physio rm.physio.1D                       \
-        -write  rm.slimopa.physio.1D  
-endif
-
-# step 5.2 then run regression
-run_regout_nuisance.tcsh ${do_echo}             \
-    -dset_epi   epi_03_slicemoco_xy+orig        \
-    -dset_mask  epi_base_mask+orig              \
-    -volreg     epi_01_volreg.1D                \
-    -slireg     rm.slimopa.physio.1D            \
-    -voxreg     epi_02_pvreg+orig               \
-    -prefix     epi_03_slicemoco_xy.slomoco     \
-    -polort     1                    
-    
-    if ( $status ) then
-        goto BAD_EXIT
+if ( ${DONOT_REGRESS} == "" ) then
+    # step 5.1 combine physio 1D with slireg  
+    \rm -f rm.slimopa.physio.1D  
+    if ( $physiofile == "" ) then
+        echo "copying rm.slimocp.1D to rm.slimopa.physio.1D"
+        cp slomoco_slimopa.1D slomoco_slimopa_physio.1D
+    else
+        echo "combining physio 1D with slicemopa.1D"
+        python $SLOMOCO_DIR/combine_physio_slimopa.py  \
+            -slireg slomoco_slimopa.1D                      \
+            -physio rm.physio.1D                       \
+            -write  slomoco_slimopa_physio.1D  
     endif
+
+    # step 5.2 then run regression
+    run_regout_nuisance.tcsh ${do_echo}             \
+        -dset_epi   epi_03_slicemoco_xy+orig        \
+        -dset_mask  epi_base_mask+orig              \
+        -volreg     epi_01_volreg.1D                \
+        -slireg     slomoco_slimopa_physio.1D            \
+        -voxreg     epi_02_pvreg+orig               \
+        -prefix     epi_03_slicemoco_xy.slomoco     \
+        -polort     1                    
     
+        if ( $status ) then
+            goto BAD_EXIT
+        endif
 endif   
 
 
 # -----  step 6 QA SLOMOCO
 echo "++ Run: qa_slomoco.tcsh ++" |& tee -a $odir/$histfile
 echo "   Generating estimated in-/out-of-plane motion and motion indices" 
+
+# volmoco regression: 6 volmopa + physio (if any) for QA later        
+run_regout_nuisance.tcsh ${do_echo}     \
+    -dset_epi   epi_01_volreg+orig      \
+    -dset_mask  epi_base_mask+orig      \
+    -volreg     epi_01_volreg.1D        \
+    -polort     1                       \
+    -prefix     epi_03_volmoco          \
+    -do_clean                           \
+    $physiostr                          \
+    |& tee      log_run_regout_volmoco.txt
+
 qa_slomoco.tcsh ${do_echo}                              \
     -dset_volmoco   epi_03_volmoco+orig                 \
     -dset_slomoco   epi_03_slicemoco_xy.slomoco+orig    \
     -dset_mask      epi_base_mask+orig                  \
     -tfile          tshiftfile.1D                       \
     -volreg1D       epi_01_volreg.1D                    \
-    -slireg1D       rm.slimopa.1D                       \
+    -slireg1D       slomoco_slimopa.1D                  \
     |& tee          log_qa_slomoco.txt
 
 if ( $status ) then
     goto BAD_EXIT
 endif  
       
-
 # copy the final result
-3dcalc                                              \
-    -a "${owdir}"/epi_03_slicemoco_xy.slomoco+orig  \
-    -expr 'a'                                       \
-    -prefix "${odir}/${opref}"                      \
-    -overwrite
+if ( ${DONOT_REGRESS} == "" ) then
+    # save slicewise motion corrected EPI AFTER regression
+    3dcalc                                              \
+        -a "${owdir}"/epi_03_slicemoco_xy.slomoco+orig  \
+        -expr 'a'                                       \
+        -prefix "${odir}/${opref}"                      \
+        -overwrite
+else
+    # save slicewise motion corrected EPI
+    3dcalc                                              \
+        -a "${owdir}"/epi_03_slicemoco_xy+orig          \
+        -expr 'a'                                       \
+        -prefix "${odir}/${opref}"                      \
+        -overwrite
+
+    # save volumewise regressor
+    1d_tool.py                                          \
+        -infile "${owdir}"/epi_01_volreg.1D             \
+        -demean                                         \
+        -write  "${odir}/slomoco_volreg.1D              \
+        -overwrite
+
+    # save slicewise physio+motion regerssor
+    1d_tool.py                                          \
+        -infile "${owdir}"/slomoco_slimopa_physio.1D         \
+        -demean                                         \
+        -write  "${odir}/slomoco_slireg.1D              \
+        -overwrite        
+
+    # save voxelwise partial volume regressor
+    3dcalc \
+        -a ${owdir}/epi_03_volmoco_pvreg+orig           \
+        -expr 'a'                                       \
+        -previx "${odir}/slomoco_voxreg
+        
+endif
 
 if ( $DO_CLEAN == 1 ) then
     echo "+* Removing several temp files in slomoco working dir: '$wdir'" \
@@ -823,6 +863,7 @@ if ( $DO_CLEAN == 1 ) then
         "${owdir}"/epi_01_volreg+orig.*                 \
         "${owdir}"/epi_03_volmoco+orig.*                \
         "${owdir}"/epi_03_volmoco_pvreg+orig.*          \
+        "${owdir}"/epi_03_slicemoco_xy+orig.*   \
         "${owdir}"/epi_03_slicemoco_xy.slomoco+orig.*   \
         "${owdir}"/epi_motsim*                          \
         "${owdir}"/epi_base_mean.*              
@@ -876,11 +917,26 @@ Optional:
                           , where regX@sliY is the colume vector.
                           PESTICA 1D file (RetroTS.PESTICA5.slicebase.1D) or RETROICOR 1D file 
                           (RetroTS.PMU.slicebase.1D) could be input.
- -do_clean              = this option will delete the large size of files in working directory 
+ -keep_all              = this option will keep all intermeidate files 
  -moco_meth "W" or "A"  = "W" for 3dWarpdrive, "A" for 3dAllineate. Defaulty is "W"
  -volregfirst           = 3dvolreg (Volmoco) is applied to the input, if defined. 
                           Default is 0
                     
+SLOMOCO QA output
+    iTD.txt : A time series of maximal intra-volume total brain volume displacement
+    iOTD.txt: A time series of maximal intra-volume total brain volume displacement from out-of-inplane motion
+    iTDz.txt: A time series of maximal intra-volume total brain volume displacement from z component.
+
+    We suggest average iTD > 0.3 and/or ioTD > 0.2 for the outlier from 3T studies (MB8)
+    This outlier threshold could be dependent on MR parameters and magnetic field.
+    qa_volslimoco_metrics_py.jpg shows 3 plots
+    
+    Top: A time series of spatially averaged standard deviation (SDD) in a brain mask 
+            after VOLMOCO with 6 volume mopa + physsi regression (red)
+            after SLOMOCO with 6 volume mopa + 6 slice mopa + physio + 1 voxel PV regression (blue)
+    Middle: iTD plot (blue) and the suggested outlier (0.3, red)
+    Bottom: ioTD plot (blue) and the suggested outlier (0.2, red)
+                  
 Slicewise motion correction could be done in two ways.
    case 1) 3d volume motion (Volmoco) correction first then Slicewise
            motion correction (Slimoco) on Volmoco reference images( 0

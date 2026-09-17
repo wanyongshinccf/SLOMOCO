@@ -39,6 +39,9 @@ d2r  = 0.01745329
 iTD  = np.zeros((int(tdim),1))
 iTDz = np.zeros((int(tdim),1))
 ioTD = np.zeros((int(tdim),1))
+iTDarray = np.zeros((int(zmbdim),1))
+iTDzarray = np.zeros((int(zmbdim),1))
+ioTDarray = np.zeros((int(zmbdim),1))
 npix = 6
 
 # calculate intra-volume total volume displacement
@@ -73,6 +76,10 @@ for t in range (0, int(tdim)):
         zrotmat0 = np.array([[cal.cos(rz0), -1*cal.sin(rz0), 0], [cal.sin(rz0), cal.cos(rz0), 0], [0, 0, 1]])
         xyzrotmat0 = np.dot(zrotmat0,np.dot(yrotmat, xrotmat))
 
+        itd=0
+        itdz=0
+        iotd=0
+
         for z in (lowz, highz): 
             for x in (lowx, highx):
                 for y in (lowy, highy):
@@ -85,16 +92,15 @@ for t in range (0, int(tdim)):
                     disp  = np.dot(xyzrotmat0, np.array([x,y,z])) + np.array([dx0,dy0,dz]) - np.array([x,y,z])
                     dist  = cal.sqrt(disp[0]*disp[0] + disp[1]*disp[1] + disp[2]*disp[2])
                     iotd   = iotd  + dist
-
-    itd  = itd / (npix*zmbdim)
-    itdz = itdz / (npix*zmbdim) 
-    iotd = iotd / (npix*zmbdim) 
-    iTD[t,0] = itd
-    iTDz[t,0] = itdz
-    ioTD[t,0] = iotd
-
+        iTDarray[iz,0] = itd / npix
+        iTDzarray[iz,0] = itdz / npix
+        ioTDarray[iz,0] = iotd / npix
+ 
+    iTD[t,0]=max(iTDarray)
+    iTDz[t,0]=max(iTDzarray)
+    ioTD[t,0]=max(ioTDarray)
 
 # write the result
-np.savetxt('iTD_py.txt',iTD)	
-np.savetxt('iTDz_py.txt',iTDz)
-np.savetxt('ioTD_py.txt',ioTD)
+np.savetxt('iTD.txt',iTD)	
+np.savetxt('iTDz.txt',iTDz)
+np.savetxt('ioTD.txt',ioTD)

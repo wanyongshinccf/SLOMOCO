@@ -488,6 +488,27 @@ foreach t ( `seq 0 1 ${tcount}` )
                 >& /dev/null
         end  # end mb loop
 
+        # new (v1.1) delete the slice if it includes too zero-ish voxels in case of MB accelation
+        if ( ${MBcount} > 0 ) then
+            foreach mb ( `seq 0 1 ${MBcount}` )   # really starts at 0
+                set nvox_nz = `3dBrickStat -non-zero -count \
+                                __temp_slc_weight_${mb}+orig.HEAD` 
+                if ( `echo "${nvox_nz} < ${nvox_min}" | bc` ) then
+                    if ( "$t" == "0" ) then
+                        echo "+* WARN: too few nonzero voxels      : ${nvox_nz} at ${mb} slice(s)"
+                        echo "   Wanted to have at least this many : ${nvox_min}"
+                        echo "   The slice is excluded for inplane motion estimation "
+                        echo "   You can modify nvox_min if necessary"
+                        echo "   (def area: ${nspace_min} mm**2)"
+                    endif
+                
+                    rm -f __temp_slc_${mb}+orig.* \
+                          __temp_slc_base_${mb}+orig.* \
+                          __temp_slc_weight_${mb}+orig.* 
+                endif
+            end
+        endif
+
         # [PT] not *sure* this if condition is needed?
         # [WS] 3dZcat does not allow runnng single input,
         # for example, 3dZcat -prefix test test1 -> error
@@ -533,10 +554,6 @@ foreach t ( `seq 0 1 ${tcount}` )
         \rm -f  __temp_slc_?+orig.*         \
                 __temp_slc_base_?+orig.*    \
                 __temp_slc_weight_?+orig.* 
-
-        # -----  get number of nonzero voxels (test below)
-        set nvox_nz = `3dBrickStat -non-zero -count \
-                            __temp_slc_weight+orig.HEAD`
         
         # ----- disp some info in first loop
        
@@ -545,8 +562,9 @@ foreach t ( `seq 0 1 ${tcount}` )
         endif
 
         if ( "$t" == "0" ) then
-
             echo "++ Num slices to simultaneously analyze: ${zsimults}"        
+            set nvox_nz = `3dBrickStat -non-zero -count \
+                                __temp_slc_weight+orig.HEAD` 
             if ( `echo "${nvox_nz} < ${nvox_min}" | bc` ) then
                 echo "+* WARN: too few nonzero voxels      : ${nvox_nz} at ${zsimults} slice(s)"
                 echo "   Wanted to have at least this many : ${nvox_min}"
@@ -568,7 +586,7 @@ foreach t ( `seq 0 1 ${tcount}` )
                 if ( ${AFNI_IS_OLD} ) then
                     set my_warp_prog = ${AFNI_SLOMOCO_DIR}/3dWarpDrive
                 else
-                    set my_warp_prog = 3dWarpDrive
+                    set my_warp_prog = "3dWarpDrive -setup_mask erode_2d_min_dim"
                 endif
 
                 # [PT] what cost should be used here? specify explicitly

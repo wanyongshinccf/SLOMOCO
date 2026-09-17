@@ -4,7 +4,8 @@
 # + Conversion iTD to TD (old SLOMOCO motion index)
 set version   = "1.0";  set rev_dat   = "April 27, 2026"
 # + Absolute path is available
-#
+# Note that this script is NOT necessary for most of your research
+# This is internal testing purpose.
 # ----------------------------------------------------------------
 
 set this_prog_full = "iTD2TD.tcsh"

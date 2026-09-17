@@ -268,16 +268,16 @@ echo "   Calculating FD "
 python $SLOMOCO_DIR/calc_FD.py \
     -vol epi_01_volreg.1D 
 
-# Test purpse. It does not work well. commented out
-echo "++ Run: calc_iFD.py ++" 
-echo "   Calculating intra-volume FD "
-python $SLOMOCO_DIR/calc_iFD.py \
-    -sli  slimot_py_fit.txt    \
-    -tdim ${tdim}
+# Test purpse. It did not work well. commented out
+# echo "++ Run: calc_iFD.py ++" 
+# echo "   Calculating intra-volume FD "
+# python $SLOMOCO_DIR/calc_iFD.py \
+#     -sli  slimot_py_fit.txt    \
+#    -tdim ${tdim}
 
 echo "++ Run: calc_iTD.py ++" 
 echo "   Calculating intra-volume TD "
-python $SLOMOCO_DIR/calc_iTD_max_mean.py \
+python $SLOMOCO_DIR/calc_iTD.py \
     -sli  slimot_py_fit.txt    \
     -tdim ${tdim}
 
@@ -288,9 +288,7 @@ python $SLOMOCO_DIR/disp_QAplot.py  \
     -ssdsli SSD.slomoco.1D          \
     -volsli volslimot_py_fit.txt    \
     -sli    slimot_py_fit.txt       \
-    -iFDJ   iFDJ_py.txt             \
-    -iFDP   iFDP_py.txt             \
-    -iTD    iTD_py.txt              \
-    -ioFDJ  ioFDP_py.txt            \
-    -ioFDP  ioFDP_py.txt            \
-    -ioTD   ioTD_py.txt
+    -FDJ   FDJ_py.txt             \
+    -FDP   FDP_py.txt             \
+    -iTD    iTD.txt                 \
+    -ioTD   ioTD.txt

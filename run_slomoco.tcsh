@@ -83,10 +83,19 @@ set regflag    = "AFNI"     # MATLAB or AFNI
 set qaflag     = "AFNI"     # MATLAB or AFNI
 
 set allow_old_afni = 0      # user *should* update code, but can use old
+set do_all          = 1     # all steps runs
+set do_pvreg        = 0     # run gen_vol_pvreg.tcsh
+set do_inplanemoco  = 0     # run adjunct_slomoco_vol_slicemoco_xy.tcsh 
+                            # or adjunct_slomoco_slicemoco_xy.tcsh
+set do_outplanemoco = 0     # run adjunct_slomoco_sligen PV regs
+set calc_slimopa    = 0     # run adjunct_slomoco_cal_slicempopa.tcsh
+set do_qa           = 0     # run qa_slomoco.tcsh
+set do_regout       = 0     # run_regout_nuisance.tcsh with SLOMOCO output
+set donot_regout    = 0     # new option; slice moco EPI & regresssros only
 
 set volregfirst = 0         # Slomoco on each aligned refvol.
 set DO_CLEAN    = 1         # default: keep working dir
-set DONOT_REGRESS = 0       # new option; slice moco EPI & regresssros only
+
 set histfile    = log_slomoco.txt
 
 set do_echo  = ""
@@ -186,8 +195,26 @@ while ( $ac <= $#argv )
     else if ( "$argv[$ac]" == "-keep_all" ) then
         set DO_CLEAN     = 0
         
-    else if ( "$argv[$ac]" == "-donot_regress" ) then
-        set DONOT_REGRESS = 1
+    else if ( "$argv[$ac]" == "-do_pvreg" ) then
+        set do_all = 0
+        set do_pvreg = 1
+    else if ( "$argv[$ac]" == "-do_inplanemoco" ) then
+        set do_all = 0
+        set do_inplanemoco = 1
+    else if ( "$argv[$ac]" == "-do_outplanemoco" ) then
+        set do_all = 0
+        set do_outplanemoco = 1
+    else if ( "$argv[$ac]" == "-calc_slimopa" ) then
+        set do_all = 0
+        set calc_slimopa = 1
+    else if ( "$argv[$ac]" == "-do_regout" ) then
+        set do_all = 0
+        set do_regout = 1
+    else if ( "$argv[$ac]" == "-donot_regout" ) then
+        set donot_regout = 1
+    else if ( "$argv[$ac]" == "-do_qa" ) then
+        set do_all = 0
+        set do_qa = 1    
         
     else
         echo ""
@@ -612,14 +639,8 @@ endif
 
 # ----- step 1 voxelwise time-series PV regressor & volmoco
 # volreg output is also generated.
-if ( -f epi_02_pvreg+orig.HEAD ) then
-    echo "++ Skip: gen_vol_pvreg.tcsh. epi_02_pvreg+orig.HEAD exists. " |& tee -a $odir/$histfile
-    echo "++ If you need to regenerate PV regressor, "                  |& tee -a $odir/$histfile
-    echo "++   delete epi_02_pvreg+orig.HEAD/BRIK and re-run it. "      |& tee -a $odir/$histfile
-
-else
+if ( ${do_all} == "1" || ${do_pvreg} == "1" ) then
     echo "++ Run: gen_vol_pvreg.tcsh"                                   |& tee -a $odir/$histfile
-    
     # ----- step 1.1 voxelwise time-series PV regressor
     # volreg output is also generated.
     gen_vol_pvreg.tcsh ${do_echo}           \
@@ -630,37 +651,17 @@ else
         -prefix_pv  epi_02_pvreg            \
         -do_clean                           \
         |& tee      log_gen_vol_pvreg.txt
-
-
-#    # step 1.3 regression: 6 volmopa + PV + physio (if any) for QA later        
-#    run_regout_nuisance.tcsh ${do_echo}     \
-#        -dset_epi   epi_01_volreg+orig      \
-#        -dset_mask  epi_base_mask+orig      \
-#        -volreg     epi_01_volreg.1D        \
-#        -polort     1                       \
-#        -voxreg     epi_02_pvreg+orig       \
-#        -prefix     epi_03_volmoco_pvreg    \
-#        -do_clean                           \
-#        $physiostr                          \
-#        |& tee      log_run_regout_volmoco.txt
-
     if ( $status ) then
         goto BAD_EXIT
     endif
+else
+    echo "++ Skip: gen_vol_pvreg.tcsh. " |& tee -a $odir/$histfile
 endif
 
 
 # ----- step 2 slicewise moco in xy plane
 # script for inplane motion correction
-
-if ( -d inplane ) then
-    if ( $volregfirst == 1 ) then
-        echo "++ Skip: adjunct_slomoco_slicemoco_xy.tcsh. inplane directory exists. "               |& tee -a $odir/$histfile
-    else
-        echo "++ Skip: adjunct_slomoco_vol_slicemoco_xy.tcsh. inplane directory exists. "           |& tee -a $odir/$histfile
-    endif
-    echo "++ If you need to redo slicewise inplane moco, delete inplane directory and re-run it. "  |& tee -a $odir/$histfile
-else
+if ( ${do_all} == "1" || ${do_inplanemoco} == "1" ) then
     if ( $volregfirst == 1 ) then
         echo "++ Run: adjunct_slomoco_slicemoco_xy.tcsh"                \
             |& tee -a $odir/$histfile
@@ -699,20 +700,17 @@ else
             goto BAD_EXIT
         endif
      endif
+else
+    if ( $volregfirst == 1 ) then
+        echo "++ Skip: adjunct_slomoco_slicemoco_xy.tcsh. "               |& tee -a $odir/$histfile
+    else
+        echo "++ Skip: adjunct_slomoco_vol_slicemoco_xy.tcsh. "           |& tee -a $odir/$histfile
+    endif
 endif
-
-if ( $status ) then
-    goto BAD_EXIT
-endif
-    
 
 # ----- step 3 slicewise out of plane moco
-
 # script for out-of-plane motion correction
-if ( -d outofplane ) then
-    echo "++ Skip: adjunct_slomoco_inside_fixed_vol.tcsh. outofplane directory exists. " |& tee -a $odir/$histfile
-    echo "++ If you need to redo slicewise out-of-plane moco, delete outofplane directory and re-run it. " |& tee -a $odir/$histfile
-else
+if ( ${do_all} == "1" || ${do_inplanemoco} == "1" ) then
     echo "++ Run: adjunct_slomoco_inside_fixed_vol.tcsh" |& tee -a $odir/$histfile
 
     adjunct_slomoco_inside_fixed_vol.tcsh  ${do_echo}                       \
@@ -725,17 +723,15 @@ else
     if ( $status ) then
         goto BAD_EXIT
     endif
+else
+    echo "++ Skip: adjunct_slomoco_inside_fixed_vol.tcsh.  " |& tee -a $odir/$histfile   
 endif
 
 
 # ----- step 4 generate slicewise 6 rigid motion parameter regressor 
 
 # script for slice mopa nuisance regressor
-#if ( -d combined_slicemopa ) then
-#    echo "++ Skip: adjunct_slomoco_calc_slicemopa.tcsh. combined_slicemopa directory exists. " |& tee -a $odir/$histfile
-#    echo "++ If you need to redo in and out-of-plane motion parameter calculation, " |& tee -a $odir/$histfile
-#    echo "++   delete combined_slicemopa directory and re-run it. " |& tee -a $odir/$histfile
-#else
+if ( ${do_all} == "1" || ${calc_slimopa} == "1" ) then
     echo "++ Run: adjunct_slomoco_calc_slicemopa.tcsh" |& tee -a $odir/$histfile
     
     adjunct_slomoco_calc_slicemopa.tcsh ${do_echo}                          \
@@ -750,16 +746,17 @@ endif
     if ( $status ) then
         goto BAD_EXIT
     endif
-#endif
+else
+    echo "++ Skip: adjunct_slomoco_calc_slicemopa.tcsh.  " |& tee -a $odir/$histfile   
+endif
 
 
 # -----  step 5 second order regress out
 # regression: 6 volmopa + 6 slimopa + voxel PV + physio (if any)
-echo "++ Run: run_regout_nuisance.tcsh "                            |& tee -a $odir/$histfile
-echo "   Motion nuisance regressors: 6 vol-/sli-mopa & 1 vox-PV"    |& tee -a $odir/$histfile
+if ( ${do_all} == "1" || ${do_reg} == "1" || ${donot_regout} == "0" ) then
+    echo "++ Run: run_regout_nuisance.tcsh "                            |& tee -a $odir/$histfile
+    echo "   Motion nuisance regressors: 6 vol-/sli-mopa & 1 vox-PV"    |& tee -a $odir/$histfile
 
-if ( ${DONOT_REGRESS} == "" ) then
-    # step 5.1 combine physio 1D with slireg  
     \rm -f rm.slimopa.physio.1D  
     if ( $physiofile == "" ) then
         echo "copying rm.slimocp.1D to rm.slimopa.physio.1D"
@@ -782,42 +779,47 @@ if ( ${DONOT_REGRESS} == "" ) then
         -prefix     epi_03_slicemoco_xy.slomoco     \
         -polort     1                    
     
-        if ( $status ) then
-            goto BAD_EXIT
-        endif
+    if ( $status ) then
+        goto BAD_EXIT
+    endif
+else
+    echo "++ Skip: run_regout_nuisance.tcsh.  " |& tee -a $odir/$histfile     
 endif   
 
 
 # -----  step 6 QA SLOMOCO
-echo "++ Run: qa_slomoco.tcsh ++" |& tee -a $odir/$histfile
-echo "   Generating estimated in-/out-of-plane motion and motion indices" 
+if ( ${do_all} == "1" || ${do_qa} == "1" ) then
+    echo "++ Run: qa_slomoco.tcsh ++" |& tee -a $odir/$histfile
+    echo "   Generating estimated in-/out-of-plane motion and motion indices" 
 
-# volmoco regression: 6 volmopa + physio (if any) for QA later        
-run_regout_nuisance.tcsh ${do_echo}     \
-    -dset_epi   epi_01_volreg+orig      \
-    -dset_mask  epi_base_mask+orig      \
-    -volreg     epi_01_volreg.1D        \
-    -polort     1                       \
-    -prefix     epi_03_volmoco          \
-    -do_clean                           \
-    $physiostr                          \
-    |& tee      log_run_regout_volmoco.txt
+    # volmoco regression: 6 volmopa + physio (if any) for QA later        
+    run_regout_nuisance.tcsh ${do_echo}     \
+        -dset_epi   epi_01_volreg+orig      \
+        -dset_mask  epi_base_mask+orig      \
+        -volreg     epi_01_volreg.1D        \
+        -polort     1                       \
+        -prefix     epi_03_volmoco          \
+        -do_clean                           \
+        $physiostr                          \
+        |& tee      log_run_regout_volmoco.txt
 
-qa_slomoco.tcsh ${do_echo}                              \
-    -dset_volmoco   epi_03_volmoco+orig                 \
-    -dset_slomoco   epi_03_slicemoco_xy.slomoco+orig    \
-    -dset_mask      epi_base_mask+orig                  \
-    -tfile          tshiftfile.1D                       \
-    -volreg1D       epi_01_volreg.1D                    \
-    -slireg1D       slomoco_slimopa.1D                  \
-    |& tee          log_qa_slomoco.txt
-
-if ( $status ) then
-    goto BAD_EXIT
-endif  
+    qa_slomoco.tcsh ${do_echo}                              \
+        -dset_volmoco   epi_03_volmoco+orig                 \
+        -dset_slomoco   epi_03_slicemoco_xy.slomoco+orig    \
+        -dset_mask      epi_base_mask+orig                  \
+        -tfile          tshiftfile.1D                       \
+        -volreg1D       epi_01_volreg.1D                    \
+        -slireg1D       slomoco_slimopa.1D                  \
+        |& tee          log_qa_slomoco.txt
+    if ( $status ) then
+        goto BAD_EXIT
+    endif  
+else
+    echo "++ Skip: qa_slomoco.tcsh.  " |& tee -a $odir/$histfile  
+endif
       
 # copy the final result
-if ( ${DONOT_REGRESS} == "" ) then
+if ( ${donot_regout} == "0" ) then
     # save slicewise motion corrected EPI AFTER regression
     3dcalc                                              \
         -a "${owdir}"/epi_03_slicemoco_xy.slomoco+orig  \
@@ -831,28 +833,27 @@ else
         -expr 'a'                                       \
         -prefix "${odir}/${opref}"                      \
         -overwrite
-
-    # save volumewise regressor
-    1d_tool.py                                          \
-        -infile "${owdir}"/epi_01_volreg.1D             \
-        -demean                                         \
-        -write  "${odir}/slomoco_volreg.1D              \
-        -overwrite
-
-    # save slicewise physio+motion regerssor
-    1d_tool.py                                          \
-        -infile "${owdir}"/slomoco_slimopa_physio.1D         \
-        -demean                                         \
-        -write  "${odir}/slomoco_slireg.1D              \
-        -overwrite        
-
-    # save voxelwise partial volume regressor
-    3dcalc \
-        -a ${owdir}/epi_03_volmoco_pvreg+orig           \
-        -expr 'a'                                       \
-        -previx "${odir}/slomoco_voxreg
-        
 endif
+
+# save volumewise regressor
+1d_tool.py                                          \
+    -infile "${owdir}"/epi_01_volreg.1D             \
+    -demean                                         \
+    -write  "${odir}/slomoco_volreg.1D              \
+    -overwrite
+
+# save slicewise physio+motion regerssor
+1d_tool.py                                          \
+    -infile "${owdir}"/slomoco_slimopa_physio.1D    \
+    -demean                                         \
+    -write  "${odir}/slomoco_slireg.1D              \
+    -overwrite        
+
+# save voxelwise partial volume regressor
+3dcalc                                              \
+    -a ${owdir}/epi_03_volmoco_pvreg+orig           \
+    -expr 'a'                                       \
+    -prefix "${odir}/slomoco_voxreg
 
 if ( $DO_CLEAN == 1 ) then
     echo "+* Removing several temp files in slomoco working dir: '$wdir'" \
@@ -867,8 +868,7 @@ if ( $DO_CLEAN == 1 ) then
         "${owdir}"/epi_03_slicemoco_xy.slomoco+orig.*   \
         "${owdir}"/epi_motsim*                          \
         "${owdir}"/epi_base_mean.*              
-        
-            
+                
 else
     echo "++ NOT removing temp files in slomoco working dir: '$wdir'" \
         |& tee -a $odir/$histfile

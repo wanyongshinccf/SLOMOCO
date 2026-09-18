@@ -139,7 +139,6 @@ set tdim = `3dnvals ${epi}`
 \rm -f ___temp_static.nii ___temp_mask.nii 
 
 # Make 1D file of $tdim zeros for indexing (A.N)
-echo $tdim
 seq 1 ${tdim} | xargs -I {} echo 0 > __idx.1D
 3dTcat -prefix ___temp_static.nii  epi_base_mean+orig'[1dcat __idx.1D]'
 3dTcat -prefix ___temp_mask.nii    ${epi_mask}'[1dcat __idx.1D]'

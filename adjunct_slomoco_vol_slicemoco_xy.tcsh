@@ -488,26 +488,26 @@ foreach t ( `seq 0 1 ${tcount}` )
                 >& /dev/null
         end  # end mb loop
 
-        # new (v1.1) delete the slice if it includes too zero-ish voxels in case of MB accelation
-        if ( ${MBcount} > 0 ) then
-            foreach mb ( `seq 0 1 ${MBcount}` )   # really starts at 0
-                set nvox_nz = `3dBrickStat -non-zero -count \
-                                __temp_slc_weight_${mb}+orig.HEAD` 
-                if ( `echo "${nvox_nz} < ${nvox_min}" | bc` ) then
-                    if ( "$t" == "0" ) then
-                        echo "+* WARN: too few nonzero voxels      : ${nvox_nz} at ${mb} slice(s)"
-                        echo "   Wanted to have at least this many : ${nvox_min}"
-                        echo "   The slice is excluded for inplane motion estimation "
-                        echo "   You can modify nvox_min if necessary"
-                        echo "   (def area: ${nspace_min} mm**2)"
-                    endif
-                
-                    rm -f __temp_slc_${mb}+orig.* \
-                          __temp_slc_base_${mb}+orig.* \
-                          __temp_slc_weight_${mb}+orig.* 
-                endif
-            end
-        endif
+#        # new (v1.1) delete the slice if it includes too zero-ish voxels in case of MB accelation
+#        if ( ${MBcount} > 0 ) then
+#            foreach mb ( `seq 0 1 ${MBcount}` )   # really starts at 0
+#                set nvox_nz = `3dBrickStat -non-zero -count \
+#                                __temp_slc_weight_${mb}+orig.HEAD` 
+#                if ( `echo "${nvox_nz} < ${nvox_min}" | bc` ) then
+#                    if ( "$t" == "0" ) then
+#                        echo "+* WARN: too few nonzero voxels      : ${nvox_nz} at ${mb} slice(s)"
+#                        echo "   Wanted to have at least this many : ${nvox_min}"
+#                        echo "   The slice is excluded for inplane motion estimation "
+#                        echo "   You can modify nvox_min if necessary"
+#                        echo "   (def area: ${nspace_min} mm**2)"
+#                    endif
+#                
+#                    rm -f __temp_slc_${mb}+orig.* \
+#                          __temp_slc_base_${mb}+orig.* \
+#                          __temp_slc_weight_${mb}+orig.* 
+#                endif
+#            end
+#        endif
 
         # [PT] not *sure* this if condition is needed?
         # [WS] 3dZcat does not allow runnng single input,

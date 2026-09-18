@@ -328,7 +328,6 @@ endif
 
 echo ""
 echo "++ DONE.  Finished generating slice motion 1D file:"
-echo "     ${owdir}/${opref}*"
 echo ""
 
 

@@ -753,7 +753,7 @@ endif
 
 # -----  step 5 second order regress out
 # regression: 6 volmopa + 6 slimopa + voxel PV + physio (if any)
-if ( ${do_all} == "1" || ${do_reg} == "1" || ${donot_regout} == "0" ) then
+if ( (${do_all} == "1" || ${do_regout} == "1") && ${donot_regout} == "0" ) then
     echo "++ Run: run_regout_nuisance.tcsh "                            |& tee -a $odir/$histfile
     echo "   Motion nuisance regressors: 6 vol-/sli-mopa & 1 vox-PV"    |& tee -a $odir/$histfile
 
@@ -819,6 +819,7 @@ else
 endif
       
 # copy the final result
+echo "++ Save SLOMOCO outputs.  " |& tee -a $odir/$histfile  
 if ( ${donot_regout} == "0" ) then
     # save slicewise motion corrected EPI AFTER regression
     3dcalc                                              \
@@ -836,24 +837,28 @@ else
 endif
 
 # save volumewise regressor
+echo "++ Saving SLOMOCO volume nuisance regressor.  " |& tee -a $odir/$histfile 
 1d_tool.py                                          \
     -infile "${owdir}"/epi_01_volreg.1D             \
     -demean                                         \
-    -write  "${odir}/slomoco_volreg.1D              \
+    -write  "${odir}"/slomoco_volreg.1D             \
     -overwrite
 
 # save slicewise physio+motion regerssor
+echo "++ Saving slice nuisance regressor.  " |& tee -a $odir/$histfile 
 1d_tool.py                                          \
     -infile "${owdir}"/slomoco_slimopa_physio.1D    \
     -demean                                         \
-    -write  "${odir}/slomoco_slireg.1D              \
+    -write  "${odir}"/slomoco_slireg.1D             \
     -overwrite        
 
 # save voxelwise partial volume regressor
+echo "++ Saving SLOMOCO voxel PV regressor.  " |& tee -a $odir/$histfile 
 3dcalc                                              \
-    -a ${owdir}/epi_03_volmoco_pvreg+orig           \
+    -a ${owdir}/epi_02_pvreg+orig                   \
     -expr 'a'                                       \
-    -prefix "${odir}/slomoco_voxreg
+    -prefix "${odir}"/slomoco_voxreg                \
+    -overwrite
 
 if ( $DO_CLEAN == 1 ) then
     echo "+* Removing several temp files in slomoco working dir: '$wdir'" \

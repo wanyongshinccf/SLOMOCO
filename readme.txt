@@ -31,9 +31,7 @@ e.g. run_pestica.tcsh \
          -physio PESTICA/RetroTS.PESTICA.slibase.1D \
  	 -workdir SLOMOCO5 -do_clean
 
-In addition, run_volmoco.tcsh provides voxelwise partial volume (PV) motion nuisance 
-regress-out pipeline (After 3dvolreg, 6 rigid volume motion + PV regress-out)
-The detail is found in Citation 1)
+The detailed instruction is found in run_slomoco.tcsh
 
 ## SIMPACE data ##
 SLOMOCO was validated using the simulated prospective acquisition correction (SIMPACE) 

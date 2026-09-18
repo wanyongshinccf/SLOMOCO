@@ -586,7 +586,8 @@ foreach t ( `seq 0 1 ${tcount}` )
                 if ( ${AFNI_IS_OLD} ) then
                     set my_warp_prog = ${AFNI_SLOMOCO_DIR}/3dWarpDrive
                 else
-                    set my_warp_prog = "3dWarpDrive -setup_mask erode_2d_min_dim"
+                    set my_warp_prog = "3dWarpDrive -setup_mask erode_off"
+                    # set my_warp_prog = "3dWarpDrive -setup_mask erode_2d_min_dim"
                 endif
 
                 # [PT] what cost should be used here? specify explicitly

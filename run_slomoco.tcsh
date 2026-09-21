@@ -55,7 +55,7 @@ setenv AFNI_IS_OLD               0          # pre-3dWarpDrive update?
 # this is the minimal version to use to be able to work with the
 # AFNI-distributed 3dWarpDrive; this is the first build after updating
 # the internal mask erosion to work work with 2D slices.
-set AFNI_MIN_VNUM = "AFNI_24.2.08"
+set AFNI_MIN_VNUM = "AFNI_26.2.08"
 
 # ----------------------- set defaults --------------------------
 

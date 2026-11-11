@@ -75,6 +75,8 @@ ttable_vol_FD = np.linspace(2,tdim,tdim-1)
 ttable_vol_2pt = np.linspace(1,tdim,tdim)
 iTD_outlier_2pt = np.ones(tdim) * 0.3
 ioTD_outlier_2pt = np.ones(tdim) * 0.2
+iTD_average_2pt = np.ones(tdim) * np.mean(iTD)
+ioTD_average_2pt = np.ones(tdim) * np.mean(ioTD)
 
 ttable_vol_fd = fd = np.linspace(2,tdim,tdim-1)
 ttable_sli = np.ones(zmbdim)
@@ -94,15 +96,17 @@ plt.ylabel('%')
 
 plt.subplot(3,1,2)
 plt.plot(ttable_vol_2pt,iTD_outlier_2pt,'r')
+plt.plot(ttable_vol_2pt,iTD_average_2pt,'b--')
 plt.plot(ttable_vol,iTD,'b')
-plt.title('iTD (a red line is the outlier)')
+plt.title('iTD ')
 plt.xlabel('vols')
 plt.ylabel('mm')
 
 plt.subplot(3,1,3)
 plt.plot(ttable_vol_2pt,ioTD_outlier_2pt,'r')
+plt.plot(ttable_vol_2pt,ioTD_average_2pt,'b--')
 plt.plot(ttable_vol,ioTD,'b')
-plt.title('ioTD (a red line is the outlier)')
+plt.title('ioTD ')
 plt.xlabel('vols')
 plt.ylabel('mm')
 
